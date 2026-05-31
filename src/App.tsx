@@ -15,7 +15,7 @@ import { PrivacyPolicy, Accessibilita, CookiePolicy } from './pages/Compliance';
 export default function App() {
   return (
     <Router>
-      <div className="flex flex-col min-h-screen bg-white font-sans selection:bg-emerald-100 selection:text-emerald-900">
+      <div className="flex flex-col min-h-screen bg-zinc-950 font-sans selection:bg-indigo-500/30 selection:text-white">
         <Header />
         <main className="flex-grow">
           <Routes>
