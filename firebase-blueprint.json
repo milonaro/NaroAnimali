@@ -1,0 +1,69 @@
+{
+  "entities": {
+    "Config": {
+      "title": "Configuration",
+      "description": "Comune configuration settings",
+      "type": "object",
+      "properties": {
+        "nomeComune": { "type": "string" },
+        "provincia": { "type": "string" },
+        "center": { "type": "object" },
+        "radiusKm": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["nomeComune", "center", "radiusKm"]
+    },
+    "Segnalazione": {
+      "title": "Segnalazione",
+      "description": "Stray animal report",
+      "type": "object",
+      "properties": {
+        "codiceTracking": { "type": "string" },
+        "specie": { "type": "string", "enum": ["CANE", "GATTO", "ALTRO"] },
+        "taglia": { "type": "string", "enum": ["PICCOLA", "MEDIA", "GRANDE"] },
+        "colore": { "type": "string" },
+        "condizioni": { "type": "string", "enum": ["NORMALE", "FERITO", "AGGRESSIVO", "CUCCIOLO", "BRANCO"] },
+        "descrizione": { "type": "string" },
+        "fotoUrl": { "type": "string" },
+        "latitudine": { "type": "number" },
+        "longitudine": { "type": "number" },
+        "indirizzo": { "type": "string" },
+        "zona": { "type": "string" },
+        "stato": { "type": "string", "enum": ["NUOVA", "IN_CARICO", "INTERVENTO", "CHIUSA"] },
+        "urgenza": { "type": "string", "enum": ["BASSA", "NORMALE", "ALTA", "CRITICA"] },
+        "emailSegnalante": { "type": "string" },
+        "consensoPrivacy": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["specie", "latitudine", "longitudine", "consensoPrivacy"]
+    },
+    "Animale": {
+      "title": "Animale",
+      "description": "Animal record",
+      "type": "object",
+      "properties": {
+        "nome": { "type": "string" },
+        "specie": { "type": "string" },
+        "stato": { "type": "string" },
+        "fotoUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "/config/comune": {
+      "schema": "Config",
+      "description": "Global config for the municipality"
+    },
+    "/segnalazioni/{segnalazioneId}": {
+      "schema": "Segnalazione",
+      "description": "Reports collection"
+    },
+    "/animali/{animaleId}": {
+      "schema": "Animale",
+      "description": "Animals records"
+    }
+  }
+}

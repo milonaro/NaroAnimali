@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Config - public read, admin write
+    match /config/comune {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Segnalazioni
+    match /segnalazioni/{id} {
+      allow read: if true; // Public can see reports for map markers
+      allow create: if true; // Public can submit
+      allow update, delete: if request.auth != null;
+    }
+
+    // Animali
+    match /animali/{id} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // OTP Tokens - Only server side (Firebase Admin)
+    match /otpTokens/{id} {
+      allow read, write: if false;
+    }
+  }
+}
