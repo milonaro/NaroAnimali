@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AppMap from '@/src/components/map/Map';
-import { PawPrint, MapPin, Camera, CheckCircle2, User } from 'lucide-react';
+import { PawPrint, MapPin, Camera, CheckCircle2, User, WifiOff, CloudUpload } from 'lucide-react';
 import { Segnalazione, AnimalSpecie, SegnalazioneStato } from '@/src/types';
 import { isInTerritorio, getZona } from '@/src/lib/geofence';
 import { db, storage } from '@/src/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { motion, AnimatePresence } from 'motion/react';
+import { OfflineStore } from '@/src/lib/offline';
 
 export default function Segnala() {
   const [step, setStep] = useState(1);
@@ -24,6 +25,32 @@ export default function Segnala() {
 
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [photo, setPhoto] = useState<File | null>(null);
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
+
+  useEffect(() => {
+    const handleSync = async () => {
+      if (!navigator.onLine) return;
+      const pending = OfflineStore.getAll();
+      for (const report of pending) {
+        try {
+          // Attempt to send report
+          const res = await fetch('/api/segnalazioni', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(report.data)
+          });
+          if (res.ok) {
+            OfflineStore.remove(report.id);
+          }
+        } catch (e) {
+          console.error("Sync failed for", report.id, e);
+        }
+      }
+    };
+
+    window.addEventListener('online', handleSync);
+    return () => window.removeEventListener('online', handleSync);
+  }, []);
 
   const handleLocationSelect = (lat: number, lng: number) => {
     if (!isInTerritorio(lat, lng)) {
@@ -47,6 +74,20 @@ export default function Segnala() {
     setError(null);
 
     try {
+      if (!navigator.onLine) {
+        // Save to cache instead
+        OfflineStore.save({
+          ...formData,
+          lat: location.lat,
+          lng: location.lng,
+          fotoUrl: "", // We can't easily upload photo while offline
+          indirizzo: "Località salvata (Offline)",
+        } as any);
+        setIsOfflineMode(true);
+        setSuccess("OFFLINE_CACHED");
+        return;
+      }
+
       let fotoUrl = "";
       if (photo) {
         const storageRef = ref(storage, `segnalazioni/${Date.now()}_${photo.name}`);
@@ -78,19 +119,73 @@ export default function Segnala() {
   };
 
   if (success) {
+    const isCached = success === "OFFLINE_CACHED";
     return (
       <div className="max-w-xl mx-auto py-24 px-4 text-center">
         <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-          <CheckCircle2 className="h-20 w-20 text-emerald-600 mx-auto mb-6" />
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Segnalazione Inviata!</h2>
-          <p className="text-gray-500 mb-8">
-            Grazie per aver contributo alla tutela degli animali a Naro. 
-            Conserva il tuo codice di tracking per seguire l'intervento:
+          {isCached ? (
+            <WifiOff className="h-20 w-20 text-amber-500 mx-auto mb-6" />
+          ) : (
+            <div className="flex justify-center mb-8">
+              <div className="relative w-24 h-24 flex items-center justify-center">
+                <motion.div
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: "spring", damping: 12, stiffness: 100 }}
+                  className="absolute inset-0 bg-emerald-500/10 rounded-full"
+                />
+                <svg className="w-20 h-20 text-emerald-500" viewBox="0 0 52 52">
+                  <motion.circle
+                    cx="26"
+                    cy="26"
+                    r="25"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    initial={{ pathLength: 0 }}
+                    animate={{ pathLength: 1 }}
+                    transition={{ duration: 0.5, ease: "easeInOut" }}
+                  />
+                  <motion.path
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M14.1 27.2l7.1 7.2 16.7-16.8"
+                    initial={{ pathLength: 0 }}
+                    animate={{ pathLength: 1 }}
+                    transition={{ duration: 0.5, delay: 0.5, ease: "easeOut" }}
+                  />
+                </svg>
+              </div>
+            </div>
+          )}
+          
+          <h2 className="text-3xl font-black text-white uppercase tracking-tighter mb-4">
+            {isCached ? 'Salvato in Locale' : 'Segnalazione Inviata!'}
+          </h2>
+          
+          <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px] mb-8 leading-relaxed max-w-sm mx-auto">
+            {isCached 
+              ? 'Connessione assente. La segnalazione è stata salvata sul dispositivo e verrà inviata automaticamente appena tornerai online.' 
+              : 'Grazie per aver contribuito alla tutela degli animali a Naro. Conserva il tuo codice di tracking:'}
           </p>
-          <div className="bg-emerald-50 border-2 border-emerald-200 p-6 rounded-2xl text-2xl font-mono font-bold text-emerald-800 tracking-wider">
-            {success}
-          </div>
-          <button onClick={() => window.location.href = '/'} className="mt-12 text-emerald-600 font-semibold hover:underline">
+
+          {!isCached && (
+            <div className="bg-zinc-900 border-2 border-zinc-800 p-6 rounded-2xl text-2xl font-black text-white tracking-widest uppercase">
+              {success}
+            </div>
+          )}
+
+          {isCached && (
+            <div className="bg-amber-600/10 border border-amber-600/30 p-6 rounded-2xl flex items-center justify-center gap-3">
+              <CloudUpload className="h-5 w-5 text-amber-500 animate-bounce" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-amber-500">In attesa di sincronizzazione</span>
+            </div>
+          )}
+
+          <button onClick={() => window.location.href = '/'} className="mt-12 text-zinc-500 font-black uppercase tracking-[0.2em] text-[10px] hover:text-white transition-colors">
             Torna alla Home
           </button>
         </motion.div>

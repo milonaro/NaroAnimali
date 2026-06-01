@@ -2,6 +2,8 @@ import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaf
 import L from 'leaflet';
 import { NARO } from '@/src/lib/geofence';
 import { useEffect, useState } from 'react';
+import { WifiOff, AlertCircle } from 'lucide-react';
+import { OfflineStore } from '@/src/lib/offline';
 
 // Fix for default marker icons in Leaflet with React
 // @ts-ignore
@@ -35,25 +37,63 @@ function LocationMarker({ onSelect }: { onSelect: (lat: number, lng: number) => 
 }
 
 export default function AppMap({ onLocationSelect, markers = [], interactive = false }: MapProps) {
-  return (
-    <MapContainer
-      center={[NARO.center.lat, NARO.center.lng]}
-      zoom={14}
-      className="h-full w-full rounded-xl overflow-hidden shadow-inner border border-gray-100"
-      scrollWheelZoom={false}
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      
-      {interactive && onLocationSelect && <LocationMarker onSelect={onLocationSelect} />}
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [pendingCount, setPendingCount] = useState(0);
 
-      {markers.map((m, i) => (
-        <Marker key={i} position={[m.lat, m.lng]}>
-          <Popup>{m.title}</Popup>
-        </Marker>
-      ))}
-    </MapContainer>
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // Initial check for pending reports
+    setPendingCount(OfflineStore.getAll().length);
+
+    const interval = setInterval(() => {
+      setPendingCount(OfflineStore.getAll().length);
+    }, 5000);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      clearInterval(interval);
+    };
+  }, []);
+
+  return (
+    <div className="relative h-full w-full group">
+      {!isOnline && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[2000] bg-red-600 text-white px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-2xl transition-all animate-in fade-in slide-in-from-top-2">
+          <WifiOff className="h-3 w-3" /> Connessione Assente • Modalità Offline Attiva
+        </div>
+      )}
+      
+      {pendingCount > 0 && isOnline && (
+        <div className="absolute top-4 right-4 z-[2000] bg-indigo-600 text-white px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-2xl transition-all animate-in fade-in zoom-in">
+          <AlertCircle className="h-3 w-3" /> {pendingCount} Segnalazioni in attesa di invio
+        </div>
+      )}
+
+      <MapContainer
+        center={[NARO.center.lat, NARO.center.lng]}
+        zoom={14}
+        className="h-full w-full rounded-xl overflow-hidden shadow-inner border border-gray-100"
+        scrollWheelZoom={false}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        
+        {interactive && onLocationSelect && <LocationMarker onSelect={onLocationSelect} />}
+
+        {markers.map((m, i) => (
+          <Marker key={i} position={[m.lat, m.lng]}>
+            <Popup>{m.title}</Popup>
+          </Marker>
+        ))}
+      </MapContainer>
+    </div>
   );
 }
