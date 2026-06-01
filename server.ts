@@ -48,16 +48,21 @@ async function startServer() {
   app.post("/api/chat", async (req, res) => {
     try {
       const { messages } = req.body;
-      const model = genAI.models.generateContent({
+      const response = await genAI.models.generateContent({
         model: "gemini-3.5-flash",
         contents: messages,
         config: {
-          systemInstruction: "Sei un assistente specializzato nella normativa italiana di tutela animale per il Comune di Naro (AG). Rispondi in italiano, brevemente e in modo accessibile. Per emergenze indica: 112 o Polizia Municipale di Naro."
+          systemInstruction: "Sei un assistente specializzato nella normativa italiana di tutela animale per il Comune di Naro (AG) e la regione Sicilia. " +
+            "Il sistema si chiama NaroAnimali. " +
+            "Rispondi in italiano in modo professionale ma accessibile. " +
+            "Conosci le leggi regionali siciliane sul randagismo (L.R. 15/2000) e il benessere dei cani. " +
+            "Se l'utente chiede come segnalare un animale, indirizzalo alla sezione 'Segnala' del portale. " +
+            "In caso di emergenza (animali feriti gravemente o pericolo pubblico), invita sempre a contattare il 112 o il centralino della Polizia Municipale di Naro al numero 0922 956001."
         }
       });
-      const response = await model;
       res.json({ text: response.text });
     } catch (error: any) {
+      console.error("Gemini Error:", error);
       res.status(500).json({ error: error.message });
     }
   });

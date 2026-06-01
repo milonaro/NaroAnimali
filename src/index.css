@@ -11,7 +11,59 @@
 
 @layer base {
   body {
-    @apply bg-gray-50 text-slate-900 antialiased;
+    @apply bg-gray-50 text-slate-900 antialiased transition-colors duration-200;
   }
+}
+
+/* Accessibility Utilities */
+.high-contrast {
+  --background: 255 255 255;
+  --foreground: 0 0 0;
+  --primary: 0 0 100%;
+}
+
+.high-contrast body {
+  background-color: #fff !important;
+  color: #000 !important;
+}
+
+.high-contrast .bg-white, 
+.high-contrast .bg-gray-50,
+.high-contrast .bg-emerald-50 {
+  background-color: #fff !important;
+  border-color: #000 !important;
+}
+
+.high-contrast button,
+.high-contrast a {
+  outline: 2px solid #000 !important;
+}
+
+.large-text {
+  font-size: 1.25rem !important;
+}
+
+.large-text p, 
+.large-text span, 
+.large-text button, 
+.large-text input {
+  font-size: 1.1em !important;
+}
+
+.dyslexic-font {
+  font-family: 'OpenDyslexic', sans-serif !important;
+}
+
+.reduced-motion * {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans&display=swap');
+@font-face {
+  font-family: 'OpenDyslexic';
+  src: url('https://fonts.cdnfonts.com/s/14845/OpenDyslexic-Regular.woff') format('woff');
 }
 

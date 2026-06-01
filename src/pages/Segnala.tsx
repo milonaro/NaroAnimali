@@ -26,7 +26,7 @@ export default function Segnala() {
     telefonoSegnalante: "",
     emailSegnalante: "",
     consensoPrivacy: false,
-    donazioneNotifiche: false,
+    consensoNotifiche: false,
     dichiarazioneVeridicita: false,
   });
 
@@ -76,6 +76,52 @@ export default function Segnala() {
     }
   };
 
+  const compressImage = async (file: File): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 1280;
+          const MAX_HEIGHT = 1280;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob) resolve(blob);
+              else reject(new Error('Canvas conversion failed'));
+            },
+            'image/jpeg',
+            0.7 // quality
+          );
+        };
+        img.onerror = reject;
+      };
+      reader.onerror = reject;
+    });
+  };
+
   const handleSubmit = async () => {
     if (!location || !formData.dichiarazioneVeridicita) return;
     setLoading(true);
@@ -97,8 +143,9 @@ export default function Segnala() {
 
       let fotoUrl = "";
       if (photo) {
-        const storageRef = ref(storage, `segnalazioni/${Date.now()}_${photo.name}`);
-        const snapshot = await uploadBytes(storageRef, photo);
+        const compressedBlob = await compressImage(photo);
+        const storageRef = ref(storage, `segnalazioni/${Date.now()}_${photo.name.replace(/\.[^/.]+$/, "")}.jpg`);
+        const snapshot = await uploadBytes(storageRef, compressedBlob);
         fotoUrl = await getDownloadURL(snapshot.ref);
       }
 
@@ -507,7 +554,7 @@ export default function Segnala() {
       </AnimatePresence>
       
       <p className="text-center text-gray-400 text-[10px] font-medium mt-12 uppercase tracking-[0.2em] max-w-xl mx-auto leading-relaxed">
-        Il sistema a4Zampe è una piattaforma ufficiale del Comune di Naro. Le segnalazioni mendaci sono punite ai sensi della legge italiana.
+        Il sistema NaroAnimali è una piattaforma ufficiale del Comune di Naro. Le segnalazioni mendaci sono punite ai sensi della legge italiana.
       </p>
     </div>
   );

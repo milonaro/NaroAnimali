@@ -67,7 +67,7 @@ export default function MiaArea() {
     
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(22);
-    doc.text('a4Zampe - Comune di Naro', 20, 25);
+    doc.text('NaroAnimali - Comune di Naro', 20, 25);
     
     // Receipt Info
     doc.setTextColor(30, 58, 95); // #1e3a5f

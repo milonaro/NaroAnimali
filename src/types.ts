@@ -26,8 +26,13 @@ export interface Segnalazione {
   zona: string;
   stato: SegnalazioneStato;
   urgenza: string;
-  emailSegnalante?: string;
+  nomeSegnalante: string;
+  cognomeSegnalante: string;
+  telefonoSegnalante: string;
+  emailSegnalante: string;
   consensoPrivacy: boolean;
+  consensoNotifiche: boolean;
+  dichiarazioneVeridicita: boolean;
   createdAt: any;
   updatedAt: any;
 }

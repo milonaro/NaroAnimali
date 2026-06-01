@@ -2,12 +2,69 @@ import { ChevronRight, ShieldCheck, MapPin, Search, PawPrint, HelpCircle, Briefc
 import { Link } from 'react-router-dom';
 import AppMap from '@/src/components/map/Map';
 import { motion } from 'motion/react';
+import { Joyride } from 'react-joyride';
+import { useState, useEffect } from 'react';
 
 export default function Home() {
+  const [runTour, setRunTour] = useState(false);
+
+  useEffect(() => {
+    const hasSeenTour = localStorage.getItem('has-seen-tour-naro');
+    if (!hasSeenTour) {
+      setRunTour(true);
+    }
+  }, []);
+
+  const handleTourFinish = (data: any) => {
+    if (['finished', 'skipped'].includes(data.status)) {
+      localStorage.setItem('has-seen-tour-naro', 'true');
+      setRunTour(false);
+    }
+  };
+
+  const steps: any[] = [
+    {
+      target: '#hero-step',
+      content: 'Benvenuto su NaroAnimali, la piattaforma ufficiale per la tutela degli animali del Comune di Naro.',
+    },
+    {
+      target: '#segnala-step',
+      content: 'Da qui puoi inviare una segnalazione geolocalizzata in pochi clic.',
+    },
+    {
+      target: '#how-it-works-step',
+      content: 'Scopri il processo di gestione: dalla tua segnalazione all\'intervento degli operatori.',
+    },
+    {
+      target: '#map-step',
+      content: 'Visualizza in tempo reale le attività sul territorio e lo stato delle segnalazioni.',
+    },
+    {
+      target: '#numbers-step',
+      content: 'Monitoriamo costantemente i risultati per garantire il benessere di tutti gli animali.',
+    }
+  ];
+
+  const JoyrideAny = Joyride as any;
+
   return (
     <div className="flex flex-col min-h-screen bg-white">
+      <JoyrideAny
+        steps={steps}
+        run={runTour}
+        continuous
+        showSkipButton
+        callback={handleTourFinish}
+        locale={{
+          back: 'Indietro',
+          close: 'Chiudi',
+          last: 'Fine',
+          next: 'Avanti',
+          skip: 'Salta tour'
+        }}
+      />
       {/* Hero Section */}
-      <section className="bg-[#14532d] py-20 lg:py-32 relative overflow-hidden">
+      <section id="hero-step" className="bg-[#14532d] py-20 lg:py-32 relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="flex flex-col items-start max-w-3xl">
             <motion.div 
@@ -43,7 +100,7 @@ export default function Home() {
               transition={{ delay: 0.3 }}
               className="flex flex-wrap gap-4"
             >
-              <Link to="/segnala" className="bg-[#15803d] text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-[#166534] transition-all flex items-center gap-3 shadow-lg shadow-black/20">
+              <Link id="segnala-step" to="/segnala" className="bg-[#15803d] text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-[#166534] transition-all flex items-center gap-3 shadow-lg shadow-black/20">
                 <MapPin className="h-5 w-5" /> Fai una segnalazione
               </Link>
               <Link to="/mia-area" className="bg-white/10 text-black px-8 py-4 rounded-xl font-bold text-lg hover:bg-white/20 transition-all flex items-center gap-3 border border-white/20 backdrop-blur-sm">
@@ -56,7 +113,7 @@ export default function Home() {
       </section>
 
       {/* Come Funziona Section */}
-      <section className="py-24 bg-white">
+      <section id="how-it-works-step" className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl font-bold text-[#1e3a5f] mb-16">Come funziona</h2>
           
@@ -81,7 +138,7 @@ export default function Home() {
       </section>
 
       {/* Territorio Map Section */}
-      <section className="py-12 bg-gray-50">
+      <section id="map-step" className="py-12 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center mb-8">
             <h2 className="text-2xl font-bold text-[#1e3a5f] flex items-center gap-2">
@@ -104,7 +161,7 @@ export default function Home() {
       </section>
 
       {/* Numeri Section */}
-      <section className="py-24 bg-white">
+      <section id="numbers-step" className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl font-bold text-[#1e3a5f] mb-16">Numeri del territorio</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -130,7 +187,7 @@ export default function Home() {
       {/* Motivations Section */}
       <section className="py-24 bg-white border-t border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl font-bold text-[#1e3a5f] mb-16">Perché usare a4Zampe</h2>
+          <h2 className="text-4xl font-bold text-[#1e3a5f] mb-16">Perché usare NaroAnimali</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12 text-left">
             {[
               { title: "Aggiornamenti in tempo reale", desc: "Ricevi notifiche via email quando la tua segnalazione viene presa in carico o risolta." },
