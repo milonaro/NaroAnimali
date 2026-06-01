@@ -209,7 +209,7 @@ export default function Segnala() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto py-12 px-4 min-h-screen">
+    <div className="max-w-7xl mx-auto py-12 px-4 min-h-screen">
       {/* Progress Stepper */}
       <div className="flex flex-wrap justify-center items-center gap-4 mb-16 px-4">
         {steps.map((s, i) => (
@@ -242,7 +242,7 @@ export default function Segnala() {
         >
           <div className="p-10 md:p-16 flex-1">
             {step === 1 && (
-              <div className="space-y-8 h-full flex flex-col">
+              <div className="space-y-8">
                 <div className="flex items-center gap-3">
                    <div className="p-3 bg-emerald-50 text-[#15803d] rounded-2xl"><MapPin className="h-6 w-6" /></div>
                    <div>
@@ -250,7 +250,7 @@ export default function Segnala() {
                      <p className="text-gray-500 text-sm">Clicca sulla mappa per indicare la posizione esatta della segnalazione.</p>
                    </div>
                 </div>
-                <div className="flex-1 min-h-[400px] rounded-[1.5rem] overflow-hidden border border-gray-100 relative shadow-inner">
+                <div className="h-[450px] w-full rounded-[1.5rem] overflow-hidden border border-gray-100 relative shadow-inner">
                   <AppMap interactive onLocationSelect={handleLocationSelect} />
                 </div>
                 {error && <p className="text-red-500 font-bold text-xs">{error}</p>}

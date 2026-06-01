@@ -122,7 +122,7 @@ export default function MiaArea() {
   ];
 
   return (
-    <div className="max-w-6xl mx-auto py-20 px-4 min-h-[70vh] flex flex-col justify-center">
+    <div className="max-w-7xl mx-auto py-20 px-4 min-h-[70vh] flex flex-col justify-center">
       <AnimatePresence mode="wait">
         {step === 1 && (
           <motion.div key="step1" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="max-w-md mx-auto w-full">

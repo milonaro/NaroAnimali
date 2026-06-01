@@ -1,4 +1,4 @@
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import { NARO } from '@/src/lib/geofence';
@@ -15,6 +15,17 @@ L.Icon.Default.mergeOptions({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
+
+// Helper component to fix map render issues in SPAs
+function MapFix() {
+  const map = useMap();
+  useEffect(() => {
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 250);
+  }, [map]);
+  return null;
+}
 
 interface MapMarker {
   lat: number;
@@ -164,6 +175,7 @@ export default function AppMap({ onLocationSelect, markers = [], interactive = f
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+        <MapFix />
         
         {interactive && onLocationSelect && <LocationMarker onSelect={onLocationSelect} />}
         
@@ -173,8 +185,12 @@ export default function AppMap({ onLocationSelect, markers = [], interactive = f
               <Popup>
                 <div className="flex flex-col group/popup">
                   {m.image ? (
-                    <div className="h-32 w-full overflow-hidden relative">
-                      <img src={m.image} alt={m.title} className="w-full h-full object-cover" />
+                    <div 
+                      className="h-32 w-full overflow-hidden relative outline-none focus:ring-4 focus:ring-inset focus:ring-[#15803d]/50"
+                      tabIndex={0}
+                      aria-label={`Foto della segnalazione: ${m.title}`}
+                    >
+                      <img src={m.image} alt="" className="w-full h-full object-cover" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                       <div className="absolute bottom-3 left-3 flex items-center gap-2">
                         <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest text-white ${
@@ -191,14 +207,19 @@ export default function AppMap({ onLocationSelect, markers = [], interactive = f
                   <div className="p-5 space-y-3">
                     <div className="flex justify-between items-start gap-4">
                       <div>
-                        <h4 className="text-xs font-black text-[#1e3a5f] uppercase tracking-widest mb-1">{m.title}</h4>
+                        <h4 
+                          className="text-xs font-black text-[#1e3a5f] uppercase tracking-widest mb-1 outline-none focus:text-[#15803d]"
+                          tabIndex={0}
+                        >
+                          {m.title}
+                        </h4>
                         <div className="flex items-center gap-2 text-gray-400">
                           <Calendar className="h-3 w-3" />
                           <span className="text-[9px] font-bold tracking-tight">{m.date || 'Recente'}</span>
                         </div>
                       </div>
                       <div className="p-2 bg-gray-50 rounded-lg">
-                        {m.specie === 'Gatto' ? <Cat className="h-4 w-4 text-gray-400" /> : <Dog className="h-4 w-4 text-gray-400" />}
+                        {m.specie === 'Gatto' ? <Cat className="h-4 w-4 text-gray-400" aria-hidden="true" /> : <Dog className="h-4 w-4 text-gray-400" aria-hidden="true" />}
                       </div>
                     </div>
 
@@ -211,7 +232,8 @@ export default function AppMap({ onLocationSelect, markers = [], interactive = f
                        </div>
                        <Link 
                          to="/mia-area" 
-                         className="flex items-center gap-1.5 text-[#15803d] text-[9px] font-black uppercase tracking-widest hover:gap-2 transition-all"
+                         className="flex items-center gap-1.5 text-[#15803d] text-[9px] font-black uppercase tracking-widest hover:gap-2 focus:ring-2 focus:ring-[#15803d] focus:ring-offset-2 rounded px-1 transition-all"
+                         aria-label={`Visualizza dettagli completi per ${m.title}`}
                        >
                          Dettagli <ArrowRight className="h-3 w-3" />
                        </Link>
