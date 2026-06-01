@@ -1,5 +1,6 @@
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
+import MarkerClusterGroup from 'react-leaflet-cluster';
 import { NARO } from '@/src/lib/geofence';
 import { useEffect, useState } from 'react';
 import { WifiOff, AlertCircle } from 'lucide-react';
@@ -87,12 +88,14 @@ export default function AppMap({ onLocationSelect, markers = [], interactive = f
         />
         
         {interactive && onLocationSelect && <LocationMarker onSelect={onLocationSelect} />}
-
-        {markers.map((m, i) => (
-          <Marker key={i} position={[m.lat, m.lng]}>
-            <Popup>{m.title}</Popup>
-          </Marker>
-        ))}
+        
+        <MarkerClusterGroup>
+          {markers.map((m, i) => (
+            <Marker key={i} position={[m.lat, m.lng]}>
+              <Popup>{m.title}</Popup>
+            </Marker>
+          ))}
+        </MarkerClusterGroup>
       </MapContainer>
     </div>
   );

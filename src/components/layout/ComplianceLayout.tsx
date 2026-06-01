@@ -1,3 +1,5 @@
+import React from 'react';
+
 export default function ComplianceLayout({ title, children }: { title: string, children: React.ReactNode }) {
   return (
     <div className="max-w-3xl mx-auto py-24 px-4">

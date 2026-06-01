@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import AppMap from '@/src/components/map/Map';
-import { PawPrint, MapPin, Camera, CheckCircle2, User, WifiOff, CloudUpload } from 'lucide-react';
-import { Segnalazione, AnimalSpecie, SegnalazioneStato } from '@/src/types';
-import { isInTerritorio, getZona } from '@/src/lib/geofence';
-import { db, storage } from '@/src/lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { PawPrint, MapPin, CheckCircle2, User, WifiOff, Dog, Cat, MoreHorizontal, ShieldCheck, Info, Heart, AlertTriangle, Users, Baby, Thermometer, ChevronRight, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Segnalazione, AnimalSpecie } from '@/src/types';
+import { isInTerritorio } from '@/src/lib/geofence';
+import { storage } from '@/src/lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { motion, AnimatePresence } from 'motion/react';
 import { OfflineStore } from '@/src/lib/offline';
+import { Link } from 'react-router-dom';
 
 export default function Segnala() {
   const [step, setStep] = useState(1);
@@ -18,9 +18,16 @@ export default function Segnala() {
   const [formData, setFormData] = useState<Partial<Segnalazione>>({
     specie: AnimalSpecie.CANE,
     condizioni: "NORMALE",
+    taglia: "MEDIA",
     colore: "",
     descrizione: "",
+    nomeSegnalante: "",
+    cognomeSegnalante: "",
+    telefonoSegnalante: "",
+    emailSegnalante: "",
     consensoPrivacy: false,
+    donazioneNotifiche: false,
+    dichiarazioneVeridicita: false,
   });
 
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -33,7 +40,6 @@ export default function Segnala() {
       const pending = OfflineStore.getAll();
       for (const report of pending) {
         try {
-          // Attempt to send report
           const res = await fetch('/api/segnalazioni', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -52,6 +58,14 @@ export default function Segnala() {
     return () => window.removeEventListener('online', handleSync);
   }, []);
 
+  const steps = [
+    { id: 1, label: 'Dove' },
+    { id: 2, label: 'Animale' },
+    { id: 3, label: 'I tuoi dati' },
+    { id: 4, label: 'Dichiarazione' },
+    { id: 5, label: 'Conferma' }
+  ];
+
   const handleLocationSelect = (lat: number, lng: number) => {
     if (!isInTerritorio(lat, lng)) {
       setError("La posizione selezionata è fuori dal territorio del Comune di Naro.");
@@ -62,25 +76,18 @@ export default function Segnala() {
     }
   };
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setPhoto(e.target.files[0]);
-    }
-  };
-
   const handleSubmit = async () => {
-    if (!location || !formData.consensoPrivacy) return;
+    if (!location || !formData.dichiarazioneVeridicita) return;
     setLoading(true);
     setError(null);
 
     try {
       if (!navigator.onLine) {
-        // Save to cache instead
         OfflineStore.save({
           ...formData,
           lat: location.lat,
           lng: location.lng,
-          fotoUrl: "", // We can't easily upload photo while offline
+          fotoUrl: "",
           indirizzo: "Località salvata (Offline)",
         } as any);
         setIsOfflineMode(true);
@@ -123,70 +130,31 @@ export default function Segnala() {
     return (
       <div className="max-w-xl mx-auto py-24 px-4 text-center">
         <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-          {isCached ? (
-            <WifiOff className="h-20 w-20 text-amber-500 mx-auto mb-6" />
-          ) : (
-            <div className="flex justify-center mb-8">
-              <div className="relative w-24 h-24 flex items-center justify-center">
-                <motion.div
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ type: "spring", damping: 12, stiffness: 100 }}
-                  className="absolute inset-0 bg-emerald-500/10 rounded-full"
-                />
-                <svg className="w-20 h-20 text-emerald-500" viewBox="0 0 52 52">
-                  <motion.circle
-                    cx="26"
-                    cy="26"
-                    r="25"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    initial={{ pathLength: 0 }}
-                    animate={{ pathLength: 1 }}
-                    transition={{ duration: 0.5, ease: "easeInOut" }}
-                  />
-                  <motion.path
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M14.1 27.2l7.1 7.2 16.7-16.8"
-                    initial={{ pathLength: 0 }}
-                    animate={{ pathLength: 1 }}
-                    transition={{ duration: 0.5, delay: 0.5, ease: "easeOut" }}
-                  />
-                </svg>
-              </div>
+          <div className="flex justify-center mb-8">
+            <div className={`w-24 h-24 rounded-full flex items-center justify-center ${isCached ? 'bg-amber-100' : 'bg-emerald-100'}`}>
+              {isCached ? <WifiOff className="h-10 w-10 text-amber-600" /> : <CheckCircle2 className="h-10 w-10 text-emerald-600" />}
             </div>
-          )}
+          </div>
           
-          <h2 className="text-3xl font-black text-white uppercase tracking-tighter mb-4">
-            {isCached ? 'Salvato in Locale' : 'Segnalazione Inviata!'}
+          <h2 className="text-3xl font-bold text-[#1e3a5f] mb-4">
+            {isCached ? 'Segnalazione Salvata' : 'Segnalazione Inviata!'}
           </h2>
           
-          <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px] mb-8 leading-relaxed max-w-sm mx-auto">
+          <p className="text-gray-600 mb-8 leading-relaxed max-w-sm mx-auto">
             {isCached 
-              ? 'Connessione assente. La segnalazione è stata salvata sul dispositivo e verrà inviata automaticamente appena tornerai online.' 
-              : 'Grazie per aver contribuito alla tutela degli animali a Naro. Conserva il tuo codice di tracking:'}
+              ? 'Connessione assente. La segnalazione verrà inviata automaticamente appena tornerai online.' 
+              : 'Grazie per il tuo contributo. Gli operatori prenderanno in carico la segnalazione a breve.'}
           </p>
 
           {!isCached && (
-            <div className="bg-zinc-900 border-2 border-zinc-800 p-6 rounded-2xl text-2xl font-black text-white tracking-widest uppercase">
-              {success}
+            <div className="bg-gray-50 border border-gray-100 p-8 rounded-2xl mb-8">
+               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Codice di Tracking</p>
+               <span className="text-3xl font-bold text-[#1e3a5f] tracking-widest uppercase">{success}</span>
             </div>
           )}
 
-          {isCached && (
-            <div className="bg-amber-600/10 border border-amber-600/30 p-6 rounded-2xl flex items-center justify-center gap-3">
-              <CloudUpload className="h-5 w-5 text-amber-500 animate-bounce" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-amber-500">In attesa di sincronizzazione</span>
-            </div>
-          )}
-
-          <button onClick={() => window.location.href = '/'} className="mt-12 text-zinc-500 font-black uppercase tracking-[0.2em] text-[10px] hover:text-white transition-colors">
-            Torna alla Home
+          <button onClick={() => window.location.href = '/'} className="text-[#15803d] font-bold flex items-center gap-2 mx-auto hover:underline">
+            Torna alla Home <ChevronRight className="h-4 w-4" />
           </button>
         </motion.div>
       </div>
@@ -194,156 +162,353 @@ export default function Segnala() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto py-12 px-4">
-      <div className="mb-12">
-        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-500 mb-2 block">Modulo Istituzionale</span>
-        <h1 className="text-4xl font-black text-white uppercase tracking-tighter">Nuova Segnalazione</h1>
-        <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mt-2">Contribuisci alla sicurezza di Naro.</p>
-      </div>
-
-      {/* Progress bar */}
-      <div className="flex gap-4 mb-12">
-        {[1, 2, 3].map((s) => (
-          <div key={s} className={`h-1 flex-1 rounded-full transition-colors ${step >= s ? 'bg-indigo-600' : 'bg-zinc-800'}`} />
+    <div className="max-w-6xl mx-auto py-12 px-4 min-h-screen">
+      {/* Progress Stepper */}
+      <div className="flex flex-wrap justify-center items-center gap-4 mb-16 px-4">
+        {steps.map((s, i) => (
+          <React.Fragment key={s.id}>
+            <div className="flex items-center gap-3">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold transition-all ${
+                step === s.id ? 'bg-[#15803d] text-white shadow-lg shadow-[#15803d]/20 scale-110' : 
+                step > s.id ? 'bg-[#15803d] text-white' : 'bg-gray-200 text-gray-500'
+              }`}>
+                {step > s.id ? <CheckCircle2 className="h-5 w-5" /> : s.id}
+              </div>
+              <span className={`text-[11px] font-bold uppercase tracking-widest ${step === s.id ? 'text-[#15803d]' : 'text-gray-400'}`}>
+                {s.label}
+              </span>
+            </div>
+            {i < steps.length - 1 && (
+              <div className={`h-1 w-12 md:w-20 rounded-full ${step > s.id ? 'bg-[#15803d]' : 'bg-gray-200'}`} />
+            )}
+          </React.Fragment>
         ))}
       </div>
 
       <AnimatePresence mode="wait">
-        {step === 1 && (
-          <motion.div key="step1" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="space-y-6">
-            <div className="bg-zinc-900 border border-zinc-800 p-8 rounded-[2rem] shadow-2xl">
-              <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 mb-6 flex items-center gap-2">
-                <MapPin className="h-3 w-3" /> Localizzazione
-              </h2>
-              <div className="h-[400px] mb-6 rounded-2xl overflow-hidden border border-zinc-800 grayscale">
-                <AppMap interactive onLocationSelect={handleLocationSelect} />
-              </div>
-              {error && <p className="text-red-500 text-[10px] font-black uppercase tracking-widest">{error}</p>}
-            </div>
-            <button
-              disabled={!location}
-              onClick={() => setStep(2)}
-              className="w-full bg-white text-zinc-950 py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl hover:bg-zinc-200 transition-all disabled:opacity-20"
-            >
-              Prosegui
-            </button>
-          </motion.div>
-        )}
-
-        {step === 2 && (
-          <motion.div key="step2" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="space-y-6">
-            <div className="bg-zinc-900 border border-zinc-800 p-8 rounded-[2rem] shadow-2xl space-y-8">
-              <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
-                <PawPrint className="h-3 w-3" /> Dettagli Soggetto
-              </h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600">Specie</label>
-                  <select
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-xs font-bold uppercase tracking-widest text-white focus:border-indigo-500 outline-none transition-colors"
-                    value={formData.specie}
-                    onChange={(e) => setFormData({ ...formData, specie: e.target.value as AnimalSpecie })}
-                  >
-                    <option value={AnimalSpecie.CANE}>Cane</option>
-                    <option value={AnimalSpecie.GATTO}>Gatto</option>
-                    <option value={AnimalSpecie.ALTRO}>Altro</option>
-                  </select>
+        <motion.div 
+          key={step} 
+          initial={{ opacity: 0, x: 20 }} 
+          animate={{ opacity: 1, x: 0 }} 
+          exit={{ opacity: 0, x: -20 }}
+          className="bg-white border border-gray-100 rounded-[2.5rem] shadow-2xl shadow-black/5 overflow-hidden min-h-[600px] flex flex-col"
+        >
+          <div className="p-10 md:p-16 flex-1">
+            {step === 1 && (
+              <div className="space-y-8 h-full flex flex-col">
+                <div className="flex items-center gap-3">
+                   <div className="p-3 bg-emerald-50 text-[#15803d] rounded-2xl"><MapPin className="h-6 w-6" /></div>
+                   <div>
+                     <h2 className="text-2xl font-bold text-[#1e3a5f]">Dove si trova l'animale?</h2>
+                     <p className="text-gray-500 text-sm">Clicca sulla mappa per indicare la posizione esatta della segnalazione.</p>
+                   </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600">Condizioni</label>
-                  <select
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-xs font-bold uppercase tracking-widest text-white focus:border-indigo-500 outline-none transition-colors"
-                    value={formData.condizioni}
-                    onChange={(e) => setFormData({ ...formData, condizioni: e.target.value })}
-                  >
-                    <option value="NORMALE">Normale</option>
-                    <option value="FERITO">Ferito</option>
-                    <option value="AGGRESSIVO">Aggressivo</option>
-                    <option value="CUCCIOLO">Cucciolo</option>
-                    <option value="BRANCO">Branco</option>
-                  </select>
+                <div className="flex-1 min-h-[400px] rounded-[1.5rem] overflow-hidden border border-gray-100 relative shadow-inner">
+                  <AppMap interactive onLocationSelect={handleLocationSelect} />
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600">Descrizione</label>
-                <textarea
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-xs font-bold uppercase tracking-widest text-white focus:border-indigo-500 outline-none transition-colors"
-                  rows={4}
-                  placeholder="Note aggiuntive..."
-                  value={formData.descrizione}
-                  onChange={(e) => setFormData({ ...formData, descrizione: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600">Documentazione Fotografica</label>
-                <div className="relative group">
-                  <div className="w-full bg-zinc-950 border-2 border-zinc-800 border-dashed rounded-2xl p-10 flex flex-col items-center justify-center group-hover:border-indigo-500 transition-colors cursor-pointer">
-                    <Camera className="h-8 w-8 text-zinc-700 mb-4 group-hover:text-indigo-500" />
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600 group-hover:text-zinc-400">
-                      {photo ? photo.name : 'Seleziona File'}
-                    </span>
+                {error && <p className="text-red-500 font-bold text-xs">{error}</p>}
+                {location && (
+                  <div className="flex items-center gap-2 text-[#15803d] font-bold text-sm bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                    <CheckCircle2 className="h-4 w-4" /> Posizione acquisita correttamente
                   </div>
-                  <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handlePhotoChange} accept="image/*" />
+                )}
+              </div>
+            )}
+
+            {step === 2 && (
+              <div className="space-y-12">
+                <div className="flex items-center gap-3">
+                   <div className="p-3 bg-emerald-50 text-[#15803d] rounded-2xl"><PawPrint className="h-6 w-6" /></div>
+                   <div>
+                     <h2 className="text-2xl font-bold text-[#1e3a5f]">Che animale hai visto?</h2>
+                     <p className="text-gray-500 text-sm">Identifica la specie e le condizioni del soggetto.</p>
+                   </div>
+                </div>
+
+                <div className="space-y-8">
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 block mb-4">Specie</label>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {[
+                        { id: AnimalSpecie.CANE, label: 'Cane', icon: <Dog className="h-6 w-6" /> },
+                        { id: AnimalSpecie.GATTO, label: 'Gatto', icon: <Cat className="h-6 w-6" /> },
+                        { id: AnimalSpecie.ALTRO, label: 'Altro', icon: <MoreHorizontal className="h-6 w-6" /> }
+                      ].map((item) => (
+                        <button
+                          key={item.id}
+                          onClick={() => setFormData({ ...formData, specie: item.id })}
+                          className={`p-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 ${
+                            formData.specie === item.id ? 'border-[#15803d] bg-emerald-50 text-[#15803d]' : 'border-gray-100 bg-white text-gray-500 hover:border-gray-200'
+                          }`}
+                        >
+                          {item.icon}
+                          <span className="font-bold text-sm">{item.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 block mb-4 flex items-center gap-2">Taglia <Info className="h-3 w-3" /></label>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {['PICCOLA', 'MEDIA', 'GRANDE'].map((t) => (
+                        <button
+                          key={t}
+                          onClick={() => setFormData({ ...formData, taglia: t as any })}
+                          className={`p-4 rounded-xl border-2 font-bold text-xs transition-all ${
+                            formData.taglia === t ? 'border-[#15803d] bg-emerald-50 text-[#15803d]' : 'border-gray-100 bg-white text-gray-500 hover:border-gray-200'
+                          }`}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 block mb-4">Condizioni</label>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                      {[
+                        { id: 'NORMALE', label: 'Normale', icon: <Heart className="h-5 w-5" /> },
+                        { id: 'FERITO', label: 'Ferito', icon: <Thermometer className="h-5 w-5" /> },
+                        { id: 'AGGRESSIVO', label: 'Aggressivo', icon: <AlertTriangle className="h-5 w-5" /> },
+                        { id: 'CUCCIOLO', label: 'Cucciolo', icon: <Baby className="h-5 w-5" /> },
+                        { id: 'BRANCO', label: 'Branco', icon: <Users className="h-5 w-5" /> }
+                      ].map((c) => (
+                        <button
+                          key={c.id}
+                          onClick={() => setFormData({ ...formData, condizioni: c.id })}
+                          className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
+                            formData.condizioni === c.id 
+                              ? `border-[#15803d] bg-emerald-50 text-[#15803d]` 
+                              : 'border-gray-100 bg-white text-gray-500 hover:border-gray-200'
+                          }`}
+                        >
+                          {c.icon}
+                          <span className="font-bold text-[10px] uppercase tracking-wider">{c.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                     <div>
+                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 block mb-2">Colore mantello</label>
+                        <input 
+                           type="text" 
+                           placeholder="es. Marrone e bianco"
+                           className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl focus:bg-white focus:border-[#15803d] outline-none"
+                           value={formData.colore}
+                           onChange={(e) => setFormData({ ...formData, colore: e.target.value })}
+                        />
+                     </div>
+                     <div>
+                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 block mb-2">Descrizione aggiuntiva</label>
+                        <input 
+                           type="text" 
+                           placeholder="Note utili agli operatori..."
+                           className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl focus:bg-white focus:border-[#15803d] outline-none"
+                           value={formData.descrizione}
+                           onChange={(e) => setFormData({ ...formData, descrizione: e.target.value })}
+                        />
+                     </div>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="flex gap-4">
-              <button onClick={() => setStep(1)} className="flex-1 bg-zinc-900 text-zinc-400 border border-zinc-800 py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em]">Indietro</button>
-              <button onClick={() => setStep(3)} className="flex-1 bg-white text-zinc-950 py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em]">Prosegui</button>
-            </div>
-          </motion.div>
-        )}
+            )}
 
-        {step === 3 && (
-          <motion.div key="step3" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="space-y-6">
-            <div className="bg-zinc-900 border border-zinc-800 p-8 rounded-[2rem] shadow-2xl space-y-8">
-              <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
-                <User className="h-3 w-3" /> Checkpoint Finale
-              </h2>
-              
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600">Canale di Contatto (Email)</label>
-                <input
-                  type="email"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-xs font-bold uppercase tracking-widest text-white focus:border-indigo-500 outline-none transition-colors"
-                  placeholder="tua@email.com"
-                  value={formData.emailSegnalante}
-                  onChange={(e) => setFormData({ ...formData, emailSegnalante: e.target.value })}
-                />
+            {step === 3 && (
+              <div className="space-y-12">
+                <div className="flex items-center gap-3">
+                   <div className="p-3 bg-emerald-50 text-[#15803d] rounded-2xl"><User className="h-6 w-6" /></div>
+                   <div>
+                     <h2 className="text-2xl font-bold text-[#1e3a5f]">I tuoi dati personali</h2>
+                     <p className="text-gray-500 text-sm">I tuoi dati sono necessari per gestire la segnalazione e poterti aggiornare sullo stato.</p>
+                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">Nome *</label>
+                    <input
+                      type="text"
+                      className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl focus:bg-white focus:border-[#15803d] outline-none"
+                      placeholder="Il tuo nome"
+                      value={formData.nomeSegnalante}
+                      onChange={(e) => setFormData({ ...formData, nomeSegnalante: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">Cognome *</label>
+                    <input
+                      type="text"
+                      className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl focus:bg-white focus:border-[#15803d] outline-none"
+                      placeholder="Il tuo cognome"
+                      value={formData.cognomeSegnalante}
+                      onChange={(e) => setFormData({ ...formData, cognomeSegnalante: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">Telefono</label>
+                    <input
+                      type="tel"
+                      className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl focus:bg-white focus:border-[#15803d] outline-none"
+                      placeholder="Opzionale — per essere ricontattato"
+                      value={formData.telefonoSegnalante}
+                      onChange={(e) => setFormData({ ...formData, telefonoSegnalante: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">Email *</label>
+                    <input
+                      type="email"
+                      className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl focus:bg-white focus:border-[#15803d] outline-none"
+                      placeholder="la.tua@email.it"
+                      value={formData.emailSegnalante}
+                      onChange={(e) => setFormData({ ...formData, emailSegnalante: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 pt-8">
+                  <label className="flex gap-4 p-6 bg-gray-50 rounded-2xl cursor-pointer hover:bg-gray-100 transition-colors">
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-5 w-5 rounded border-gray-300 text-[#15803d] focus:ring-[#15803d]"
+                      checked={formData.consensoPrivacy}
+                      onChange={(e) => setFormData({ ...formData, consensoPrivacy: e.target.checked })}
+                    />
+                    <span className="text-sm font-medium text-gray-600">
+                      Ho letto e accetto la <Link to="/privacy-policy" className="text-[#15803d] font-bold hover:underline">Privacy Policy</Link> *
+                    </span>
+                  </label>
+                  <label className="flex gap-4 p-6 bg-gray-50 rounded-2xl cursor-pointer hover:bg-gray-100 transition-colors">
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-5 w-5 rounded border-gray-300 text-[#15803d] focus:ring-[#15803d]"
+                      checked={formData.consensoNotifiche}
+                      onChange={(e) => setFormData({ ...formData, consensoNotifiche: e.target.checked })}
+                    />
+                    <span className="text-sm font-medium text-gray-600">
+                      Acconsento a ricevere notifiche via email sugli aggiornamenti della segnalazione
+                    </span>
+                  </label>
+                </div>
               </div>
+            )}
 
-              <div className="bg-zinc-950 border border-zinc-800 p-6 rounded-2xl">
-                <label className="flex gap-4 cursor-pointer">
+            {step === 4 && (
+              <div className="space-y-12">
+                <div className="flex items-center gap-3">
+                   <div className="p-3 bg-emerald-50 text-[#15803d] rounded-2xl"><ShieldCheck className="h-6 w-6" /></div>
+                   <div>
+                     <h2 className="text-2xl font-bold text-[#1e3a5f]">Dichiarazione di veridicità</h2>
+                     <p className="text-gray-500 text-sm">Ai sensi del DPR 445/2000, è necessario dichiarare la veridicità dei dati forniti.</p>
+                   </div>
+                </div>
+
+                <div className="bg-gray-50 border border-gray-200 p-8 md:p-12 rounded-[2rem] relative">
+                   <ShieldCheck className="absolute top-8 right-8 h-8 w-8 text-indigo-100 invisible md:visible" />
+                   <div className="prose prose-sm text-gray-600 max-w-none space-y-6">
+                      <p className="font-bold flex items-center gap-2"><Info className="h-4 w-4 text-indigo-500" /> Dichiarazione sostitutiva di certificazione</p>
+                      <p>Il/la sottoscritt/a <strong>{formData.nomeSegnalante} {formData.cognomeSegnalante}</strong>, consapevole delle sanzioni penali previste dall'art. 76 del DPR 445/2000 per le ipotesi di falsità in atti e dichiarazioni mendaci,</p>
+                      <p className="font-bold uppercase tracking-widest text-[#1e3a5f]">DICHIARA</p>
+                      <p>che i dati forniti nella presente segnalazione — relativi alla posizione dell'animale, alle sue condizioni e ai propri dati personali — sono veritieri e corrispondenti a realtà.</p>
+                      <p>La presente dichiarazione è resa ai sensi degli articoli 46 e 47 del DPR 28 dicembre 2000, n. 445, e disciplina le modalità con le quali i cittadini possono autocertificare stati e fatti personali.</p>
+                   </div>
+                </div>
+
+                <label className="flex gap-4 p-8 bg-[#15803d]/5 border-2 border-[#15803d]/20 rounded-2xl cursor-pointer hover:bg-[#15803d]/10 transition-colors">
                   <input
                     type="checkbox"
-                    className="mt-0.5 h-4 w-4 bg-zinc-900 border-zinc-800 rounded text-indigo-600 focus:ring-0"
-                    checked={formData.consensoPrivacy}
-                    onChange={(e) => setFormData({ ...formData, consensoPrivacy: e.target.checked })}
+                    className="mt-1 h-6 w-6 rounded border-gray-300 text-[#15803d] focus:ring-[#15803d]"
+                    checked={formData.dichiarazioneVeridicita}
+                    onChange={(e) => setFormData({ ...formData, dichiarazioneVeridicita: e.target.checked })}
                   />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 leading-relaxed">
-                    Autorizzo il Comune di Naro al trattamento dei dati personali ai fini istituzionali.
-                    <span className="text-white block mt-1">Obbligatorio per procedere.</span>
-                  </span>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-bold text-[#1e3a5f]">Dichiaro di aver letto la dichiarazione sopra riportata e confermo la veridicità dei dati forniti *</span>
+                    <span className="text-[10px] text-[#15803d] font-bold uppercase tracking-widest mt-1">La dichiarazione è obbligatoria ai sensi del DPR 445/2000</span>
+                  </div>
                 </label>
               </div>
-            </div>
+            )}
+
+            {step === 5 && (
+              <div className="space-y-12 text-center py-12">
+                 <div className="w-24 h-24 bg-emerald-50 text-[#15803d] rounded-full flex items-center justify-center mx-auto mb-8 shadow-xl">
+                    <ShieldCheck className="h-12 w-12" />
+                 </div>
+                 <h2 className="text-4xl font-bold text-[#1e3a5f]">Quasi fatto!</h2>
+                 <p className="text-gray-500 text-lg max-w-md mx-auto">
+                   Rivedi i dati inseriti. Una volta inviata, la segnalazione verrà protocollata dal Comune di Naro.
+                 </p>
+                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-left p-8 bg-gray-50 rounded-3xl mt-8">
+                    <div>
+                      <span className="text-[9px] font-bold text-gray-400 uppercase block mb-1">Animale</span>
+                      <span className="font-bold text-sm text-[#1e3a5f]">{formData.specie}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] font-bold text-gray-400 uppercase block mb-1">Condizione</span>
+                      <span className="font-bold text-sm text-[#1e3a5f]">{formData.condizioni}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] font-bold text-gray-400 uppercase block mb-1">Segnalante</span>
+                      <span className="font-bold text-sm text-[#1e3a5f] truncate">{formData.nomeSegnalante}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] font-bold text-gray-400 uppercase block mb-1">Protocollo</span>
+                      <span className="font-bold text-sm text-[#15803d]">Digitale</span>
+                    </div>
+                 </div>
+              </div>
+            )}
+          </div>
+
+          {/* Footer Controls */}
+          <div className="p-10 border-t border-gray-100 bg-gray-50/50 flex flex-col md:flex-row justify-between items-center gap-6">
+            <button 
+              onClick={() => step > 1 && setStep(step - 1)}
+              disabled={step === 1 || loading}
+              className={`flex items-center gap-2 font-bold text-sm ${step === 1 ? 'opacity-0 invisible' : 'text-gray-500 hover:text-[#1e3a5f]'}`}
+            >
+              <ArrowLeft className="h-4 w-4" /> Indietro
+            </button>
             
-            <div className="flex gap-4">
-              <button onClick={() => setStep(2)} className="flex-1 bg-zinc-900 text-zinc-400 border border-zinc-800 py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em]">Indietro</button>
-              <button
-                disabled={!formData.consensoPrivacy || loading}
-                onClick={handleSubmit}
-                className="flex-1 bg-indigo-600 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-indigo-600/20 disabled:opacity-20"
-              >
-                {loading ? 'Processing...' : 'Conferma Segnalazione'}
-              </button>
+            <div className="flex gap-4 w-full md:w-auto">
+              {step < 5 ? (
+                <button
+                  onClick={() => setStep(step + 1)}
+                  disabled={
+                    (step === 1 && !location) || 
+                    (step === 2 && (!formData.specie || !formData.condizioni)) || 
+                    (step === 3 && (!formData.nomeSegnalante || !formData.cognomeSegnalante || !formData.emailSegnalante || !formData.consensoPrivacy)) ||
+                    (step === 4 && !formData.dichiarazioneVeridicita)
+                  }
+                  className="w-full md:w-[200px] bg-[#15803d]/10 text-[#15803d] px-8 py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-[#15803d]/20 transition-all disabled:opacity-20"
+                >
+                  Avanti <ArrowRight className="h-5 w-5" />
+                </button>
+              ) : (
+                <button
+                  onClick={handleSubmit}
+                  disabled={loading}
+                  className="w-full md:w-[200px] bg-[#15803d] text-white px-8 py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-[#166534] transition-all shadow-lg shadow-[#15803d]/30"
+                >
+                  {loading ? (
+                    <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>Invia Segnalazione <ArrowRight className="h-5 w-5" /></>
+                  )}
+                </button>
+              )}
             </div>
-          </motion.div>
-        )}
+          </div>
+        </motion.div>
       </AnimatePresence>
+      
+      <p className="text-center text-gray-400 text-[10px] font-medium mt-12 uppercase tracking-[0.2em] max-w-xl mx-auto leading-relaxed">
+        Il sistema a4Zampe è una piattaforma ufficiale del Comune di Naro. Le segnalazioni mendaci sono punite ai sensi della legge italiana.
+      </p>
     </div>
   );
 }
