@@ -9,6 +9,7 @@ import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import sqlite3 from "sqlite3";
 import { open } from "sqlite";
+import mysql from "mysql2/promise";
 
 dotenv.config();
 
@@ -61,32 +62,54 @@ if (!admin.apps.length) {
 const db = admin.apps.length ? admin.firestore() : null;
 
 async function startServer() {
-  // Setup Relational Database (SQLite to mimic MySQL)
-  const sqliteDb = await open({
-    filename: './database.sqlite',
-    driver: sqlite3.Database
-  });
+  // Setup Relational Database (MySQL or SQLite fallback)
+  let mysqlPool: mysql.Pool | null = null;
+  let sqliteDb: any = null;
 
-  await sqliteDb.exec(`
-    CREATE TABLE IF NOT EXISTS segnalazioni (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      codiceTracking TEXT,
-      specie TEXT,
-      condizioni TEXT,
-      descrizione TEXT,
-      fotoUrl TEXT,
-      latitudine REAL,
-      longitudine REAL,
-      indirizzo TEXT,
-      stato TEXT,
-      urgenza TEXT,
-      emailSegnalante TEXT,
-      nomeSegnalante TEXT,
-      consensoPrivacy INTEGER,
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
+  if (process.env.DB_HOST && process.env.DB_NAME && process.env.DB_USER) {
+    try {
+      mysqlPool = mysql.createPool({
+        host: process.env.DB_HOST,
+        user: process.env.DB_USER,
+        database: process.env.DB_NAME,
+        password: process.env.DB_PASS,
+        waitForConnections: true,
+        connectionLimit: 10,
+        queueLimit: 0
+      });
+      console.log("Connesso al database MySQL su Aruba");
+    } catch (e) {
+      console.error("Errore di connessione a MySQL, uso il fallback SQLite:", e);
+    }
+  }
+
+  if (!mysqlPool) {
+    sqliteDb = await open({
+      filename: './database.sqlite',
+      driver: sqlite3.Database
+    });
+
+    await sqliteDb.exec(`
+      CREATE TABLE IF NOT EXISTS segnalazioni (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        codiceTracking TEXT,
+        specie TEXT,
+        condizioni TEXT,
+        descrizione TEXT,
+        fotoUrl TEXT,
+        latitudine REAL,
+        longitudine REAL,
+        indirizzo TEXT,
+        stato TEXT,
+        urgenza TEXT,
+        emailSegnalante TEXT,
+        nomeSegnalante TEXT,
+        consensoPrivacy INTEGER,
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+  }
 
   const app = express();
   const PORT = 3000;
@@ -211,27 +234,50 @@ async function startServer() {
       const anno = new Date().getFullYear();
       
       // We retrieve count from our relational DB
-      const { count } = await sqliteDb.get("SELECT COUNT(*) as count FROM segnalazioni WHERE strftime('%Y', createdAt) = ?", [anno.toString()]);
+      let count = 0;
+      if (mysqlPool) {
+        const [rows] = await mysqlPool.query<any>("SELECT COUNT(*) as count FROM segnalazioni WHERE YEAR(created_at) = ?", [anno]);
+        count = rows[0]?.count || 0;
+      } else {
+        const row = await sqliteDb.get("SELECT COUNT(*) as count FROM segnalazioni WHERE strftime('%Y', createdAt) = ?", [anno.toString()]);
+        count = row?.count || 0;
+      }
       
-      const numero = String((count || 0) + 1).padStart(4, "0");
+      const numero = String(count + 1).padStart(4, "0");
       const codiceTracking = `NARO-${anno}-${numero}`;
 
       const urgenza = (condizioni === "FERITO" || condizioni === "AGGRESSIVO") ? "ALTA" : "NORMALE";
 
-      // Insert primary data into Relational DB (simulating MySQL full dataset)
-      const insertResult = await sqliteDb.run(`
-        INSERT INTO segnalazioni (
-          codiceTracking, specie, condizioni, descrizione, fotoUrl, 
-          latitudine, longitudine, indirizzo, stato, urgenza, 
-          emailSegnalante, consensoPrivacy
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [
-        codiceTracking, specie, condizioni, descrizione, fotoUrl, 
-        lat, lng, indirizzo, "NUOVA", urgenza, 
-        emailSegnalante || null, consensoPrivacy ? 1 : 0
-      ]);
+      let sqlId = 0;
 
-      const sqlId = insertResult.lastID;
+      // Insert primary data into Relational DB
+      if (mysqlPool) {
+        const [result] = await mysqlPool.execute<any>(`
+          INSERT INTO segnalazioni (
+            codice_tracking, specie, condizioni, descrizione, foto_url, 
+            latitudine, longitudine, indirizzo, stato, urgenza, 
+            email_segnalante, consenso_privacy
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+          codiceTracking, specie, condizioni, descrizione, fotoUrl, 
+          lat, lng, indirizzo, "CREATA", urgenza, 
+          emailSegnalante || null, consensoPrivacy ? 1 : 0
+        ]);
+        sqlId = result.insertId;
+      } else {
+        const insertResult = await sqliteDb.run(`
+          INSERT INTO segnalazioni (
+            codiceTracking, specie, condizioni, descrizione, fotoUrl, 
+            latitudine, longitudine, indirizzo, stato, urgenza, 
+            emailSegnalante, consensoPrivacy
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+          codiceTracking, specie, condizioni, descrizione, fotoUrl, 
+          lat, lng, indirizzo, "CREATA", urgenza, 
+          emailSegnalante || null, consensoPrivacy ? 1 : 0
+        ]);
+        sqlId = insertResult.lastID;
+      }
 
       // Sync realtime payload to Firestore (for map pins / real-time dashboard)
       const docRef = await db.collection("segnalazioni").add({
@@ -244,7 +290,7 @@ async function startServer() {
         latitudine: lat,
         longitudine: lng,
         indirizzo,
-        stato: "NUOVA",
+        stato: "CREATA",
         urgenza,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
