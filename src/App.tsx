@@ -17,6 +17,7 @@ import { PrivacyPolicy, Accessibilita, CookiePolicy } from './pages/Compliance';
 import { AccessibilityProvider } from './contexts/AccessibilityContext';
 import ChatOverlay from './components/chat/ChatOverlay';
 import BottomNavigation from './components/layout/BottomNavigation';
+import CookieBanner from './components/CookieBanner';
 
 export default function App() {
   return (
@@ -40,6 +41,7 @@ export default function App() {
           <ChatOverlay />
           <BottomNavigation />
           <Footer />
+          <CookieBanner />
         </div>
       </Router>
     </AccessibilityProvider>
