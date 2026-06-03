@@ -43,9 +43,9 @@ export default function Guida() {
   const sections = [
     {
       id: 'general',
-      title: 'Benvenuto su NaroAnimali',
+      title: 'Benvenuto su AnimalHub PA',
       icon: <HelpCircle className="h-6 w-6" />,
-      content: 'NaroAnimali è la piattaforma ufficiale del Comune di Naro dedicata alla tutela degli animali randagi. Qui puoi segnalare animali in difficoltà, monitorare lo stato delle tue segnalazioni e consultare la mappa del territorio.',
+      content: 'AnimalHub PA è la piattaforma ufficiale del Comune di Naro dedicata alla tutela degli animali randagi. Qui puoi segnalare animali in difficoltà, monitorare lo stato delle tue segnalazioni e consultare la mappa del territorio.',
     },
     {
       id: 'segnala',
@@ -134,13 +134,13 @@ export default function Guida() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
-                className={`group cursor-pointer p-8 rounded-[2.5rem] border border-gray-100 transition-all ${
+                className={`group cursor-pointer p-8 rounded-lg border border-gray-100 transition-all ${
                   settings.textToSpeech ? 'hover:border-emerald-500 hover:bg-emerald-50/30' : 'hover:shadow-xl'
                 }`}
                 onClick={() => settings.textToSpeech && speak(`${section.title}. ${section.content}`)}
               >
                 <div className="flex flex-col md:flex-row gap-8">
-                  <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 shadow-lg transition-transform group-hover:scale-110 ${
+                  <div className={`w-16 h-16 rounded-lg flex items-center justify-center shrink-0 shadow-lg transition-transform group-hover:scale-110 ${
                     index % 2 === 0 ? 'bg-[#15803d] text-white' : 'bg-[#101b3a] text-white'
                   }`}>
                     {section.icon}

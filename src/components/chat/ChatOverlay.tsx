@@ -51,23 +51,23 @@ export default function ChatOverlay() {
   };
 
   return (
-    <div className="fixed bottom-8 right-8 z-[100]">
+    <div className="fixed bottom-24 right-4 md:bottom-8 md:right-8 z-[100]">
       <AnimatePresence>
         {isOpen && (
           <motion.div
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="absolute bottom-20 right-0 w-[400px] max-w-[calc(100vw-2rem)] h-[600px] max-h-[calc(100vh-10rem)] bg-white border border-gray-100 rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden"
+            className="absolute bottom-20 right-0 w-[400px] max-w-[calc(100vw-2rem)] h-[600px] max-h-[calc(100vh-14rem)] bg-white border border-gray-100 rounded-lg shadow-2xl flex flex-col overflow-hidden"
           >
             {/* Header */}
             <div className="p-8 bg-[#101b3a] text-white flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/10">
+                <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center border border-white/10">
                    <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
                 </div>
                 <div>
-                   <h3 className="text-sm font-bold uppercase tracking-widest">Assistente NaroAnimali</h3>
+                   <h3 className="text-sm font-bold uppercase tracking-widest">Assistente AnimalHub</h3>
                    <p className="text-[10px] text-white/50 font-medium tracking-tight">AI Istituzionale Comune di Naro</p>
                 </div>
               </div>
@@ -102,7 +102,7 @@ export default function ChatOverlay() {
                        <button
                          key={q}
                          onClick={() => { setInput(q); }}
-                         className="px-4 py-3 bg-white border border-gray-100 rounded-xl text-[10px] font-bold text-gray-500 hover:border-[#15803d] hover:text-[#15803d] transition-all text-left flex items-center justify-between group"
+                         className="px-4 py-3 bg-white border border-gray-100 rounded-lg text-[10px] font-bold text-gray-500 hover:border-[#15803d] hover:text-[#15803d] transition-all text-left flex items-center justify-between group"
                        >
                          {q} <ArrowUpRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                        </button>
@@ -112,7 +112,7 @@ export default function ChatOverlay() {
               )}
               {messages.map((msg, i) => (
                 <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] p-4 rounded-[1.25rem] text-sm font-medium leading-relaxed ${
+                  <div className={`max-w-[85%] p-4 rounded-lg text-sm font-medium leading-relaxed ${
                     msg.role === 'user' 
                       ? 'bg-[#15803d] text-white rounded-tr-none' 
                       : 'bg-white border border-gray-100 text-[#1e3a5f] shadow-sm rounded-tl-none'
@@ -123,7 +123,7 @@ export default function ChatOverlay() {
               ))}
               {loading && (
                 <div className="flex justify-start">
-                  <div className="bg-white border border-gray-100 p-4 rounded-[1.25rem] rounded-tl-none shadow-sm">
+                  <div className="bg-white border border-gray-100 p-4 rounded-lg rounded-tl-none shadow-sm">
                     <Loader2 className="h-4 w-4 text-[#15803d] animate-spin" />
                   </div>
                 </div>
@@ -137,7 +137,7 @@ export default function ChatOverlay() {
                 <input
                   type="text"
                   placeholder="Scrivi qui la tua domanda..."
-                  className="w-full bg-gray-50 border border-gray-100 p-4 pr-16 rounded-2xl text-sm font-medium outline-none focus:bg-white focus:border-[#15803d] transition-all"
+                  className="w-full bg-gray-50 border border-gray-100 p-4 pr-16 rounded-lg text-sm font-medium outline-none focus:bg-white focus:border-[#15803d] transition-all"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSend()}
@@ -145,7 +145,7 @@ export default function ChatOverlay() {
                 <button
                   onClick={handleSend}
                   disabled={!input.trim() || loading}
-                  className="absolute right-2 p-3 bg-[#15803d] text-white rounded-xl hover:bg-[#166534] transition-all disabled:opacity-30"
+                  className="absolute right-2 p-3 bg-[#15803d] text-white rounded-lg hover:bg-[#166534] transition-all disabled:opacity-30"
                 >
                   <Send className="h-4 w-4" />
                 </button>

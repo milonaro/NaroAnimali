@@ -12,7 +12,7 @@ export default function AccessibilityToggle() {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 pr-4 rounded-xl bg-gray-50 text-gray-400 hover:bg-gray-100 transition-all border border-gray-100 flex items-center gap-3 group"
+        className="p-2 pr-4 rounded-lg bg-gray-50 text-gray-400 hover:bg-gray-100 transition-all border border-gray-100 flex items-center gap-3 group"
         aria-label="Strumenti di accessibilità e guida"
       >
         <div className="p-1.5 bg-white rounded-lg shadow-sm group-hover:scale-110 transition-transform">
@@ -35,7 +35,7 @@ export default function AccessibilityToggle() {
               initial={{ opacity: 0, scale: 0.95, y: -10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: -10 }}
-              className="absolute right-0 bottom-full mb-3 w-80 bg-white border border-gray-100 rounded-[2rem] shadow-2xl z-50 overflow-hidden"
+              className="absolute right-0 bottom-full mb-3 w-80 bg-white border border-gray-100 rounded-lg shadow-2xl z-50 overflow-hidden"
             >
               <div className="p-6 border-b border-gray-50 flex items-center justify-between">
                 <h3 className="text-sm font-bold text-[#1e3a5f] uppercase tracking-widest flex items-center gap-2">
@@ -117,7 +117,7 @@ export default function AccessibilityToggle() {
                 <Link 
                   to="/guida" 
                   onClick={() => setIsOpen(false)}
-                  className="flex items-center justify-between p-4 bg-white rounded-2xl border border-emerald-100 shadow-sm hover:shadow-md transition-all group"
+                  className="flex items-center justify-between p-4 bg-white rounded-lg border border-emerald-100 shadow-sm hover:shadow-md transition-all group"
                 >
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-emerald-50 rounded-lg group-hover:scale-110 transition-transform">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AppMap from '@/src/components/map/Map';
-import { PawPrint, MapPin, CheckCircle2, User, WifiOff, Dog, Cat, MoreHorizontal, ShieldCheck, Info, Heart, AlertTriangle, Users, Baby, Thermometer, ChevronRight, ArrowLeft, ArrowRight } from 'lucide-react';
+import { PawPrint, MapPin, CheckCircle2, User, WifiOff, Dog, Cat, MoreHorizontal, ShieldCheck, Info, Heart, AlertTriangle, Users, Baby, Thermometer, ChevronRight, ArrowLeft, ArrowRight, Camera } from 'lucide-react';
 import { Segnalazione, AnimalSpecie } from '@/src/types';
 import { isInTerritorio } from '@/src/lib/geofence';
 import { storage } from '@/src/lib/firebase';
@@ -194,7 +194,7 @@ export default function Segnala() {
           </p>
 
           {!isCached && (
-            <div className="bg-gray-50 border border-gray-100 p-8 rounded-2xl mb-8">
+            <div className="bg-gray-50 border border-gray-100 p-8 rounded-lg mb-8">
                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Codice di Tracking</p>
                <span className="text-3xl font-bold text-[#1e3a5f] tracking-widest uppercase">{success}</span>
             </div>
@@ -214,7 +214,7 @@ export default function Segnala() {
       <section className="bg-[#101b3a] py-20 lg:py-24 relative overflow-hidden">
         <div className="absolute inset-0 z-0">
           <img 
-            src="https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?auto=format&fit=crop&q=80&w=2000" 
+            src="https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&q=80&w=2000" 
             className="w-full h-full object-cover opacity-20"
             alt="Animal rescue background"
           />
@@ -240,7 +240,7 @@ export default function Segnala() {
 
       <div className="max-w-7xl mx-auto py-16 px-4 flex-1 w-full">
         {/* Progress Stepper */}
-        <div className="flex flex-wrap justify-center items-center gap-4 mb-20 px-4">
+        <div className="flex flex-wrap justify-center items-center gap-4 mb-10 px-4">
         {steps.map((s, i) => (
           <React.Fragment key={s.id}>
             <div className="flex items-center gap-3">
@@ -259,7 +259,7 @@ export default function Segnala() {
             )}
           </React.Fragment>
         ))}
-      </div>
+        </div>
 
       <AnimatePresence mode="wait">
         <motion.div 
@@ -267,24 +267,58 @@ export default function Segnala() {
           initial={{ opacity: 0, x: 20 }} 
           animate={{ opacity: 1, x: 0 }} 
           exit={{ opacity: 0, x: -20 }}
-          className="bg-white border border-gray-100 rounded-[2.5rem] shadow-2xl shadow-black/5 overflow-hidden min-h-[600px] flex flex-col"
+          className="bg-white border border-gray-100 rounded-lg shadow-2xl shadow-black/5 overflow-hidden min-h-[600px] flex flex-col"
         >
+          {/* Visual Progress Bar and Percentage Tracker */}
+          <div className="bg-gray-50/50 border-b border-gray-100 p-6">
+            <div className="flex justify-between items-center mb-3 max-w-4xl mx-auto">
+              <span className="text-[10px] font-black text-[#15803d] uppercase tracking-widest flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                Stato Compilazione
+              </span>
+              <span className="text-xs font-black text-[#101b3a] bg-emerald-50/80 px-3 py-1 rounded-full border border-emerald-100">
+                {Math.round((step / steps.length) * 100)}% Completato
+              </span>
+            </div>
+            <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden border border-gray-200/40 p-[1px] max-w-4xl mx-auto">
+              <motion.div
+                className="h-full bg-gradient-to-r from-emerald-500 to-[#15803d] rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: `${(step / steps.length) * 100}%` }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+              />
+            </div>
+            <p className="text-[10px] text-gray-400 font-extrabold uppercase tracking-[0.15em] mt-3.5 text-center">
+              {step === 5 ? "Pronto per l'invio ufficiale al Comune di Naro" : `Prossimo passo: ${steps[step].label}`}
+            </p>
+          </div>
+
           <div className="p-10 md:p-16 flex-1">
             {step === 1 && (
-              <div className="space-y-8">
-                <div className="flex items-center gap-3">
-                   <div className="p-3 bg-emerald-50 text-[#15803d] rounded-2xl"><MapPin className="h-6 w-6" /></div>
-                   <div>
-                     <h2 className="text-2xl font-bold text-[#1e3a5f]">Dove si trova l'animale?</h2>
-                     <p className="text-gray-500 text-sm">Clicca sulla mappa per indicare la posizione esatta della segnalazione.</p>
-                   </div>
+              <div className="space-y-8 flex flex-col h-full">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                     <div className="p-3 bg-emerald-50 text-[#15803d] rounded-lg"><MapPin className="h-6 w-6" /></div>
+                     <div>
+                       <h2 className="text-2xl font-bold text-[#1e3a5f]">Dove si trova l'animale?</h2>
+                       <p className="text-gray-500 text-sm">Clicca sulla mappa per indicare la posizione esatta della segnalazione.</p>
+                     </div>
+                  </div>
+                  {location && (
+                    <button
+                      onClick={() => setStep(step + 1)}
+                      className="w-full md:w-auto bg-[#15803d] text-white px-8 py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-[#166534] transition-all shadow-lg shadow-[#15803d]/30"
+                    >
+                      Avanti <ArrowRight className="h-5 w-5" />
+                    </button>
+                  )}
                 </div>
-                <div className="h-[450px] w-full rounded-[1.5rem] overflow-hidden border border-gray-100 relative shadow-inner">
-                  <AppMap interactive onLocationSelect={handleLocationSelect} />
+                <div className="flex-1 min-h-[600px] w-full rounded-lg overflow-hidden border border-gray-100 relative shadow-inner">
+                  <AppMap interactive onLocationSelect={handleLocationSelect} hideFilters />
                 </div>
                 {error && <p className="text-red-500 font-bold text-xs">{error}</p>}
                 {location && (
-                  <div className="flex items-center gap-2 text-[#15803d] font-bold text-sm bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                  <div className="flex items-center gap-2 text-[#15803d] font-bold text-sm bg-emerald-50 p-4 rounded-lg border border-emerald-100">
                     <CheckCircle2 className="h-4 w-4" /> Posizione acquisita correttamente
                   </div>
                 )}
@@ -294,7 +328,7 @@ export default function Segnala() {
             {step === 2 && (
               <div className="space-y-12">
                 <div className="flex items-center gap-3">
-                   <div className="p-3 bg-emerald-50 text-[#15803d] rounded-2xl"><PawPrint className="h-6 w-6" /></div>
+                   <div className="p-3 bg-emerald-50 text-[#15803d] rounded-lg"><PawPrint className="h-6 w-6" /></div>
                    <div>
                      <h2 className="text-2xl font-bold text-[#1e3a5f]">Che animale hai visto?</h2>
                      <p className="text-gray-500 text-sm">Identifica la specie e le condizioni del soggetto.</p>
@@ -313,7 +347,7 @@ export default function Segnala() {
                         <button
                           key={item.id}
                           onClick={() => setFormData({ ...formData, specie: item.id })}
-                          className={`p-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 ${
+                          className={`p-6 rounded-lg border-2 transition-all flex flex-col items-center gap-3 ${
                             formData.specie === item.id ? 'border-[#15803d] bg-emerald-50 text-[#15803d]' : 'border-gray-100 bg-white text-gray-500 hover:border-gray-200'
                           }`}
                         >
@@ -331,7 +365,7 @@ export default function Segnala() {
                         <button
                           key={t}
                           onClick={() => setFormData({ ...formData, taglia: t as any })}
-                          className={`p-4 rounded-xl border-2 font-bold text-xs transition-all ${
+                          className={`p-4 rounded-lg border-2 font-bold text-xs transition-all ${
                             formData.taglia === t ? 'border-[#15803d] bg-emerald-50 text-[#15803d]' : 'border-gray-100 bg-white text-gray-500 hover:border-gray-200'
                           }`}
                         >
@@ -354,7 +388,7 @@ export default function Segnala() {
                         <button
                           key={c.id}
                           onClick={() => setFormData({ ...formData, condizioni: c.id })}
-                          className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
+                          className={`p-4 rounded-lg border-2 transition-all flex flex-col items-center gap-2 ${
                             formData.condizioni === c.id 
                               ? `border-[#15803d] bg-emerald-50 text-[#15803d]` 
                               : 'border-gray-100 bg-white text-gray-500 hover:border-gray-200'
@@ -373,7 +407,7 @@ export default function Segnala() {
                         <input 
                            type="text" 
                            placeholder="es. Marrone e bianco"
-                           className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl focus:bg-white focus:border-[#15803d] outline-none"
+                           className="w-full bg-gray-50 border border-gray-100 p-4 rounded-lg focus:bg-white focus:border-[#15803d] outline-none"
                            value={formData.colore}
                            onChange={(e) => setFormData({ ...formData, colore: e.target.value })}
                         />
@@ -383,10 +417,72 @@ export default function Segnala() {
                         <input 
                            type="text" 
                            placeholder="Note utili agli operatori..."
-                           className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl focus:bg-white focus:border-[#15803d] outline-none"
+                           className="w-full bg-gray-50 border border-gray-100 p-4 rounded-lg focus:bg-white focus:border-[#15803d] outline-none"
                            value={formData.descrizione}
                            onChange={(e) => setFormData({ ...formData, descrizione: e.target.value })}
                         />
+                     </div>
+                  </div>
+
+                  {/* Modulo A - Photo Upload Section */}
+                  <div className="border-t border-gray-100 pt-8">
+                     <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 block mb-4 flex items-center gap-2">
+                       Carica Foto dell'Animale <span className="normal-case text-gray-400 font-medium">(Obbligatorio per Modulo A)</span>
+                     </label>
+                     
+                     <div 
+                       onDragOver={(e) => e.preventDefault()}
+                       onDrop={(e) => {
+                         e.preventDefault();
+                         if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                           setPhoto(e.dataTransfer.files[0]);
+                         }
+                       }}
+                       className="border-2 border-dashed border-gray-200 hover:border-[#15803d] rounded-xl p-8 bg-gray-50/50 transition-all text-center relative cursor-pointer"
+                     >
+                       {photo ? (
+                         <div className="space-y-4">
+                           <div className="relative inline-block w-40 h-40 rounded-lg overflow-hidden border border-gray-200 shadow-sm mx-auto">
+                             <img 
+                               src={URL.createObjectURL(photo)} 
+                               alt="Anteprima" 
+                               className="w-full h-full object-cover"
+                             />
+                           </div>
+                           <div>
+                             <p className="text-xs font-bold text-slate-700">{photo.name}</p>
+                             <p className="text-[10px] text-gray-400">{(photo.size / 1024).toFixed(1)} KB</p>
+                           </div>
+                           <button
+                             type="button"
+                             onClick={(e) => { e.stopPropagation(); setPhoto(null); }}
+                             className="bg-red-50 hover:bg-red-100 text-red-600 font-bold text-[10px] uppercase tracking-wider px-4 py-2 rounded-lg transition-all border border-red-100 mx-auto"
+                           >
+                             Rimuovi foto
+                           </button>
+                         </div>
+                       ) : (
+                         <div className="space-y-3">
+                           <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
+                             <Camera className="h-6 w-6" />
+                           </div>
+                           <div className="text-xs font-bold text-slate-600">
+                             Trascina qui la foto dallo smartphone/PC oppure <span className="text-[#15803d] underline">Sfoglia i file</span>
+                           </div>
+                           <p className="text-[10px] text-gray-400">Supporta JPEG, PNG. Puoi scattarla direttamente sul posto.</p>
+                           <input 
+                             type="file" 
+                             accept="image/*" 
+                             capture="environment"
+                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                             onChange={(e) => {
+                               if (e.target.files && e.target.files[0]) {
+                                 setPhoto(e.target.files[0]);
+                               }
+                             }}
+                           />
+                         </div>
+                       )}
                      </div>
                   </div>
                 </div>
@@ -396,7 +492,7 @@ export default function Segnala() {
             {step === 3 && (
               <div className="space-y-12">
                 <div className="flex items-center gap-3">
-                   <div className="p-3 bg-emerald-50 text-[#15803d] rounded-2xl"><User className="h-6 w-6" /></div>
+                   <div className="p-3 bg-emerald-50 text-[#15803d] rounded-lg"><User className="h-6 w-6" /></div>
                    <div>
                      <h2 className="text-2xl font-bold text-[#1e3a5f]">I tuoi dati personali</h2>
                      <p className="text-gray-500 text-sm">I tuoi dati sono necessari per gestire la segnalazione e poterti aggiornare sullo stato.</p>
@@ -408,7 +504,7 @@ export default function Segnala() {
                     <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">Nome *</label>
                     <input
                       type="text"
-                      className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl focus:bg-white focus:border-[#15803d] outline-none"
+                      className="w-full bg-gray-50 border border-gray-100 p-4 rounded-lg focus:bg-white focus:border-[#15803d] outline-none"
                       placeholder="Il tuo nome"
                       value={formData.nomeSegnalante}
                       onChange={(e) => setFormData({ ...formData, nomeSegnalante: e.target.value })}
@@ -418,7 +514,7 @@ export default function Segnala() {
                     <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">Cognome *</label>
                     <input
                       type="text"
-                      className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl focus:bg-white focus:border-[#15803d] outline-none"
+                      className="w-full bg-gray-50 border border-gray-100 p-4 rounded-lg focus:bg-white focus:border-[#15803d] outline-none"
                       placeholder="Il tuo cognome"
                       value={formData.cognomeSegnalante}
                       onChange={(e) => setFormData({ ...formData, cognomeSegnalante: e.target.value })}
@@ -428,7 +524,7 @@ export default function Segnala() {
                     <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">Telefono</label>
                     <input
                       type="tel"
-                      className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl focus:bg-white focus:border-[#15803d] outline-none"
+                      className="w-full bg-gray-50 border border-gray-100 p-4 rounded-lg focus:bg-white focus:border-[#15803d] outline-none"
                       placeholder="Opzionale — per essere ricontattato"
                       value={formData.telefonoSegnalante}
                       onChange={(e) => setFormData({ ...formData, telefonoSegnalante: e.target.value })}
@@ -438,7 +534,7 @@ export default function Segnala() {
                     <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">Email *</label>
                     <input
                       type="email"
-                      className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl focus:bg-white focus:border-[#15803d] outline-none"
+                      className="w-full bg-gray-50 border border-gray-100 p-4 rounded-lg focus:bg-white focus:border-[#15803d] outline-none"
                       placeholder="la.tua@email.it"
                       value={formData.emailSegnalante}
                       onChange={(e) => setFormData({ ...formData, emailSegnalante: e.target.value })}
@@ -447,7 +543,7 @@ export default function Segnala() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 pt-8">
-                  <label className="flex gap-4 p-6 bg-gray-50 rounded-2xl cursor-pointer hover:bg-gray-100 transition-colors">
+                  <label className="flex gap-4 p-6 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
                     <input
                       type="checkbox"
                       className="mt-1 h-5 w-5 rounded border-gray-300 text-[#15803d] focus:ring-[#15803d]"
@@ -458,7 +554,7 @@ export default function Segnala() {
                       Ho letto e accetto la <Link to="/privacy-policy" className="text-[#15803d] font-bold hover:underline">Privacy Policy</Link> *
                     </span>
                   </label>
-                  <label className="flex gap-4 p-6 bg-gray-50 rounded-2xl cursor-pointer hover:bg-gray-100 transition-colors">
+                  <label className="flex gap-4 p-6 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
                     <input
                       type="checkbox"
                       className="mt-1 h-5 w-5 rounded border-gray-300 text-[#15803d] focus:ring-[#15803d]"
@@ -476,14 +572,14 @@ export default function Segnala() {
             {step === 4 && (
               <div className="space-y-12">
                 <div className="flex items-center gap-3">
-                   <div className="p-3 bg-emerald-50 text-[#15803d] rounded-2xl"><ShieldCheck className="h-6 w-6" /></div>
+                   <div className="p-3 bg-emerald-50 text-[#15803d] rounded-lg"><ShieldCheck className="h-6 w-6" /></div>
                    <div>
                      <h2 className="text-2xl font-bold text-[#1e3a5f]">Dichiarazione di veridicità</h2>
                      <p className="text-gray-500 text-sm">Ai sensi del DPR 445/2000, è necessario dichiarare la veridicità dei dati forniti.</p>
                    </div>
                 </div>
 
-                <div className="bg-gray-50 border border-gray-200 p-8 md:p-12 rounded-[2rem] relative">
+                <div className="bg-gray-50 border border-gray-200 p-8 md:p-12 rounded-lg relative">
                    <ShieldCheck className="absolute top-8 right-8 h-8 w-8 text-indigo-100 invisible md:visible" />
                    <div className="prose prose-sm text-gray-600 max-w-none space-y-6">
                       <p className="font-bold flex items-center gap-2"><Info className="h-4 w-4 text-indigo-500" /> Dichiarazione sostitutiva di certificazione</p>
@@ -494,7 +590,7 @@ export default function Segnala() {
                    </div>
                 </div>
 
-                <label className="flex gap-4 p-8 bg-[#15803d]/5 border-2 border-[#15803d]/20 rounded-2xl cursor-pointer hover:bg-[#15803d]/10 transition-colors">
+                <label className="flex gap-4 p-8 bg-[#15803d]/5 border-2 border-[#15803d]/20 rounded-lg cursor-pointer hover:bg-[#15803d]/10 transition-colors">
                   <input
                     type="checkbox"
                     className="mt-1 h-6 w-6 rounded border-gray-300 text-[#15803d] focus:ring-[#15803d]"
@@ -518,7 +614,7 @@ export default function Segnala() {
                  <p className="text-gray-500 text-lg max-w-md mx-auto">
                    Rivedi i dati inseriti. Una volta inviata, la segnalazione verrà protocollata dal Comune di Naro.
                  </p>
-                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-left p-8 bg-gray-50 rounded-3xl mt-8">
+                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-left p-8 bg-gray-50 rounded-lg mt-8">
                     <div>
                       <span className="text-[9px] font-bold text-gray-400 uppercase block mb-1">Animale</span>
                       <span className="font-bold text-sm text-[#1e3a5f]">{formData.specie}</span>
@@ -560,7 +656,7 @@ export default function Segnala() {
                     (step === 3 && (!formData.nomeSegnalante || !formData.cognomeSegnalante || !formData.emailSegnalante || !formData.consensoPrivacy)) ||
                     (step === 4 && !formData.dichiarazioneVeridicita)
                   }
-                  className="w-full md:w-[200px] bg-[#15803d]/10 text-[#15803d] px-8 py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-[#15803d]/20 transition-all disabled:opacity-20"
+                  className={`w-full md:w-[200px] bg-[#15803d]/10 text-[#15803d] px-8 py-4 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-[#15803d]/20 transition-all disabled:opacity-20 ${step === 1 ? 'hidden' : ''}`}
                 >
                   Avanti <ArrowRight className="h-5 w-5" />
                 </button>
@@ -568,7 +664,7 @@ export default function Segnala() {
                 <button
                   onClick={handleSubmit}
                   disabled={loading}
-                  className="w-full md:w-[200px] bg-[#15803d] text-white px-8 py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-[#166534] transition-all shadow-lg shadow-[#15803d]/30"
+                  className="w-full md:w-[200px] bg-[#15803d] text-white px-8 py-4 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-[#166534] transition-all shadow-lg shadow-[#15803d]/30"
                 >
                   {loading ? (
                     <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -582,8 +678,8 @@ export default function Segnala() {
         </motion.div>
       </AnimatePresence>
       
-      <p className="text-center text-gray-400 text-[10px] font-medium mt-12 uppercase tracking-[0.2em] max-w-xl mx-auto leading-relaxed">
-        Il sistema NaroAnimali è una piattaforma ufficiale del Comune di Naro. Le segnalazioni mendaci sono punite ai sensi della legge italiana.
+      <p className="text-center text-slate-700 text-[10px] font-bold mt-12 uppercase tracking-[0.2em] max-w-xl mx-auto leading-relaxed">
+        Il sistema AnimalHub PA è una piattaforma ufficiale del Comune di Naro. Le segnalazioni mendaci sono punite ai sensi della legge italiana.
       </p>
     </div>
     </div>

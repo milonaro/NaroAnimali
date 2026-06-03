@@ -7,6 +7,8 @@ import bcrypt from "bcryptjs";
 import admin from "firebase-admin";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
+import sqlite3 from "sqlite3";
+import { open } from "sqlite";
 
 dotenv.config();
 
@@ -59,6 +61,33 @@ if (!admin.apps.length) {
 const db = admin.apps.length ? admin.firestore() : null;
 
 async function startServer() {
+  // Setup Relational Database (SQLite to mimic MySQL)
+  const sqliteDb = await open({
+    filename: './database.sqlite',
+    driver: sqlite3.Database
+  });
+
+  await sqliteDb.exec(`
+    CREATE TABLE IF NOT EXISTS segnalazioni (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      codiceTracking TEXT,
+      specie TEXT,
+      condizioni TEXT,
+      descrizione TEXT,
+      fotoUrl TEXT,
+      latitudine REAL,
+      longitudine REAL,
+      indirizzo TEXT,
+      stato TEXT,
+      urgenza TEXT,
+      emailSegnalante TEXT,
+      nomeSegnalante TEXT,
+      consensoPrivacy INTEGER,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
   const app = express();
   const PORT = 3000;
 
@@ -147,6 +176,31 @@ async function startServer() {
   });
 
   // Segnalazioni Route
+  app.get("/api/segnalazioni", async (req, res) => {
+    try {
+      if (!db) {
+        return res.json([]);
+      }
+      const snap = await db.collection("segnalazioni")
+        .orderBy("createdAt", "desc")
+        .get();
+      
+      const list = snap.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt ? data.createdAt.toDate().toLocaleDateString("it-IT") : new Date().toLocaleDateString("it-IT"),
+          updatedAt: data.updatedAt ? data.updatedAt.toDate().toLocaleDateString("it-IT") : new Date().toLocaleDateString("it-IT"),
+        };
+      });
+      res.json(list);
+    } catch (error: any) {
+      console.error("GET reports error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/segnalazioni", async (req, res) => {
     try {
       const { lat, lng, specie, condizioni, descrizione, emailSegnalante, consensoPrivacy, fotoUrl, indirizzo } = req.body;
@@ -155,27 +209,43 @@ async function startServer() {
       if (!db) throw new Error("DB not connected");
 
       const anno = new Date().getFullYear();
-      const countSnap = await db.collection("segnalazioni")
-        .where("createdAt", ">=", admin.firestore.Timestamp.fromDate(new Date(`${anno}-01-01`)))
-        .count()
-        .get();
       
-      const numero = String(countSnap.data().count + 1).padStart(4, "0");
+      // We retrieve count from our relational DB
+      const { count } = await sqliteDb.get("SELECT COUNT(*) as count FROM segnalazioni WHERE strftime('%Y', createdAt) = ?", [anno.toString()]);
+      
+      const numero = String((count || 0) + 1).padStart(4, "0");
       const codiceTracking = `NARO-${anno}-${numero}`;
 
+      const urgenza = (condizioni === "FERITO" || condizioni === "AGGRESSIVO") ? "ALTA" : "NORMALE";
+
+      // Insert primary data into Relational DB (simulating MySQL full dataset)
+      const insertResult = await sqliteDb.run(`
+        INSERT INTO segnalazioni (
+          codiceTracking, specie, condizioni, descrizione, fotoUrl, 
+          latitudine, longitudine, indirizzo, stato, urgenza, 
+          emailSegnalante, consensoPrivacy
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        codiceTracking, specie, condizioni, descrizione, fotoUrl, 
+        lat, lng, indirizzo, "NUOVA", urgenza, 
+        emailSegnalante || null, consensoPrivacy ? 1 : 0
+      ]);
+
+      const sqlId = insertResult.lastID;
+
+      // Sync realtime payload to Firestore (for map pins / real-time dashboard)
       const docRef = await db.collection("segnalazioni").add({
+        relationalId: sqlId, // Linking to primary DB
         codiceTracking,
         specie,
         condizioni,
-        descrizione,
+        descrizione, // Note: For a strict "realtime only" Firestore, we could omit heavy fields like desc/email
         fotoUrl,
         latitudine: lat,
         longitudine: lng,
         indirizzo,
         stato: "NUOVA",
-        urgenza: (condizioni === "FERITO" || condizioni === "AGGRESSIVO") ? "ALTA" : "NORMALE",
-        emailSegnalante: emailSegnalante || null,
-        consensoPrivacy,
+        urgenza,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
