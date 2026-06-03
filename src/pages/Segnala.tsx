@@ -327,12 +327,30 @@ export default function Segnala() {
 
             {step === 2 && (
               <div className="space-y-12">
-                <div className="flex items-center gap-3">
-                   <div className="p-3 bg-emerald-50 text-[#15803d] rounded-lg"><PawPrint className="h-6 w-6" /></div>
-                   <div>
-                     <h2 className="text-2xl font-bold text-[#1e3a5f]">Che animale hai visto?</h2>
-                     <p className="text-gray-500 text-sm">Identifica la specie e le condizioni del soggetto.</p>
-                   </div>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                     <div className="p-3 bg-emerald-50 text-[#15803d] rounded-lg"><PawPrint className="h-6 w-6" /></div>
+                     <div>
+                       <h2 className="text-2xl font-bold text-[#1e3a5f]">Che animale hai visto?</h2>
+                       <p className="text-gray-500 text-sm">Identifica la specie e le condizioni del soggetto.</p>
+                     </div>
+                  </div>
+                  <div className="flex gap-2 w-full md:w-auto">
+                    <button
+                      onClick={() => setStep(step - 1)}
+                      className="w-full md:w-auto bg-white border border-gray-200 text-gray-600 px-6 py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-gray-50 hover:text-[#1e3a5f] transition-all cursor-pointer shadow-sm"
+                    >
+                      <ArrowLeft className="h-5 w-5" /> <span className="md:hidden">Indietro</span>
+                    </button>
+                    {(formData.specie && formData.condizioni) && (
+                      <button
+                        onClick={() => setStep(step + 1)}
+                        className="w-full md:w-auto bg-[#15803d] text-white px-8 py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-[#166534] transition-all cursor-pointer shadow-lg shadow-[#15803d]/30"
+                      >
+                        Avanti <ArrowRight className="h-5 w-5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-8">
@@ -491,12 +509,30 @@ export default function Segnala() {
 
             {step === 3 && (
               <div className="space-y-12">
-                <div className="flex items-center gap-3">
-                   <div className="p-3 bg-emerald-50 text-[#15803d] rounded-lg"><User className="h-6 w-6" /></div>
-                   <div>
-                     <h2 className="text-2xl font-bold text-[#1e3a5f]">I tuoi dati personali</h2>
-                     <p className="text-gray-500 text-sm">I tuoi dati sono necessari per gestire la segnalazione e poterti aggiornare sullo stato.</p>
-                   </div>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                     <div className="p-3 bg-emerald-50 text-[#15803d] rounded-lg"><User className="h-6 w-6" /></div>
+                     <div>
+                       <h2 className="text-2xl font-bold text-[#1e3a5f]">I tuoi dati personali</h2>
+                       <p className="text-gray-500 text-sm">I tuoi dati sono necessari per gestire la segnalazione e poterti aggiornare sullo stato.</p>
+                     </div>
+                  </div>
+                  <div className="flex gap-2 w-full md:w-auto">
+                    <button
+                      onClick={() => setStep(step - 1)}
+                      className="w-full md:w-auto bg-white border border-gray-200 text-gray-600 px-6 py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-gray-50 hover:text-[#1e3a5f] transition-all cursor-pointer shadow-sm"
+                    >
+                      <ArrowLeft className="h-5 w-5" /> <span className="md:hidden">Indietro</span>
+                    </button>
+                    {(formData.nomeSegnalante && formData.cognomeSegnalante && formData.emailSegnalante && formData.consensoPrivacy) && (
+                      <button
+                        onClick={() => setStep(step + 1)}
+                        className="w-full md:w-auto bg-[#15803d] text-white px-8 py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-[#166534] transition-all cursor-pointer shadow-lg shadow-[#15803d]/30"
+                      >
+                        Avanti <ArrowRight className="h-5 w-5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -571,12 +607,30 @@ export default function Segnala() {
 
             {step === 4 && (
               <div className="space-y-12">
-                <div className="flex items-center gap-3">
-                   <div className="p-3 bg-emerald-50 text-[#15803d] rounded-lg"><ShieldCheck className="h-6 w-6" /></div>
-                   <div>
-                     <h2 className="text-2xl font-bold text-[#1e3a5f]">Dichiarazione di veridicità</h2>
-                     <p className="text-gray-500 text-sm">Ai sensi del DPR 445/2000, è necessario dichiarare la veridicità dei dati forniti.</p>
-                   </div>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                     <div className="p-3 bg-emerald-50 text-[#15803d] rounded-lg"><ShieldCheck className="h-6 w-6" /></div>
+                     <div>
+                       <h2 className="text-2xl font-bold text-[#1e3a5f]">Dichiarazione di veridicità</h2>
+                       <p className="text-gray-500 text-sm">Ai sensi del DPR 445/2000, è necessario dichiarare la veridicità dei dati forniti.</p>
+                     </div>
+                  </div>
+                  <div className="flex gap-2 w-full md:w-auto">
+                    <button
+                      onClick={() => setStep(step - 1)}
+                      className="w-full md:w-auto bg-white border border-gray-200 text-gray-600 px-6 py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-gray-50 hover:text-[#1e3a5f] transition-all cursor-pointer shadow-sm"
+                    >
+                      <ArrowLeft className="h-5 w-5" /> <span className="md:hidden">Indietro</span>
+                    </button>
+                    {formData.dichiarazioneVeridicita && (
+                      <button
+                        onClick={() => setStep(step + 1)}
+                        className="w-full md:w-auto bg-[#15803d] text-white px-8 py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-[#166534] transition-all cursor-pointer shadow-lg shadow-[#15803d]/30"
+                      >
+                        Avanti <ArrowRight className="h-5 w-5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="bg-gray-50 border border-gray-200 p-8 md:p-12 rounded-lg relative">
@@ -607,6 +661,14 @@ export default function Segnala() {
 
             {step === 5 && (
               <div className="space-y-12 text-center py-12">
+                 <div className="flex justify-between items-center mb-4 text-left w-full h-12">
+                    <button
+                      onClick={() => setStep(step - 1)}
+                      className="bg-white border border-gray-200 text-gray-600 px-6 py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-gray-50 hover:text-[#1e3a5f] transition-all cursor-pointer shadow-sm"
+                    >
+                      <ArrowLeft className="h-5 w-5" /> <span className="md:hidden">Indietro</span>
+                    </button>
+                 </div>
                  <div className="w-24 h-24 bg-emerald-50 text-[#15803d] rounded-full flex items-center justify-center mx-auto mb-8 shadow-xl">
                     <ShieldCheck className="h-12 w-12" />
                  </div>
@@ -632,48 +694,21 @@ export default function Segnala() {
                       <span className="font-bold text-sm text-[#15803d]">Digitale</span>
                     </div>
                  </div>
+                 <div className="pt-8">
+                    <button
+                      onClick={handleSubmit}
+                      disabled={loading}
+                      className="w-full md:w-[300px] mx-auto bg-[#15803d] text-white px-8 py-4 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-[#166534] transition-all cursor-pointer shadow-lg shadow-[#15803d]/30 disabled:opacity-50"
+                    >
+                      {loading ? (
+                        <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <>Invia Segnalazione <ArrowRight className="h-5 w-5" /></>
+                      )}
+                    </button>
+                 </div>
               </div>
             )}
-          </div>
-
-          {/* Footer Controls */}
-          <div className="p-10 border-t border-gray-100 bg-gray-50/50 flex flex-col md:flex-row justify-between items-center gap-6">
-            <button 
-              onClick={() => step > 1 && setStep(step - 1)}
-              disabled={step === 1 || loading}
-              className={`flex items-center gap-2 font-bold text-sm ${step === 1 ? 'opacity-0 invisible' : 'text-gray-500 hover:text-[#1e3a5f]'}`}
-            >
-              <ArrowLeft className="h-4 w-4" /> Indietro
-            </button>
-            
-            <div className="flex gap-4 w-full md:w-auto">
-              {step < 5 ? (
-                <button
-                  onClick={() => setStep(step + 1)}
-                  disabled={
-                    (step === 1 && !location) || 
-                    (step === 2 && (!formData.specie || !formData.condizioni)) || 
-                    (step === 3 && (!formData.nomeSegnalante || !formData.cognomeSegnalante || !formData.emailSegnalante || !formData.consensoPrivacy)) ||
-                    (step === 4 && !formData.dichiarazioneVeridicita)
-                  }
-                  className={`w-full md:w-[200px] bg-[#15803d]/10 text-[#15803d] px-8 py-4 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-[#15803d]/20 transition-all disabled:opacity-20 ${step === 1 ? 'hidden' : ''}`}
-                >
-                  Avanti <ArrowRight className="h-5 w-5" />
-                </button>
-              ) : (
-                <button
-                  onClick={handleSubmit}
-                  disabled={loading}
-                  className="w-full md:w-[200px] bg-[#15803d] text-white px-8 py-4 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-[#166534] transition-all shadow-lg shadow-[#15803d]/30"
-                >
-                  {loading ? (
-                    <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <>Invia Segnalazione <ArrowRight className="h-5 w-5" /></>
-                  )}
-                </button>
-              )}
-            </div>
           </div>
         </motion.div>
       </AnimatePresence>

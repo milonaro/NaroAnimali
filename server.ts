@@ -201,22 +201,42 @@ async function startServer() {
   // Segnalazioni Route
   app.get("/api/segnalazioni", async (req, res) => {
     try {
-      if (!db) {
-        return res.json([]);
+      let list = [];
+      if (mysqlPool) {
+        const [rows] = await mysqlPool.query<any>("SELECT * FROM segnalazioni ORDER BY created_at DESC");
+        list = rows.map((r: any) => ({
+          id: r.id.toString(),
+          codiceTracking: r.codice_tracking,
+          specie: r.specie,
+          condizioni: r.condizioni,
+          descrizione: r.descrizione,
+          fotoUrl: r.foto_url,
+          latitudine: r.latitudine,
+          longitudine: r.longitudine,
+          indirizzo: r.indirizzo,
+          stato: r.stato,
+          urgenza: r.urgenza,
+          createdAt: r.created_at || new Date().toISOString(),
+          updatedAt: r.updated_at || new Date().toISOString()
+        }));
+      } else {
+        const rows = await sqliteDb.all("SELECT * FROM segnalazioni ORDER BY createdAt DESC");
+        list = rows.map((r: any) => ({
+          id: r.id.toString(),
+          codiceTracking: r.codiceTracking,
+          specie: r.specie,
+          condizioni: r.condizioni,
+          descrizione: r.descrizione,
+          fotoUrl: r.fotoUrl,
+          latitudine: r.latitudine,
+          longitudine: r.longitudine,
+          indirizzo: r.indirizzo,
+          stato: r.stato,
+          urgenza: r.urgenza,
+          createdAt: r.createdAt || new Date().toISOString(),
+          updatedAt: r.updatedAt || new Date().toISOString()
+        }));
       }
-      const snap = await db.collection("segnalazioni")
-        .orderBy("createdAt", "desc")
-        .get();
-      
-      const list = snap.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...data,
-          createdAt: data.createdAt ? data.createdAt.toDate().toLocaleDateString("it-IT") : new Date().toLocaleDateString("it-IT"),
-          updatedAt: data.updatedAt ? data.updatedAt.toDate().toLocaleDateString("it-IT") : new Date().toLocaleDateString("it-IT"),
-        };
-      });
       res.json(list);
     } catch (error: any) {
       console.error("GET reports error:", error);
@@ -229,7 +249,6 @@ async function startServer() {
       const { lat, lng, specie, condizioni, descrizione, emailSegnalante, consensoPrivacy, fotoUrl, indirizzo } = req.body;
 
       if (!consensoPrivacy) return res.status(400).json({ error: "Consenso privacy obbligatorio" });
-      if (!db) throw new Error("DB not connected");
 
       const anno = new Date().getFullYear();
       
@@ -279,24 +298,29 @@ async function startServer() {
         sqlId = insertResult.lastID;
       }
 
-      // Sync realtime payload to Firestore (for map pins / real-time dashboard)
-      const docRef = await db.collection("segnalazioni").add({
-        relationalId: sqlId, // Linking to primary DB
-        codiceTracking,
-        specie,
-        condizioni,
-        descrizione, // Note: For a strict "realtime only" Firestore, we could omit heavy fields like desc/email
-        fotoUrl,
-        latitudine: lat,
-        longitudine: lng,
-        indirizzo,
-        stato: "CREATA",
-        urgenza,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+      let firestoreId = sqlId.toString();
 
-      res.json({ id: docRef.id, codiceTracking });
+      // Sync realtime payload to Firestore (for map pins / real-time dashboard)
+      if (db) {
+        const docRef = await db.collection("segnalazioni").add({
+          relationalId: sqlId, // Linking to primary DB
+          codiceTracking,
+          specie,
+          condizioni,
+          descrizione, // Note: For a strict "realtime only" Firestore, we could omit heavy fields like desc/email
+          fotoUrl,
+          latitudine: lat,
+          longitudine: lng,
+          indirizzo,
+          stato: "CREATA",
+          urgenza,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        firestoreId = docRef.id;
+      }
+
+      res.json({ id: firestoreId, codiceTracking });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
