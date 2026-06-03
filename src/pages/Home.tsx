@@ -816,7 +816,7 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
             onClick={scrollToTop}
-            className="fixed bottom-40 right-4 md:bottom-28 md:right-8 z-[5000] w-12 h-12 md:w-14 md:h-14 bg-[#101b3a] hover:bg-[#15803d] text-white rounded-full shadow-2xl flex items-center justify-center transition-colors hover:scale-110 active:scale-95 border-2 border-white/50 cursor-pointer"
+            className="fixed bottom-24 left-4 md:bottom-8 md:left-8 z-[5000] w-12 h-12 md:w-14 md:h-14 bg-[#101b3a] hover:bg-[#15803d] text-white rounded-full shadow-2xl flex items-center justify-center transition-colors hover:scale-110 active:scale-95 border-2 border-white/50 cursor-pointer"
             aria-label="Torna su"
           >
             <ArrowUp className="h-6 w-6 md:h-7 md:w-7" />

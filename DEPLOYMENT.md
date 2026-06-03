@@ -1,4 +1,4 @@
-# Guida al Deployment - NaroAnimali
+# Guida al Deployment - AnimalHub PA
 
 Questa guida spiega come configurare e pubblicare l'applicazione su diverse piattaforme.
 

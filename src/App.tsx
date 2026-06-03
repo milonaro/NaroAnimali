@@ -12,6 +12,7 @@ import Mappa from './pages/Mappa';
 import MiaArea from './pages/MiaArea';
 import Guida from './pages/Guida';
 import Operatori from './pages/Operatori';
+import DebugDb from './pages/DebugDb';
 import { PrivacyPolicy, Accessibilita, CookiePolicy } from './pages/Compliance';
 
 import { AccessibilityProvider } from './contexts/AccessibilityContext';
@@ -36,6 +37,7 @@ export default function App() {
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/accessibilita" element={<Accessibilita />} />
               <Route path="/cookie-policy" element={<CookiePolicy />} />
+              <Route path="/debug-db" element={<DebugDb />} />
             </Routes>
           </main>
           <ChatOverlay />

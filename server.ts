@@ -126,7 +126,7 @@ async function startServer() {
         contents: messages,
         config: {
           systemInstruction: "Sei un assistente specializzato nella normativa italiana di tutela animale per il Comune di Naro (AG) e la regione Sicilia. " +
-            "Il sistema si chiama NaroAnimali. " +
+            "Il sistema si chiama AnimalHub PA. " +
             "Rispondi in italiano in modo professionale ma accessibile. " +
             "Conosci le leggi regionali siciliane sul randagismo (L.R. 15/2000) e il benessere dei cani. " +
             "Se l'utente chiede come segnalare un animale, indirizzalo alla sezione 'Segnala' del portale. " +
@@ -161,7 +161,7 @@ async function startServer() {
       await resend.emails.send({
         from: process.env.EMAIL_FROM || "onboarding@resend.dev",
         to: email,
-        subject: "Il tuo codice di accesso - NaroAnimali",
+        subject: "Il tuo codice di accesso - AnimalHub PA",
         html: `<h2>Il tuo codice OTP è: ${otp}</h2><p>Valido per 15 minuti.</p>`
       });
 
@@ -297,6 +297,69 @@ async function startServer() {
       });
 
       res.json({ id: docRef.id, codiceTracking });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Debug Database Config and Data
+  app.get("/api/debug/db", async (req, res) => {
+    try {
+      let mysqlStatus = "Disconnesso";
+      let mysqlError = null;
+      let mysqlData = null;
+
+      if (mysqlPool) {
+        try {
+          const [rows] = await mysqlPool.query("SELECT * FROM segnalazioni LIMIT 5");
+          mysqlStatus = "Connesso (Aruba)";
+          mysqlData = rows;
+        } catch (err: any) {
+          mysqlStatus = "Errore di connessione o query (Aruba)";
+          mysqlError = err.message;
+        }
+      } else {
+        mysqlStatus = "Fallback SQLite locale";
+        if (sqliteDb) {
+           const rows = await sqliteDb.all("SELECT * FROM segnalazioni LIMIT 5");
+           mysqlData = rows;
+        }
+      }
+
+      let firestoreStatus = "Disconnesso";
+      let firestoreError = null;
+      let firestoreData = null;
+
+      if (db) {
+        try {
+          const snap = await db.collection("segnalazioni").limit(5).get();
+          firestoreStatus = "Connesso";
+          firestoreData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        } catch (err: any) {
+          firestoreStatus = "Errore Firestore";
+          firestoreError = err.message;
+        }
+      } else {
+         firestoreStatus = "Firebase Admin non inizializzato";
+      }
+
+      res.json({
+        mysql: {
+          status: mysqlStatus,
+          error: mysqlError,
+          sampleData: mysqlData,
+          config: {
+            host: process.env.DB_HOST ? `${process.env.DB_HOST.substring(0, 4)}***` : "Non impostato",
+            user: process.env.DB_USER ? `${process.env.DB_USER.substring(0, 3)}***` : "Non impostato",
+            database: process.env.DB_NAME ? `${process.env.DB_NAME.substring(0, 3)}***` : "Non impostato",
+          }
+        },
+        firestore: {
+          status: firestoreStatus,
+          error: firestoreError,
+          sampleData: firestoreData,
+        }
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

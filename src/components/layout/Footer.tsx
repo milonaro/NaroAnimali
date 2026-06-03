@@ -12,7 +12,7 @@ export default function Footer() {
               <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center font-bold italic text-[#101b3a] shadow-lg">AH</div>
               <div className="flex flex-col">
                  <span className="text-2xl font-bold tracking-tight text-white leading-none">AnimalHub PA</span>
-                 <span className="text-[10px] uppercase tracking-widest text-[#94a3b8] font-medium">Comune di Naro</span>
+                 <span className="text-[10px] uppercase tracking-widest text-[#94a3b8] font-medium">DEMO Comune di Naro</span>
               </div>
             </div>
             <p className="text-sm font-medium text-[#94a3b8] max-w-sm leading-relaxed mb-8">
@@ -61,7 +61,7 @@ export default function Footer() {
         <div className="mt-20 pt-10 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex flex-col md:flex-row items-center gap-8">
             <p className="text-xs font-medium text-slate-400">
-              © {new Date().getFullYear()} Comune di Naro. Tutti i diritti riservati.
+              © {new Date().getFullYear()} DEMO Comune di Naro. Tutti i diritti riservati.
             </p>
             <AccessibilityToggle />
           </div>
