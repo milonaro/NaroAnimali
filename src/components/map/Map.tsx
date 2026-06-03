@@ -3,9 +3,10 @@ import L from 'leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import { NARO } from '@/src/lib/geofence';
 import { useEffect, useState, useMemo } from 'react';
-import { WifiOff, AlertCircle, Filter, Dog, Cat, MousePointer2, Calendar, ArrowRight, ShieldAlert, CheckCircle2, Clock } from 'lucide-react';
+import { WifiOff, AlertCircle, Filter, Dog, Cat, MousePointer2, Calendar, ArrowRight, ShieldAlert, CheckCircle2, Clock, Maximize2 } from 'lucide-react';
 import { OfflineStore } from '@/src/lib/offline';
 import { Link } from 'react-router-dom';
+import Lightbox from '../ui/Lightbox';
 
 // Fix for default marker icons in Leaflet with React
 // @ts-ignore
@@ -20,9 +21,18 @@ L.Icon.Default.mergeOptions({
 function MapFix() {
   const map = useMap();
   useEffect(() => {
-    setTimeout(() => {
-      map.invalidateSize();
-    }, 250);
+    // Immediate invalidate
+    map.invalidateSize();
+    
+    // Delayed invalidate for layout transitions
+    const timers = [100, 250, 500, 1000].map(delay => 
+      setTimeout(() => {
+        map.invalidateSize();
+        window.dispatchEvent(new Event('resize'));
+      }, delay)
+    );
+
+    return () => timers.forEach(clearTimeout);
   }, [map]);
   return null;
 }
@@ -66,6 +76,11 @@ export default function AppMap({ onLocationSelect, markers = [], interactive = f
   const [pendingCount, setPendingCount] = useState(0);
   const [specieFilter, setSpecieFilter] = useState<string>('Tutte');
   const [urgenzaFilter, setUrgenzaFilter] = useState<string>('Tutte');
+  const [lightbox, setLightbox] = useState<{ isOpen: boolean; url: string | null; title: string }>({
+    isOpen: false,
+    url: null,
+    title: ''
+  });
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -96,10 +111,10 @@ export default function AppMap({ onLocationSelect, markers = [], interactive = f
   }, [markers, specieFilter, urgenzaFilter]);
 
   return (
-    <div className="relative h-full w-full group overflow-hidden rounded-[2.5rem] bg-gray-100 border-4 border-white shadow-2xl">
+    <div className="relative h-full w-full group overflow-hidden rounded-[2.5rem] bg-white border-4 border-white shadow-xl">
       {/* Filter Bar */}
       <div className="absolute top-6 left-6 right-6 z-[1000] flex flex-wrap gap-3 pointer-events-none">
-        <div className="bg-white/90 backdrop-blur-md rounded-2xl p-2 shadow-xl border border-gray-100 flex items-center gap-2 pointer-events-auto">
+        <div className="bg-white/95 backdrop-blur-md rounded-2xl p-2 shadow-xl border border-gray-100 flex items-center gap-2 pointer-events-auto">
           <div className="p-2 bg-gray-50 rounded-lg">
             <Filter className="h-4 w-4 text-gray-500" />
           </div>
@@ -115,7 +130,7 @@ export default function AppMap({ onLocationSelect, markers = [], interactive = f
           </select>
         </div>
 
-        <div className="bg-white/90 backdrop-blur-md rounded-2xl p-2 shadow-xl border border-gray-100 flex items-center gap-2 pointer-events-auto">
+        <div className="bg-white/95 backdrop-blur-md rounded-2xl p-2 shadow-xl border border-gray-100 flex items-center gap-2 pointer-events-auto">
           <div className="p-2 bg-gray-50 rounded-lg">
             <ShieldAlert className="h-4 w-4 text-gray-500" />
           </div>
@@ -145,8 +160,8 @@ export default function AppMap({ onLocationSelect, markers = [], interactive = f
       )}
 
       {/* Modern Legend */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] w-[calc(100%-3rem)] max-w-lg">
-        <div className="bg-white/90 backdrop-blur-md rounded-[2rem] p-4 shadow-2xl border border-gray-100">
+      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-[1000] w-[calc(100%-3rem)] max-w-lg">
+        <div className="bg-white/95 backdrop-blur-md rounded-[2rem] p-4 shadow-2xl border border-gray-100">
            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[
                 { label: 'Creata', color: 'bg-blue-500', icon: Clock },
@@ -168,8 +183,9 @@ export default function AppMap({ onLocationSelect, markers = [], interactive = f
       <MapContainer
         center={[NARO.center.lat, NARO.center.lng]}
         zoom={14}
-        className="h-full w-full"
+        className="h-full w-full min-h-[400px]"
         scrollWheelZoom={false}
+        style={{ height: '100%', width: '100%' }}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -186,12 +202,15 @@ export default function AppMap({ onLocationSelect, markers = [], interactive = f
                 <div className="flex flex-col group/popup">
                   {m.image ? (
                     <div 
-                      className="h-32 w-full overflow-hidden relative outline-none focus:ring-4 focus:ring-inset focus:ring-[#15803d]/50"
+                      className="h-32 w-full overflow-hidden relative outline-none focus:ring-4 focus:ring-inset focus:ring-[#15803d]/50 cursor-zoom-in group/img"
                       tabIndex={0}
                       aria-label={`Foto della segnalazione: ${m.title}`}
+                      onClick={() => setLightbox({ isOpen: true, url: m.image!, title: m.title })}
                     >
-                      <img src={m.image} alt="" className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                      <img src={m.image} alt="" className="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-110" />
+                      <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/20 transition-colors flex items-center justify-center">
+                        <Maximize2 className="text-white opacity-0 group-hover/img:opacity-100 transition-opacity h-6 w-6 scale-75 group-hover/img:scale-100 duration-300" />
+                      </div>
                       <div className="absolute bottom-3 left-3 flex items-center gap-2">
                         <div className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest text-white ${
                           m.urgenza === 'Alta' ? 'bg-red-500' : m.urgenza === 'Normale' ? 'bg-amber-500' : 'bg-emerald-500'
@@ -245,6 +264,13 @@ export default function AppMap({ onLocationSelect, markers = [], interactive = f
           ))}
         </MarkerClusterGroup>
       </MapContainer>
+
+      <Lightbox 
+        isOpen={lightbox.isOpen} 
+        imageUrl={lightbox.url} 
+        title={lightbox.title}
+        onClose={() => setLightbox(prev => ({ ...prev, isOpen: false }))} 
+      />
     </div>
   );
 }

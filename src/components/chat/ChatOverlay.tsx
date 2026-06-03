@@ -92,12 +92,13 @@ export default function ChatOverlay() {
                   <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto shadow-sm">
                     <MessageSquare className="h-6 w-6 text-gray-300" />
                   </div>
-                  <h4 className="text-sm font-bold text-[#1e3a5f]">Come posso aiutarti?</h4>
-                  <p className="text-xs text-gray-400 font-medium leading-relaxed">
-                    Chiedimi informazioni sulle leggi regionali, su come adottare o come segnalare un animale randagio a Naro.
+                  <h4 className="text-base font-black text-[#1e3a5f] uppercase tracking-tight">Come posso aiutarti oggi?</h4>
+                  <p className="text-xs text-gray-500 font-medium leading-relaxed">
+                    Sono l'assistente virtuale del Comune di Naro. Chiedimi informazioni sulla procedura di segnalazione, sulle normative regionali (L.R. 15/2000), o su come adottare un cane dal nostro rifugio.
                   </p>
-                  <div className="flex flex-col gap-2 pt-4">
-                     {["Cosa dice la L.R. 15/2000?", "Come segnalo un cane ferito?", "Orari Polizia Municipale"].map((q) => (
+                  <div className="flex flex-col gap-2 pt-6">
+                     <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-left mb-2">Domande frequenti</p>
+                     {["Quali sono le sanzioni per l'abbandono?", "Come segnalo un animale ferito?", "Orari ufficio diritti animali"].map((q) => (
                        <button
                          key={q}
                          onClick={() => { setInput(q); }}
@@ -158,11 +159,16 @@ export default function ChatOverlay() {
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-16 h-16 rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 ${
+        className={`px-6 h-16 rounded-full flex items-center gap-3 shadow-2xl transition-all duration-300 ${
           isOpen ? 'bg-white text-[#101b3a]' : 'bg-[#101b3a] text-white'
         }`}
       >
-        {isOpen ? <X className="h-7 w-7" /> : <MessageSquare className="h-7 w-7" />}
+        {!isOpen && (
+          <span className="text-[10px] font-black uppercase tracking-widest border-r border-white/20 pr-3 mr-1">
+            Chiedi aiuto AI
+          </span>
+        )}
+        {isOpen ? <X className="h-6 w-6" /> : <MessageSquare className="h-6 w-6" />}
       </motion.button>
     </div>
   );

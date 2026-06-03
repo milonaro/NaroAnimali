@@ -13,14 +13,34 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Initialize AI
-const genAI = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY!,
-  httpOptions: { headers: { "User-Agent": "aistudio-build" } }
-});
+// Lazy AI Initialization
+let genAIInstance: GoogleGenAI | null = null;
+function getGenAI() {
+  if (!genAIInstance) {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) {
+      throw new Error("GEMINI_API_KEY environment variable is required");
+    }
+    genAIInstance = new GoogleGenAI({
+      apiKey: key,
+      httpOptions: { headers: { "User-Agent": "aistudio-build" } }
+    });
+  }
+  return genAIInstance;
+}
 
-// Initialize Resend
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy Resend Initialization
+let resendInstance: Resend | null = null;
+function getResend() {
+  if (!resendInstance) {
+    const key = process.env.RESEND_API_KEY;
+    if (!key) {
+      throw new Error("RESEND_API_KEY environment variable is required");
+    }
+    resendInstance = new Resend(key);
+  }
+  return resendInstance;
+}
 
 // Initialize Firebase Admin
 if (!admin.apps.length) {
@@ -48,6 +68,7 @@ async function startServer() {
   app.post("/api/chat", async (req, res) => {
     try {
       const { messages } = req.body;
+      const genAI = getGenAI();
       const response = await genAI.models.generateContent({
         model: "gemini-3.5-flash",
         contents: messages,
@@ -84,6 +105,7 @@ async function startServer() {
         });
       }
 
+      const resend = getResend();
       await resend.emails.send({
         from: process.env.EMAIL_FROM || "onboarding@resend.dev",
         to: email,

@@ -209,9 +209,38 @@ export default function Segnala() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto py-12 px-4 min-h-screen">
-      {/* Progress Stepper */}
-      <div className="flex flex-wrap justify-center items-center gap-4 mb-16 px-4">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Hero Section */}
+      <section className="bg-[#101b3a] py-20 lg:py-24 relative overflow-hidden">
+        <div className="absolute inset-0 z-0">
+          <img 
+            src="https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?auto=format&fit=crop&q=80&w=2000" 
+            className="w-full h-full object-cover opacity-20"
+            alt="Animal rescue background"
+          />
+        </div>
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full border border-white/20 mb-6 backdrop-blur-md">
+              <ShieldCheck className="h-4 w-4 text-emerald-400" />
+              <span className="text-[10px] font-black text-white uppercase tracking-widest">Protocollo Digitale Sicuro</span>
+            </div>
+            <h1 className="text-4xl lg:text-6xl font-bold text-white mb-6 tracking-tight">
+              Nuova Segnalazione
+            </h1>
+            <p className="text-white/60 text-lg max-w-2xl mx-auto leading-relaxed">
+              Il tuo contributo è fondamentale per la tutela degli animali di Naro.
+            </p>
+          </motion.div>
+        </div>
+      </section>
+
+      <div className="max-w-7xl mx-auto py-16 px-4 flex-1 w-full">
+        {/* Progress Stepper */}
+        <div className="flex flex-wrap justify-center items-center gap-4 mb-20 px-4">
         {steps.map((s, i) => (
           <React.Fragment key={s.id}>
             <div className="flex items-center gap-3">
@@ -556,6 +585,7 @@ export default function Segnala() {
       <p className="text-center text-gray-400 text-[10px] font-medium mt-12 uppercase tracking-[0.2em] max-w-xl mx-auto leading-relaxed">
         Il sistema NaroAnimali è una piattaforma ufficiale del Comune di Naro. Le segnalazioni mendaci sono punite ai sensi della legge italiana.
       </p>
+    </div>
     </div>
   );
 }

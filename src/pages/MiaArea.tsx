@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Mail, ShieldCheck, Search, Clock, CheckCircle2, ChevronRight, ArrowLeft, Loader2, MapPin, Activity, HelpCircle, Info, Download } from 'lucide-react';
+import { Mail, ShieldCheck, Search, Clock, CheckCircle2, ChevronRight, ArrowLeft, Loader2, MapPin, Activity, HelpCircle, Info, Download, BarChart3, Maximize2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import Lightbox from '../components/ui/Lightbox';
 
 interface Report {
   code: string;
@@ -11,6 +13,7 @@ interface Report {
   desc: string;
   location?: string;
   specie?: string;
+  image?: string;
 }
 
 export default function MiaArea() {
@@ -20,6 +23,11 @@ export default function MiaArea() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState<{ isOpen: boolean; url: string | null; title: string }>({
+    isOpen: false,
+    url: null,
+    title: ''
+  });
 
   const reports: Report[] = [
     { 
@@ -28,7 +36,8 @@ export default function MiaArea() {
       date: '21 Maggio 2025', 
       desc: 'Cane ferito avvistato in Contrada San Giorgio',
       location: 'Contrada San Giorgio, Naro (AG)',
-      specie: 'Cane'
+      specie: 'Cane',
+      image: 'https://images.unsplash.com/photo-1544568100-847a948585b9?auto=format&fit=crop&q=80&w=800'
     },
     { 
       code: 'NARO-2025-0015', 
@@ -36,7 +45,8 @@ export default function MiaArea() {
       date: '12 Maggio 2025', 
       desc: 'Gatto con cucciolata vicino al castello',
       location: 'Via Castello, Naro (AG)',
-      specie: 'Gatto'
+      specie: 'Gatto',
+      image: 'https://images.unsplash.com/photo-1543852786-1cf6624b9987?auto=format&fit=crop&q=80&w=800'
     }
   ];
 
@@ -125,7 +135,14 @@ export default function MiaArea() {
     <div className="max-w-7xl mx-auto py-20 px-4 min-h-[70vh] flex flex-col justify-center">
       <AnimatePresence mode="wait">
         {step === 1 && (
-          <motion.div key="step1" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="max-w-md mx-auto w-full">
+          <motion.div 
+            key="step1" 
+            initial={{ opacity: 0, y: 20 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            exit={{ opacity: 0, y: -20 }} 
+            transition={{ type: "spring", stiffness: 200, damping: 25 }}
+            className="max-w-md mx-auto w-full"
+          >
             <div className="text-center mb-12">
               <div className="bg-emerald-50 w-20 h-20 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-xl shadow-emerald-500/10">
                 <Mail className="text-[#15803d] h-8 w-8" />
@@ -161,7 +178,14 @@ export default function MiaArea() {
         )}
 
         {step === 2 && (
-          <motion.div key="step2" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="max-w-md mx-auto w-full">
+          <motion.div 
+            key="step2" 
+            initial={{ opacity: 0, x: 50 }} 
+            animate={{ opacity: 1, x: 0 }} 
+            exit={{ opacity: 0, x: -50 }} 
+            transition={{ type: "spring", stiffness: 200, damping: 25 }}
+            className="max-w-md mx-auto w-full"
+          >
             <div className="text-center mb-12">
               <div className="bg-emerald-50 w-20 h-20 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-xl shadow-emerald-500/10">
                 <ShieldCheck className="text-[#15803d] h-8 w-8" />
@@ -195,7 +219,13 @@ export default function MiaArea() {
         )}
 
         {step === 3 && (
-          <motion.div key="step3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-12 w-full">
+          <motion.div 
+            key="step3" 
+            initial={{ opacity: 0, y: 20 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            transition={{ type: "spring", stiffness: 200, damping: 25 }}
+            className="space-y-12 w-full"
+          >
             <AnimatePresence mode="wait">
               {!selectedReport ? (
                 <motion.div key="list" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-12">
@@ -209,6 +239,69 @@ export default function MiaArea() {
                       </div>
                     </div>
                     <button onClick={() => window.location.reload()} className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 hover:text-red-500 transition-colors py-3 px-6 bg-gray-50 border border-gray-100 rounded-xl">Esci</button>
+                  </div>
+
+                  {/* Chart Section */}
+                  <div className="bg-white p-10 rounded-[2.5rem] border border-gray-100 shadow-sm">
+                    <div className="flex items-center gap-3 mb-8">
+                       <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
+                          <BarChart3 className="h-6 w-6" />
+                       </div>
+                       <div>
+                          <h2 className="text-2xl font-bold text-[#1e3a5f]">Statistiche Segnalazioni</h2>
+                          <p className="text-gray-400 text-sm font-medium">Andamento degli ultimi 6 mesi nel territorio di Naro</p>
+                       </div>
+                    </div>
+                    
+                    <div className="h-[300px] w-full">
+                       <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={[
+                            { name: 'Dic', total: 12 },
+                            { name: 'Gen', total: 18 },
+                            { name: 'Feb', total: 14 },
+                            { name: 'Mar', total: 22 },
+                            { name: 'Apr', total: 28 },
+                            { name: 'Mag', total: 25 },
+                          ]}>
+                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                             <XAxis 
+                                dataKey="name" 
+                                axisLine={false} 
+                                tickLine={false} 
+                                tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }}
+                                dy={10}
+                             />
+                             <YAxis 
+                                axisLine={false} 
+                                tickLine={false} 
+                                tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }}
+                             />
+                             <Tooltip 
+                                cursor={{ fill: '#f8fafc' }}
+                                content={({ active, payload }) => {
+                                  if (active && payload && payload.length) {
+                                    return (
+                                      <div className="bg-[#101b3a] p-4 rounded-2xl shadow-2xl border border-white/10">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-white/50 mb-1">{payload[0].payload.name}</p>
+                                        <p className="text-xl font-bold text-white">{payload[0].value} <span className="text-xs font-medium text-emerald-400">Segnalazioni</span></p>
+                                      </div>
+                                    );
+                                  }
+                                  return null;
+                                }}
+                             />
+                             <Bar 
+                                dataKey="total" 
+                                radius={[8, 8, 0, 0]} 
+                                barSize={40}
+                             >
+                                {[1, 2, 3, 4, 5, 6].map((_, index) => (
+                                  <Cell key={`cell-${index}`} fill={index === 5 ? '#15803d' : '#e2e8f0'} className="hover:fill-blue-500 transition-colors" />
+                                ))}
+                             </Bar>
+                          </BarChart>
+                       </ResponsiveContainer>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -285,6 +378,18 @@ export default function MiaArea() {
                         <h2 className="text-3xl font-bold text-[#1e3a5f] mb-6 leading-tight">
                           {selectedReport.desc}
                         </h2>
+                        
+                        {selectedReport.image && (
+                          <div 
+                            className="aspect-video w-full rounded-2xl overflow-hidden mb-8 relative group cursor-zoom-in"
+                            onClick={() => setLightbox({ isOpen: true, url: selectedReport.image!, title: selectedReport.desc })}
+                          >
+                            <img src={selectedReport.image} alt={selectedReport.desc} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                              <Maximize2 className="text-white opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8" />
+                            </div>
+                          </div>
+                        )}
                         
                         <div className="space-y-8 pt-8 border-t border-gray-50">
                           <div className="flex items-start gap-4">
@@ -376,6 +481,13 @@ export default function MiaArea() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <Lightbox 
+        isOpen={lightbox.isOpen} 
+        imageUrl={lightbox.url} 
+        title={lightbox.title}
+        onClose={() => setLightbox(prev => ({ ...prev, isOpen: false }))} 
+      />
     </div>
   );
 }

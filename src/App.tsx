@@ -10,6 +10,7 @@ import Home from './pages/Home';
 import Segnala from './pages/Segnala';
 import Mappa from './pages/Mappa';
 import MiaArea from './pages/MiaArea';
+import Guida from './pages/Guida';
 import { PrivacyPolicy, Accessibilita, CookiePolicy } from './pages/Compliance';
 
 import { AccessibilityProvider } from './contexts/AccessibilityContext';
@@ -27,6 +28,7 @@ export default function App() {
               <Route path="/segnala" element={<Segnala />} />
               <Route path="/mappa" element={<Mappa />} />
               <Route path="/mia-area" element={<MiaArea />} />
+              <Route path="/guida" element={<Guida />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/accessibilita" element={<Accessibilita />} />
               <Route path="/cookie-policy" element={<CookiePolicy />} />

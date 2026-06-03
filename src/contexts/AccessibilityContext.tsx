@@ -5,6 +5,7 @@ interface AccessibilitySettings {
   largeText: boolean;
   dyslexicFont: boolean;
   reducedMotion: boolean;
+  textToSpeech: boolean;
 }
 
 interface AccessibilityContextType {
@@ -18,6 +19,7 @@ const defaultSettings: AccessibilitySettings = {
   largeText: false,
   dyslexicFont: false,
   reducedMotion: false,
+  textToSpeech: false,
 };
 
 const AccessibilityContext = createContext<AccessibilityContextType | undefined>(undefined);

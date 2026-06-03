@@ -1,5 +1,6 @@
 import { Shield, Accessibility, Info, Mail, Phone, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import AccessibilityToggle from './AccessibilityToggle';
 
 export default function Footer() {
   return (
@@ -54,9 +55,12 @@ export default function Footer() {
         </div>
         
         <div className="mt-20 pt-10 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-6">
-          <p className="text-xs font-medium text-gray-400">
-            © {new Date().getFullYear()} Comune di Naro. Tutti i diritti riservati.
-          </p>
+          <div className="flex flex-col md:flex-row items-center gap-8">
+            <p className="text-xs font-medium text-gray-400">
+              © {new Date().getFullYear()} Comune di Naro. Tutti i diritti riservati.
+            </p>
+            <AccessibilityToggle />
+          </div>
           <div className="flex items-center gap-6">
             <span className="text-[10px] font-bold uppercase tracking-widest text-[#64748b]/50">Design System Italia</span>
             <div className="flex items-center gap-3">

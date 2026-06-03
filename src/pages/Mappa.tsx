@@ -3,8 +3,8 @@ import { Filter, Search } from 'lucide-react';
 
 export default function Mappa() {
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col pt-12 pb-24">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex flex-col flex-1 gap-8">
+    <div className="bg-gray-50 flex flex-col pt-12 pb-24">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex flex-col gap-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <h1 className="text-4xl font-bold text-[#1e3a5f] tracking-tight mb-2">Mappa del territorio</h1>
@@ -23,7 +23,7 @@ export default function Mappa() {
           </div>
         </div>
         
-        <div className="flex-1 relative min-h-[600px] rounded-[2.5rem] overflow-hidden border-4 border-white shadow-2xl">
+        <div className="h-[700px] w-full relative">
           <AppMap />
         </div>
       </div>
