@@ -8,82 +8,7 @@ import {
 import AppMap from '@/src/components/map/Map';
 import { AnimalSpecie, SegnalazioneStato, Segnalazione } from '../types';
 
-// Let's declare some mock initial structured reports for Naro matching the database schema
-const INITIAL_REPORTS: Segnalazione[] = [
-  {
-    id: "rep-1",
-    codiceTracking: "NARO-2026-0042",
-    specie: AnimalSpecie.CANE,
-    taglia: "MEDIA",
-    colore: "Bianco e nero",
-    condizioni: "FERITO",
-    descrizione: "Cane zoppicante trovato vicino alla Villa Comunale, sembra spaventato.",
-    latitudine: 37.2925,
-    longitudine: 13.7932,
-    indirizzo: "Viale della Vittoria, Naro (AG)",
-    zona: "Centro",
-    stato: SegnalazioneStato.NUOVA,
-    urgenza: "ALTA",
-    nomeSegnalante: "Franca",
-    cognomeSegnalante: "Amorelli",
-    telefonoSegnalante: "3291234567",
-    emailSegnalante: "franca.a@libero.it",
-    consensoPrivacy: true,
-    consensoNotifiche: true,
-    dichiarazioneVeridicita: true,
-    createdAt: new Date(Date.now() - 3600000 * 4).toLocaleDateString("it-IT"),
-    updatedAt: new Date(Date.now() - 3600000 * 4).toLocaleDateString("it-IT"),
-  },
-  {
-    id: "rep-2",
-    codiceTracking: "NARO-2026-0039",
-    specie: AnimalSpecie.GATTO,
-    taglia: "PICCOLA",
-    colore: "Tigrato grigio",
-    condizioni: "CUCCIOLO",
-    descrizione: "Tre gattini abbandonati in una scatola di scarpe vicino alla chiesa di San Salvatore.",
-    latitudine: 37.2911,
-    longitudine: 13.7951,
-    indirizzo: "Via Vittorio Emanuele, Naro (AG)",
-    zona: "Centro",
-    stato: SegnalazioneStato.IN_CARICO,
-    urgenza: "MEDIA",
-    nomeSegnalante: "Salvatore",
-    cognomeSegnalante: "Gallo",
-    telefonoSegnalante: "3338765432",
-    emailSegnalante: "salvog@gmail.com",
-    consensoPrivacy: true,
-    consensoNotifiche: true,
-    dichiarazioneVeridicita: true,
-    createdAt: new Date(Date.now() - 3600000 * 24).toLocaleDateString("it-IT"),
-    updatedAt: new Date(Date.now() - 3600000 * 18).toLocaleDateString("it-IT"),
-  },
-  {
-    id: "rep-3",
-    codiceTracking: "NARO-2026-0031",
-    specie: AnimalSpecie.CANE,
-    taglia: "GRANDE",
-    colore: "Marrone scuro",
-    condizioni: "BRANCO",
-    descrizione: "Gruppo di cani randagi pacifici ma numerosi nei pressi della contrada Serrone.",
-    latitudine: 37.2842,
-    longitudine: 13.7820,
-    indirizzo: "Contrada Serrone, Naro (AG)",
-    zona: "Periferia",
-    stato: SegnalazioneStato.INTERVENTO,
-    urgenza: "BASSA",
-    nomeSegnalante: "Pietro",
-    cognomeSegnalante: "Nobile",
-    telefonoSegnalante: "3479988776",
-    emailSegnalante: "p.nobile@virgilio.it",
-    consensoPrivacy: true,
-    consensoNotifiche: false,
-    dichiarazioneVeridicita: true,
-    createdAt: new Date(Date.now() - 3600000 * 48).toLocaleDateString("it-IT"),
-    updatedAt: new Date(Date.now() - 3600000 * 40).toLocaleDateString("it-IT"),
-  }
-];
-
+// Removed mock data variables
 interface RegistroAnimale {
   id: string;
   nome?: string;
@@ -99,52 +24,6 @@ interface RegistroAnimale {
   dataSincronizzazione: string;
 }
 
-// Mock database registry for Anagrafe Canina/Felina (Modulo C) conform to regional Sicily registry
-const INITIAL_REGISTRO: RegistroAnimale[] = [
-  {
-    id: "reg-1",
-    nome: "Bobby",
-    microchip: "380260000843219",
-    specie: AnimalSpecie.CANE,
-    sesso: "M",
-    taglia: "MEDIA",
-    colore: "Miele corvino",
-    condizioniSanitarie: "Sterilizzato, vaccinazione antirabbica ok",
-    stato: "IN_CANILE",
-    fotoUrl: "https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=300",
-    notes: "Trovato in Contrada Camastra nel Gennaio 2026. Docile ed energetico.",
-    dataSincronizzazione: "02/06/2026 10:15"
-  },
-  {
-    id: "reg-2",
-    nome: "Luna",
-    microchip: "380260000155490",
-    specie: AnimalSpecie.GATTO,
-    sesso: "F",
-    taglia: "PICCOLA",
-    colore: "Tigrato grigio",
-    condizioniSanitarie: "Sana, sterilizzata",
-    stato: "ADOTTATO",
-    fotoUrl: "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&q=80&w=300",
-    notes: "Adottata il 01/05/2026 dal sig. Russo Franco residente in Naro.",
-    dataSincronizzazione: "02/06/2026 11:22"
-  },
-  {
-    id: "reg-3",
-    nome: "Nero",
-    microchip: "380260000994831",
-    specie: AnimalSpecie.CANE,
-    sesso: "M",
-    taglia: "GRANDE",
-    colore: "Nero pece",
-    condizioniSanitarie: "Zoppia zampa sinistra posteriore, sotto cura",
-    stato: "CATTURATO",
-    fotoUrl: "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&q=80&w=300",
-    notes: "Preso in carico dalla Polizia Municipale in via Agrigento, ora al veterinario ASP.",
-    dataSincronizzazione: "03/06/2026 08:30"
-  }
-];
-
 interface LogIntervento {
   id: string;
   reportId: string;
@@ -154,35 +33,44 @@ interface LogIntervento {
   assegnatoA: "canile" | "veterinario" | "polizia" | "nessuno";
 }
 
-const INITIAL_LOGS: LogIntervento[] = [
-  {
-    id: "log-1",
-    reportId: "rep-2",
-    data: "02/06/2026 14:00",
-    operatore: "Geom. Licata (Comune Naro)",
-    descrizione: "Segnalazione validata. Avviato contatto preliminare con il veterinario ASP AG per la disponibilità.",
-    assegnatoA: "veterinario"
-  },
-  {
-    id: "log-2",
-    reportId: "rep-3",
-    data: "01/06/2026 10:30",
-    operatore: "Dott.ssa Valenti (Polizia Municipale)",
-    descrizione: "Sopralluogo effettuato in contrada Serrone. Individuati due dei tre soggetti indicati.",
-    assegnatoA: "polizia"
-  }
-];
-
 export default function Operatori() {
   const [activeTab, setActiveTab] = useState<'statistiche' | 'modulo-b' | 'modulo-c'>('statistiche');
-  const [reports, setReports] = useState<Segnalazione[]>(INITIAL_REPORTS);
-  const [selectedReport, setSelectedReport] = useState<Segnalazione | null>(INITIAL_REPORTS[0]);
-  const [registro, setRegistro] = useState<RegistroAnimale[]>(INITIAL_REGISTRO);
-  const [logs, setLogs] = useState<LogIntervento[]>(INITIAL_LOGS);
+  const [reports, setReports] = useState<Segnalazione[]>([]);
+  const [selectedReport, setSelectedReport] = useState<Segnalazione | null>(null);
+  const [registro, setRegistro] = useState<RegistroAnimale[]>([]);
+  const [logs, setLogs] = useState<LogIntervento[]>([]);
+
+  // Fetch record on mount
+  useEffect(() => {
+    const loadRegistro = async () => {
+      try {
+        const res = await fetch('/api/registro');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.length > 0) {
+            setRegistro(data);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    loadRegistro();
+  }, []);
 
   useEffect(() => {
     let unsubscribe: () => void;
     
+    // Fetch logs from API
+    fetch('/api/interventi_logs')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setLogs(data);
+        }
+      })
+      .catch(e => console.error("Error loading logs", e));
+
     const fetchLiveReports = async () => {
       try {
         const { db } = await import('@/src/lib/firebase');
@@ -201,19 +89,23 @@ export default function Operatori() {
             };
           }) as any;
           
-          if (liveData && liveData.length > 0) {
-            const merged = [...liveData, ...INITIAL_REPORTS.filter(r => !liveData.some((ld: any) => ld.codiceTracking === r.codiceTracking))];
-            setReports(merged);
-            if (!selectedReport) {
-               setSelectedReport(merged[0]);
-            }
+          setReports(liveData);
+          if (liveData.length > 0) {
+            setSelectedReport((prevSelected) => {
+              if (prevSelected) {
+                // Keep the current selection if it still exists
+                const stillExists = liveData.find((r: any) => r.id === prevSelected.id);
+                return stillExists || liveData[0];
+              }
+              return liveData[0];
+            });
           }
         }, (error) => {
           console.error("Firestore error:", error);
         });
 
       } catch (e) {
-        console.error("Failed to load live database reports - using fallbacks", e);
+        console.error("Failed to load live database reports", e);
       }
     };
     fetchLiveReports();
@@ -259,6 +151,27 @@ export default function Operatori() {
       return;
     }
 
+    // Programmatically upgrade states if assigned to a team
+    let updatedStato = selectedReport.stato;
+    if (assignedEntity !== "nessuno" && selectedReport.stato !== SegnalazioneStato.CHIUSA && selectedReport.stato !== SegnalazioneStato.FALSO_ALLARME) {
+      updatedStato = SegnalazioneStato.INTERVENTO;
+    }
+
+    try {
+      await fetch(`/api/segnalazioni/${selectedReport.codiceTracking}/log`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          operatore: opSign, 
+          azione: opComment, 
+          note: assignedEntity !== "nessuno" ? `Assegnato a: ${assignedEntity}` : "",
+          nuovoStato: updatedStato !== selectedReport.stato ? updatedStato : undefined
+        })
+      });
+    } catch(e) {
+      console.error("Errore salvataggio log", e);
+    }
+
     const newLog: LogIntervento = {
       id: `log-${Date.now()}`,
       reportId: selectedReport.id || "",
@@ -269,24 +182,6 @@ export default function Operatori() {
     };
 
     setLogs([newLog, ...logs]);
-
-    // Programmatically upgrade states if assigned to a team
-    let updatedStato = selectedReport.stato;
-    if (assignedEntity !== "nessuno" && selectedReport.stato !== SegnalazioneStato.CHIUSA && selectedReport.stato !== SegnalazioneStato.FALSO_ALLARME) {
-      updatedStato = SegnalazioneStato.INTERVENTO;
-    }
-
-    if (updatedStato !== selectedReport.stato) {
-      try {
-        await fetch(`/api/segnalazioni/${selectedReport.codiceTracking}/stato`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ stato: updatedStato })
-        });
-      } catch(e) {
-        console.error("Errore salvataggio stato", e);
-      }
-    }
 
     // Update report local state
     const updatedReports = reports.map(r => {
@@ -378,7 +273,7 @@ export default function Operatori() {
   };
 
   // Add new animal to regional database
-  const handleAddSoggettoSubmit = (e: React.FormEvent) => {
+  const handleAddSoggettoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSoggetto.microchip || newSoggetto.microchip.length !== 15) {
       alert("Il codice microchip deve contenere esattamente 15 cifre conformi agli standard nazionali.");
@@ -389,40 +284,77 @@ export default function Operatori() {
       return;
     }
 
-    const nuovo: RegistroAnimale = {
-      id: `reg-${Date.now()}`,
-      nome: newSoggetto.nome || "Senza Nome",
-      microchip: newSoggetto.microchip,
-      specie: newSoggetto.specie as AnimalSpecie,
-      sesso: newSoggetto.sesso as "M" | "F",
-      taglia: newSoggetto.taglia as "PICCOLA" | "MEDIA" | "GRANDE",
-      colore: newSoggetto.colore,
-      condizioniSanitarie: newSoggetto.condizioniSanitarie || "Sano",
-      stato: newSoggetto.stato as any,
-      fotoUrl: newSoggetto.fotoUrl || "https://images.unsplash.com/photo-1544568100-847a948585b9?auto=format&fit=crop&q=80&w=300",
-      notes: newSoggetto.notes || "",
-      dataSincronizzazione: new Date().toLocaleString("it-IT")
-    };
+    try {
+      const res = await fetch('/api/registro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newSoggetto)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const nuovo: RegistroAnimale = {
+          id: data.id ? data.id.toString() : `reg-${Date.now()}`,
+          nome: newSoggetto.nome || "Senza Nome",
+          microchip: newSoggetto.microchip,
+          specie: newSoggetto.specie as AnimalSpecie,
+          sesso: newSoggetto.sesso as "M" | "F",
+          taglia: newSoggetto.taglia as "PICCOLA" | "MEDIA" | "GRANDE",
+          colore: newSoggetto.colore,
+          condizioniSanitarie: newSoggetto.condizioniSanitarie || "Sano",
+          stato: newSoggetto.stato as any,
+          fotoUrl: newSoggetto.fotoUrl || "https://images.unsplash.com/photo-1544568100-847a948585b9?auto=format&fit=crop&q=80&w=300",
+          notes: newSoggetto.notes || "",
+          dataSincronizzazione: new Date().toLocaleString("it-IT")
+        };
 
-    setRegistro([nuovo, ...registro]);
-    setShowAddSoggetto(false);
-    // Reset form
-    setNewSoggetto({
-      nome: "",
-      microchip: "",
-      specie: AnimalSpecie.CANE,
-      sesso: "M",
-      taglia: "MEDIA",
-      colore: "",
-      condizioniSanitarie: "Sano",
-      stato: "LIBERO",
-      notes: "",
-      fotoUrl: "https://images.unsplash.com/photo-1544568100-847a948585b9?auto=format&fit=crop&q=80&w=300"
-    });
-    alert("Soggetto iscritto con successo nell'Archivio Anagrafico ed esportato nel database della Regione Siciliana!");
+        setRegistro([nuovo, ...registro]);
+        setShowAddSoggetto(false);
+        // Reset form
+        setNewSoggetto({
+          nome: "",
+          microchip: "",
+          specie: AnimalSpecie.CANE,
+          sesso: "M",
+          taglia: "MEDIA",
+          colore: "",
+          condizioniSanitarie: "Sano",
+          stato: "LIBERO",
+          notes: "",
+          fotoUrl: "https://images.unsplash.com/photo-1544568100-847a948585b9?auto=format&fit=crop&q=80&w=300"
+        });
+        alert("Soggetto iscritto con successo nell'Archivio Anagrafico ed esportato nel database della Regione Siciliana!");
+      } else {
+        alert("Errore durante la registrazione.");
+      }
+    } catch (e) {
+      alert("Errore di rete.");
+    }
   };
 
   // Filter conditions
+  const [editingSoggetto, setEditingSoggetto] = useState<RegistroAnimale | null>(null);
+
+  const handleUpdateSoggettoSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSoggetto) return;
+    try {
+      const res = await fetch(`/api/registro/${editingSoggetto.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editingSoggetto)
+      });
+      if (res.ok) {
+        setRegistro(registro.map(r => r.id === editingSoggetto.id ? { ...editingSoggetto, dataSincronizzazione: new Date().toLocaleString("it-IT") } : r));
+        setEditingSoggetto(null);
+        alert("Anagrafica aggiornata con successo.");
+      } else {
+        alert("Errore durante l'aggiornamento.");
+      }
+    } catch (e) {
+      alert("Errore di rete.");
+    }
+  };
+
   const filteredReports = reports.filter(r => {
     if (filterZona !== 'Tutte' && r.zona !== filterZona) return false;
     if (filterUrgenza !== 'Tutte' && r.urgenza !== filterUrgenza) return false;
@@ -439,7 +371,7 @@ export default function Operatori() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50/70 pb-32">
+    <div className="min-h-screen bg-slate-50/70 pb-32 pt-24">
       {/* Page Header */}
       <div className="bg-[#101b3a] text-white py-12 shadow-inner">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -928,6 +860,47 @@ export default function Operatori() {
                   <Star className="h-4 w-4 text-emerald-600 animate-pulse" /> Sincronizzato con Anagrafe Canina Regione Siciliana
                 </div>
 
+                <div className="relative">
+                  <button 
+                    className="flex items-center gap-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 font-bold text-xs px-5 py-3 rounded-lg shadow-sm transition-all uppercase tracking-wider relative overflow-hidden"
+                  >
+                    <FileSpreadsheet className="h-4 w-4" /> Importa da CSV
+                    <input 
+                      type="file" 
+                      accept=".csv" 
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        try {
+                          const text = await file.text();
+                          const rows = text.split('\n').map(r => r.trim()).filter(r => r);
+                          let c = 0;
+                          for(let i = 1; i<rows.length; i++) {
+                            const cols = rows[i].split(',');
+                            if(cols.length>=6) {
+                              const rec = {
+                                microchip: cols[0].trim(),
+                                nome: cols[1].trim(),
+                                specie: cols[2].trim(),
+                                sesso: cols[3].trim(),
+                                taglia: cols[4].trim(),
+                                colore: cols[5].trim(),
+                                condizioniSanitarie: "Sano",
+                                stato: "LIBERO"
+                              };
+                              await fetch('/api/registro', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(rec) });
+                              c++;
+                            }
+                          }
+                          alert(`Caricati con successo ${c} record! Ricaricare la pagina.`);
+                        } catch(err) {
+                           alert("Errore caricamento CSV");
+                        }
+                      }}
+                      className="absolute inset-0 opacity-0 cursor-pointer" 
+                    />
+                  </button>
+                </div>
                 <button 
                   onClick={() => setShowAddSoggetto(true)}
                   className="flex items-center gap-2 bg-[#15803d] hover:bg-[#166534] text-white font-bold text-xs px-5 py-3 rounded-lg shadow-lg shadow-[#15803d]/20 transition-all uppercase tracking-wider"
@@ -1161,15 +1134,73 @@ export default function Operatori() {
                       </div>
 
                       {/* Sync Info Footer */}
-                      <div className="mt-6 pt-4 border-t border-slate-100 text-[9px] font-bold text-slate-400 flex items-center justify-between">
-                        <span>Ultimo agg: {item.dataSincronizzazione}</span>
-                        <span className="text-emerald-600 flex items-center gap-1">✔ Sincronizzato ASP AG</span>
+                      <div className="mt-6 pt-4 border-t border-slate-100 text-[9px] font-bold text-slate-400 flex flex-col gap-2">
+                        <div className="flex items-center justify-between">
+                          <span>Ultimo agg: {item.dataSincronizzazione}</span>
+                          <span className="text-emerald-600 flex items-center gap-1">✔ Sincronizzato ASP AG</span>
+                        </div>
+                        <button 
+                          onClick={() => setEditingSoggetto(item)}
+                          className="w-full mt-2 font-bold uppercase tracking-wider text-[10px] text-center border-t border-slate-100 py-2 hover:bg-slate-50 text-blue-600 rounded-b"
+                        >
+                          Modifica
+                        </button>
                       </div>
                     </div>
                   </div>
                 ))
               )}
             </div>
+
+            {/* Editing Modal */}
+            {editingSoggetto && (
+              <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-xl shadow-2xl border border-slate-100 max-w-2xl w-full max-h-[90vh] overflow-y-auto p-8 space-y-6">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                    <h3 className="text-lg font-black uppercase text-[#1e3a5f] tracking-widest flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-blue-600" /> Modifica Anagrafica
+                    </h3>
+                    <button 
+                      onClick={() => setEditingSoggetto(null)}
+                      className="text-slate-400 hover:text-slate-800 font-bold bg-slate-100 px-3 py-1 rounded"
+                    >
+                      Chiudi
+                    </button>
+                  </div>
+                  <form onSubmit={handleUpdateSoggettoSubmit} className="space-y-6">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Stato Animale</label>
+                        <select 
+                          value={editingSoggetto.stato}
+                          onChange={(e) => setEditingSoggetto({...editingSoggetto, stato: e.target.value as any})}
+                          className="w-full p-3 border border-slate-200 rounded text-xs text-slate-700 bg-slate-50"
+                        >
+                          <option value="LIBERO">1 - Libero sul territorio collaudato (Cane di Quartiere)</option>
+                          <option value="CATTURATO">2 - Recuperato / In Cattura</option>
+                          <option value="IN_CANILE">3 - Depositato in Canile Sanitario/Rifugio</option>
+                          <option value="ADOTTATO">4 - Affidato / Adottato</option>
+                          <option value="STERILIZZATO">5 - Sterilizzato presso ASP AG (Gattara/Cane)</option>
+                          <option value="DECEDUTO">6 - Deceduto / Smaltimento Carcassa</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Stato Sanitario / Note</label>
+                        <input 
+                          type="text" 
+                          value={editingSoggetto.condizioniSanitarie || ""}
+                          onChange={(e) => setEditingSoggetto({...editingSoggetto, condizioniSanitarie: e.target.value})}
+                          className="w-full p-3 border border-slate-200 rounded text-xs outline-none focus:border-[#15803d]"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 uppercase tracking-wider text-xs rounded-lg transition-all">Salva Modifiche</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
 
           </div>
         ) : null}

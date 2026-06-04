@@ -11,6 +11,8 @@ import sqlite3 from "sqlite3";
 import { open } from "sqlite";
 import mysqlPool from "./src/lib/mysql";
 import segnalazioniRouter from "./src/pages/api/segnalazioni";
+import jwt from "jsonwebtoken";
+import cookieParser from "cookie-parser";
 
 dotenv.config();
 
@@ -73,6 +75,39 @@ async function startServer() {
           value_data TEXT
         )
       `);
+      await mysqlPool.execute(`
+        CREATE TABLE IF NOT EXISTS admin_users (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          username VARCHAR(100) UNIQUE,
+          password_hash VARCHAR(255),
+          role VARCHAR(50) DEFAULT 'admin'
+        )
+      `);
+      await mysqlPool.execute(`
+        CREATE TABLE IF NOT EXISTS registro_anagrafica (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          microchip VARCHAR(50) UNIQUE,
+          nome VARCHAR(100),
+          specie VARCHAR(50),
+          sesso VARCHAR(10),
+          taglia VARCHAR(50),
+          colore VARCHAR(100),
+          condizioniSanitarie TEXT,
+          stato VARCHAR(50),
+          fotoUrl TEXT,
+          dataRegistrazione DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      await mysqlPool.execute(`
+        CREATE TABLE IF NOT EXISTS interventi_logs (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          segnalazione_codice VARCHAR(100),
+          operatore VARCHAR(100),
+          azione TEXT,
+          note TEXT,
+          timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
     } catch (e) {
       console.error("Errore table MySQL:", e);
     }
@@ -86,6 +121,33 @@ async function startServer() {
       CREATE TABLE IF NOT EXISTS admin_config (
         key_name TEXT PRIMARY KEY,
         value_data TEXT
+      );
+      CREATE TABLE IF NOT EXISTS admin_users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE,
+        password_hash TEXT,
+        role TEXT DEFAULT 'admin'
+      );
+      CREATE TABLE IF NOT EXISTS registro_anagrafica (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        microchip TEXT UNIQUE,
+        nome TEXT,
+        specie TEXT,
+        sesso TEXT,
+        taglia TEXT,
+        colore TEXT,
+        condizioniSanitarie TEXT,
+        stato TEXT,
+        fotoUrl TEXT,
+        dataRegistrazione DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS interventi_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        segnalazione_codice TEXT,
+        operatore TEXT,
+        azione TEXT,
+        note TEXT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
       );
       CREATE TABLE IF NOT EXISTS segnalazioni (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -112,6 +174,40 @@ async function startServer() {
   const PORT = 3000;
 
   app.use(express.json());
+  app.use(cookieParser());
+
+  // Insert default admin user if missing
+  const defaultUsers = [
+    { u: "admin", r: "Admin" },
+    { u: "admin2", r: "Admin" },
+    { u: "polizia1", r: "Polizia_Locale" },
+    { u: "polizia2", r: "Polizia_Locale" },
+    { u: "canile1", r: "Canile_Sanitario" },
+    { u: "canile2", r: "Canile_Sanitario" },
+    { u: "volo1", r: "Volontario" },
+    { u: "volo2", r: "Volontario" },
+  ];
+  const defaultPass = await bcrypt.hash("admin2026", 10);
+  
+  if (mysqlPool) {
+    try {
+      const [rows]: any = await mysqlPool.execute('SELECT count(*) as c FROM admin_users');
+      if (rows[0].c < 8) {
+        for (const usr of defaultUsers) {
+          await mysqlPool.execute('INSERT IGNORE INTO admin_users (username, password_hash, role) VALUES (?, ?, ?)', [usr.u, defaultPass, usr.r]);
+        }
+      }
+    } catch(e) {}
+  } else if (sqliteDb) {
+    try {
+      const row = await sqliteDb.get('SELECT count(*) as c FROM admin_users');
+      if (row.c < 8) {
+        for (const usr of defaultUsers) {
+          await sqliteDb.run('INSERT OR IGNORE INTO admin_users (username, password_hash, role) VALUES (?, ?, ?)', [usr.u, defaultPass, usr.r]);
+        }
+      }
+    } catch(e) {}
+  }
 
   // AI Chat Route
   app.post("/api/chat", async (req, res) => {
@@ -134,6 +230,57 @@ async function startServer() {
     } catch (error: any) {
       console.error("Gemini Error:", error);
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin Auth Routes
+  const JWT_SECRET = process.env.JWT_SECRET || "animalhub_secure_secret_12345";
+  
+  app.post("/api/admin/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      let user: any = null;
+
+      if (mysqlPool) {
+        const [rows]: any = await mysqlPool.execute("SELECT * FROM admin_users WHERE username = ?", [username]);
+        user = rows[0];
+      } else if (sqliteDb) {
+        user = await sqliteDb.get("SELECT * FROM admin_users WHERE username = ?", [username]);
+      }
+
+      if (!user) return res.status(401).json({ error: "Credenziali non valide" });
+
+      const isValid = await bcrypt.compare(password, user.password_hash);
+      if (!isValid) return res.status(401).json({ error: "Credenziali non valide" });
+
+      const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: "8h" });
+      
+      res.cookie("admin_token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 8 * 60 * 60 * 1000 // 8 hours
+      });
+
+      res.json({ success: true, user: { username: user.username, role: user.role } });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/admin/logout", (req, res) => {
+    res.clearCookie("admin_token");
+    res.json({ success: true });
+  });
+
+  app.get("/api/admin/me", (req, res) => {
+    const token = req.cookies.admin_token;
+    if (!token) return res.status(401).json({ error: "Non autorizzato" });
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      res.json({ user: decoded });
+    } catch(e) {
+      res.status(401).json({ error: "Token non valido" });
     }
   });
 
@@ -242,6 +389,84 @@ async function startServer() {
     } catch (error: any) {
       console.error("POST config error:", error);
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/registro", async (req, res) => {
+    try {
+      let list = [];
+      if (mysqlPool) {
+        const [rows] = await mysqlPool.query<any>("SELECT * FROM registro_anagrafica ORDER BY dataRegistrazione DESC");
+        list = rows;
+      } else {
+        const rows = await sqliteDb.all("SELECT * FROM registro_anagrafica ORDER BY dataRegistrazione DESC");
+        list = rows;
+      }
+      res.json(list);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/registro", async (req, res) => {
+    try {
+      const { microchip, nome, specie, sesso, taglia, colore, condizioniSanitarie, fotoUrl, stato } = req.body;
+      let sqlId = 0;
+      if (mysqlPool) {
+        const [result] = await mysqlPool.execute<any>(`
+          INSERT INTO registro_anagrafica (microchip, nome, specie, sesso, taglia, colore, condizioniSanitarie, stato, fotoUrl)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [microchip, nome, specie, sesso, taglia, colore, condizioniSanitarie, stato, fotoUrl]);
+        sqlId = result.insertId;
+      } else {
+        const result = await sqliteDb.run(`
+          INSERT INTO registro_anagrafica (microchip, nome, specie, sesso, taglia, colore, condizioniSanitarie, stato, fotoUrl)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [microchip, nome, specie, sesso, taglia, colore, condizioniSanitarie, stato, fotoUrl]);
+        sqlId = result.lastID;
+      }
+      res.json({ success: true, id: sqlId });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.put("/api/registro/:id", async (req, res) => {
+    try {
+      const id = req.params.id;
+      const { microchip, nome, specie, sesso, taglia, colore, condizioniSanitarie, fotoUrl, stato } = req.body;
+      if (mysqlPool) {
+        await mysqlPool.execute(`
+          UPDATE registro_anagrafica 
+          SET microchip=?, nome=?, specie=?, sesso=?, taglia=?, colore=?, condizioniSanitarie=?, stato=?, fotoUrl=?
+          WHERE id=?
+        `, [microchip, nome, specie, sesso, taglia, colore, condizioniSanitarie, stato, fotoUrl, id]);
+      } else {
+        await sqliteDb.run(`
+          UPDATE registro_anagrafica 
+          SET microchip=?, nome=?, specie=?, sesso=?, taglia=?, colore=?, condizioniSanitarie=?, stato=?, fotoUrl=?
+          WHERE id=?
+        `, [microchip, nome, specie, sesso, taglia, colore, condizioniSanitarie, stato, fotoUrl, id]);
+      }
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/interventi_logs", async (req, res) => {
+    try {
+      let list = [];
+      if (mysqlPool) {
+        const [rows] = await mysqlPool.query<any>("SELECT id, segnalazione_codice as reportId, operatore, azione as descrizione, note as assegnatoA, timestamp as data FROM interventi_logs ORDER BY timestamp DESC");
+        list = rows;
+      } else {
+        const rows = await sqliteDb.all("SELECT id, segnalazione_codice as reportId, operatore, azione as descrizione, note as assegnatoA, timestamp as data FROM interventi_logs ORDER BY timestamp DESC");
+        list = rows;
+      }
+      res.json(list);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
     }
   });
 

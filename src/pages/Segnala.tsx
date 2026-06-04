@@ -28,6 +28,7 @@ export default function Segnala() {
     consensoPrivacy: false,
     consensoNotifiche: false,
     dichiarazioneVeridicita: false,
+    assunzioneResponsabilita: false,
   });
 
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -123,7 +124,7 @@ export default function Segnala() {
   };
 
   const handleSubmit = async () => {
-    if (!location || !formData.dichiarazioneVeridicita) return;
+    if (!location || !formData.dichiarazioneVeridicita || !(formData as any).assunzioneResponsabilita) return;
     setLoading(true);
     setError(null);
 
@@ -175,7 +176,7 @@ export default function Segnala() {
   if (success) {
     const isCached = success === "OFFLINE_CACHED";
     return (
-      <div className="max-w-xl mx-auto py-24 px-4 text-center">
+      <div className="max-w-xl mx-auto pt-40 pb-24 px-4 text-center">
         <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
           <div className="flex justify-center mb-8">
             <div className={`w-24 h-24 rounded-full flex items-center justify-center ${isCached ? 'bg-amber-100' : 'bg-emerald-100'}`}>
@@ -209,7 +210,7 @@ export default function Segnala() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gray-50 flex flex-col pt-20">
       {/* Hero Section */}
       <section className="bg-[#101b3a] py-20 lg:py-24 relative overflow-hidden">
         <div className="absolute inset-0 z-0">
@@ -622,7 +623,7 @@ export default function Segnala() {
                     >
                       <ArrowLeft className="h-5 w-5" /> <span className="md:hidden">Indietro</span>
                     </button>
-                    {formData.dichiarazioneVeridicita && (
+                    {formData.dichiarazioneVeridicita && (formData as any).assunzioneResponsabilita && (
                       <button
                         onClick={() => setStep(step + 1)}
                         className="w-full md:w-auto bg-[#15803d] text-white px-8 py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-[#166534] transition-all cursor-pointer shadow-lg shadow-[#15803d]/30"
@@ -644,18 +645,33 @@ export default function Segnala() {
                    </div>
                 </div>
 
-                <label className="flex gap-4 p-8 bg-[#15803d]/5 border-2 border-[#15803d]/20 rounded-lg cursor-pointer hover:bg-[#15803d]/10 transition-colors">
-                  <input
-                    type="checkbox"
-                    className="mt-1 h-6 w-6 rounded border-gray-300 text-[#15803d] focus:ring-[#15803d]"
-                    checked={formData.dichiarazioneVeridicita}
-                    onChange={(e) => setFormData({ ...formData, dichiarazioneVeridicita: e.target.checked })}
-                  />
-                  <div className="flex flex-col">
-                    <span className="text-sm font-bold text-[#1e3a5f]">Dichiaro di aver letto la dichiarazione sopra riportata e confermo la veridicità dei dati forniti *</span>
-                    <span className="text-[10px] text-[#15803d] font-bold uppercase tracking-widest mt-1">La dichiarazione è obbligatoria ai sensi del DPR 445/2000</span>
-                  </div>
-                </label>
+                <div className="space-y-4">
+                  <label className="flex gap-4 p-6 bg-[#15803d]/5 border-2 border-[#15803d]/20 rounded-lg cursor-pointer hover:bg-[#15803d]/10 transition-colors shadow-sm">
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-6 w-6 rounded border-gray-300 text-[#15803d] focus:ring-[#15803d]"
+                      checked={formData.dichiarazioneVeridicita}
+                      onChange={(e) => setFormData({ ...formData, dichiarazioneVeridicita: e.target.checked })}
+                    />
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-[#1e3a5f]">Dichiaro di aver letto la dichiarazione sopra riportata e confermo la veridicità dei dati forniti *</span>
+                      <span className="text-[10px] text-[#15803d] font-bold uppercase tracking-widest mt-1">La dichiarazione è obbligatoria ai sensi del DPR 445/2000</span>
+                    </div>
+                  </label>
+
+                  <label className="flex gap-4 p-6 bg-amber-50 border-2 border-amber-200 rounded-lg cursor-pointer hover:bg-amber-100 transition-colors shadow-sm">
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-6 w-6 rounded border-amber-500 text-amber-600 focus:ring-amber-500"
+                      checked={(formData as any).assunzioneResponsabilita}
+                      onChange={(e) => setFormData({ ...formData, assunzioneResponsabilita: e.target.checked } as any)}
+                    />
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-[#1e3a5f]">Mi assumo la piena responsabilità della segnalazione effettuata nel rispetto della legge *</span>
+                      <span className="text-[10px] text-amber-600 font-bold uppercase tracking-widest mt-1">L'abuso del servizio o procurato allarme è perseguibile</span>
+                    </div>
+                  </label>
+                </div>
               </div>
             )}
 

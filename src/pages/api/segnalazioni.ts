@@ -189,4 +189,101 @@ router.put("/:codiceTracking/stato", async (req, res) => {
   }
 });
 
+router.post("/:codiceTracking/log", async (req, res) => {
+  try {
+    const { codiceTracking } = req.params;
+    const { operatore, azione, note, nuovoStato } = req.body;
+
+    if (!operatore || !azione) return res.status(400).json({ error: "Operatore e azione obbligatori" });
+
+    // Inserisce il log
+    if (pool) {
+      await pool.execute(
+        "INSERT INTO interventi_logs (segnalazione_codice, operatore, azione, note) VALUES (?, ?, ?, ?)",
+        [codiceTracking, operatore, azione, note || ""]
+      );
+      if (nuovoStato) {
+        await pool.execute(
+          "UPDATE segnalazioni SET stato = ?, updated_at = NOW() WHERE codice_tracking = ?",
+          [nuovoStato, codiceTracking]
+        );
+      }
+    } else {
+      const dbSq = await getSqliteDb();
+      await dbSq.run(
+        "INSERT INTO interventi_logs (segnalazione_codice, operatore, azione, note) VALUES (?, ?, ?, ?)",
+        [codiceTracking, operatore, azione, note || ""]
+      );
+      if (nuovoStato) {
+        await dbSq.run(
+          "UPDATE segnalazioni SET stato = ?, updatedAt = CURRENT_TIMESTAMP WHERE codiceTracking = ?",
+          [nuovoStato, codiceTracking]
+        );
+      }
+    }
+
+    let userEmail = null;
+    let userName = "Cittadino";
+
+    if (nuovoStato && db) {
+      const snapshot = await db.collection("segnalazioni").where("codiceTracking", "==", codiceTracking).get();
+      if (!snapshot.empty) {
+        userEmail = snapshot.docs[0].data().emailSegnalante;
+        userName = snapshot.docs[0].data().nomeSegnalante;
+        const batch = db.batch();
+        snapshot.docs.forEach((doc) => {
+          batch.update(doc.ref, { 
+            stato: nuovoStato, 
+            updatedAt: admin.firestore.FieldValue.serverTimestamp() 
+          });
+        });
+        await batch.commit();
+      }
+    } else {
+      // Find from sql
+      if (pool) {
+        const [rows]: any = await pool.execute("SELECT emailSegnalante, nomeSegnalante FROM segnalazioni WHERE codice_tracking = ?", [codiceTracking]);
+        if (rows[0]) {
+          userEmail = rows[0].emailSegnalante;
+          userName = rows[0].nomeSegnalante;
+        }
+      } else {
+        const dbSq = await getSqliteDb();
+        const row = await dbSq.get("SELECT emailSegnalante, nomeSegnalante FROM segnalazioni WHERE codiceTracking = ?", [codiceTracking]);
+        if (row) {
+          userEmail = row.emailSegnalante;
+          userName = row.nomeSegnalante;
+        }
+      }
+    }
+
+    // Trigger Notifica Cittadino e operatore
+    if (userEmail) {
+      try {
+        const { Resend } = await import("resend");
+        const resendApiKey = process.env.RESEND_API_KEY;
+        if (resendApiKey) {
+          const resend = new Resend(resendApiKey);
+          await resend.emails.send({
+            from: process.env.EMAIL_FROM || "onboarding@resend.dev",
+            to: userEmail,
+            subject: `Aggiornamento Segnalazione ${codiceTracking} - AnimalHub PA`,
+            html: `<p>Gentile ${userName},</p><p>La tua pratica <strong>${codiceTracking}</strong> ha ricevuto un aggiornamento reale:</p><p>Azione: ${azione}</p><p>Nuovo stato: <strong>${nuovoStato || 'Invariato'}</strong></p>`
+          });
+          console.log(`[TRIGGER NOTIFICA] Email inviata con successo a ${userEmail}`);
+        } else {
+          console.log(`[TRIGGER NOTIFICA DRY_RUN] Per inviare l'email inserisci la variabile RESEND_API_KEY nel file .env (utente: ${userEmail})`);
+        }
+      } catch(e: any) {
+        console.error("Errore invio notifica email", e.message);
+      }
+    }
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error("POST log error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
