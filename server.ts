@@ -365,6 +365,13 @@ async function startServer() {
 
   app.post("/api/admin/config", async (req, res) => {
     try {
+      const token = req.cookies.admin_token;
+      if (!token) return res.status(401).json({ error: "Non autorizzato" });
+      const decoded: any = jwt.verify(token, JWT_SECRET);
+      if (decoded.role !== "Admin") {
+        return res.status(403).json({ error: "Accesso negato. Solo il ruolo Admin può modificare la configurazione." });
+      }
+
       const { siteName, siteLogo } = req.body;
       if (mysqlPool) {
         await mysqlPool.execute(
@@ -456,15 +463,41 @@ async function startServer() {
 
   app.get("/api/interventi_logs", async (req, res) => {
     try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const offset = parseInt(req.query.offset as string) || 0;
+
       let list = [];
+      let totalCount = 0;
+
       if (mysqlPool) {
-        const [rows] = await mysqlPool.query<any>("SELECT id, segnalazione_codice as reportId, operatore, azione as descrizione, note as assegnatoA, timestamp as data FROM interventi_logs ORDER BY timestamp DESC");
+        const [countRows]: any = await mysqlPool.query("SELECT COUNT(*) as c FROM interventi_logs");
+        totalCount = countRows[0]?.c || 0;
+
+        const [rows] = await mysqlPool.query<any>(
+          "SELECT id, segnalazione_codice as reportId, operatore, azione as descrizione, note as assegnatoA, timestamp as data FROM interventi_logs ORDER BY timestamp DESC LIMIT ? OFFSET ?",
+          [limit, offset]
+        );
         list = rows;
       } else {
-        const rows = await sqliteDb.all("SELECT id, segnalazione_codice as reportId, operatore, azione as descrizione, note as assegnatoA, timestamp as data FROM interventi_logs ORDER BY timestamp DESC");
+        const countRow = await sqliteDb.get("SELECT COUNT(*) as c FROM interventi_logs");
+        totalCount = countRow?.c || 0;
+
+        const rows = await sqliteDb.all(
+          "SELECT id, segnalazione_codice as reportId, operatore, azione as descrizione, note as assegnatoA, timestamp as data FROM interventi_logs ORDER BY timestamp DESC LIMIT ? OFFSET ?",
+          [limit, offset]
+        );
         list = rows;
       }
-      res.json(list);
+
+      res.json({
+        data: list,
+        pagination: {
+          total: totalCount,
+          limit,
+          offset,
+          hasMore: offset + list.length < totalCount
+        }
+      });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }

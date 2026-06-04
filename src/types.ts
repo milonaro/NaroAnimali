@@ -33,6 +33,7 @@ export interface Segnalazione {
   consensoPrivacy: boolean;
   consensoNotifiche: boolean;
   dichiarazioneVeridicita: boolean;
+  assunzioneResponsabilita?: boolean;
   createdAt: any;
   updatedAt: any;
 }

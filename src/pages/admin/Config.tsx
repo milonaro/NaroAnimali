@@ -4,6 +4,8 @@ import { Building } from 'lucide-react';
 export default function Config() {
   const [siteLogo, setSiteLogo] = useState<string>("");
   const [siteName, setSiteName] = useState<string>("Comune di Naro");
+  const [role, setRole] = useState<string | null>(null);
+  const [checkingRole, setCheckingRole] = useState(true);
   
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -15,6 +17,9 @@ export default function Config() {
       });
       if (res.ok) {
         alert("Impostazioni salvate con successo. Ricarica la pagina per renderle visibili.");
+      } else {
+        const errData = await res.json();
+        alert(errData.error || "Errore durante il salvataggio.");
       }
     } catch(err) {
       alert("Errore salvataggio");
@@ -22,6 +27,23 @@ export default function Config() {
   };
 
   useEffect(() => {
+    const fetchMe = async () => {
+      try {
+        const res = await fetch('/api/admin/me');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.user) {
+            setRole(data.user.role);
+          }
+        }
+      } catch (e) {
+        console.error("Error loading profile", e);
+      } finally {
+        setCheckingRole(false);
+      }
+    };
+    fetchMe();
+
     const fetchConfig = async () => {
       try {
         const res = await fetch("/api/admin/config");
@@ -34,6 +56,33 @@ export default function Config() {
     };
     fetchConfig();
   }, []);
+
+  if (checkingRole) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#15803d]"></div>
+      </div>
+    );
+  }
+
+  if (role !== 'Admin') {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-xl max-w-md w-full text-center space-y-4">
+          <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto">
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h1 className="text-xl font-black text-slate-800 uppercase tracking-wider">Accesso Negato</h1>
+          <p className="text-slate-500 text-sm">Non disponi dei privilegi amministrativi ("Admin") necessari per visualizzare o modificare la configurazione di AnimalHub PA.</p>
+          <a href="/operatori" className="inline-block bg-[#15803d] hover:bg-[#166534] text-white font-bold px-6 py-2.5 rounded-lg text-xs uppercase tracking-wider transition-all">
+            Torna al Portale Operativo
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="pt-32 pb-16 min-h-screen">

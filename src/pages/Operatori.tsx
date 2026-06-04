@@ -39,9 +39,44 @@ export default function Operatori() {
   const [selectedReport, setSelectedReport] = useState<Segnalazione | null>(null);
   const [registro, setRegistro] = useState<RegistroAnimale[]>([]);
   const [logs, setLogs] = useState<LogIntervento[]>([]);
+  const [currentUser, setCurrentUser] = useState<{ id: number; username: string; role: string } | null>(null);
+  const [logsOffset, setLogsOffset] = useState(0);
+  const [hasMoreLogs, setHasMoreLogs] = useState(false);
+  const [totalLogs, setTotalLogs] = useState(0);
+
+  const loadMoreLogs = () => {
+    const nextOffset = logsOffset + 10;
+    setLogsOffset(nextOffset);
+    fetch(`/api/interventi_logs?limit=10&offset=${nextOffset}`)
+      .then(res => res.json())
+      .then(resData => {
+        if (resData && Array.isArray(resData.data)) {
+          setLogs(prev => [...prev, ...resData.data]);
+          if (resData.pagination) {
+            setHasMoreLogs(resData.pagination.hasMore);
+          }
+        }
+      })
+      .catch(e => console.error("Error loading more logs", e));
+  };
 
   // Fetch record on mount
   useEffect(() => {
+    const fetchMe = async () => {
+      try {
+        const res = await fetch('/api/admin/me');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.user) {
+            setCurrentUser(data.user);
+          }
+        }
+      } catch (e) {
+        console.error("Error fetching current operator", e);
+      }
+    };
+    fetchMe();
+
     const loadRegistro = async () => {
       try {
         const res = await fetch('/api/registro');
@@ -61,12 +96,16 @@ export default function Operatori() {
   useEffect(() => {
     let unsubscribe: () => void;
     
-    // Fetch logs from API
-    fetch('/api/interventi_logs')
+    // Fetch logs from API (paginated)
+    fetch('/api/interventi_logs?limit=10&offset=0')
       .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setLogs(data);
+      .then(resData => {
+        if (resData && Array.isArray(resData.data)) {
+          setLogs(resData.data);
+          if (resData.pagination) {
+            setHasMoreLogs(resData.pagination.hasMore);
+            setTotalLogs(resData.pagination.total);
+          }
         }
       })
       .catch(e => console.error("Error loading logs", e));
@@ -153,7 +192,7 @@ export default function Operatori() {
 
     // Programmatically upgrade states if assigned to a team
     let updatedStato = selectedReport.stato;
-    if (assignedEntity !== "nessuno" && selectedReport.stato !== SegnalazioneStato.CHIUSA && selectedReport.stato !== SegnalazioneStato.FALSO_ALLARME) {
+    if (assignedEntity !== "nessuno" && selectedReport.stato !== SegnalazioneStato.CHIUSA) {
       updatedStato = SegnalazioneStato.INTERVENTO;
     }
 
@@ -403,31 +442,41 @@ export default function Operatori() {
           </div>
 
           {/* Tab Navigation */}
-          <div className="flex gap-4 mt-8 border-b border-white/10">
-            <button
-              onClick={() => setActiveTab('statistiche')}
-              className={`pb-4 px-2 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
-                activeTab === 'statistiche' ? 'border-[#15803d] text-white' : 'border-transparent text-slate-400 hover:text-white'
-              }`}
-            >
-              Dashboard Statistiche
-            </button>
-            <button
-              onClick={() => setActiveTab('modulo-b')}
-              className={`pb-4 px-2 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
-                activeTab === 'modulo-b' ? 'border-[#15803d] text-white' : 'border-transparent text-slate-400 hover:text-white'
-              }`}
-            >
-              Modulo B — Dashboard Operativa Uffici
-            </button>
-            <button
-              onClick={() => setActiveTab('modulo-c')}
-              className={`pb-4 px-2 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
-                activeTab === 'modulo-c' ? 'border-[#15803d] text-white' : 'border-transparent text-slate-400 hover:text-white'
-              }`}
-            >
-              Modulo C — Archivio Anagrafico Digitale
-            </button>
+          <div className="flex flex-col md:flex-row gap-4 mt-8 border-b border-white/10 items-stretch md:items-center">
+            <div className="flex gap-4">
+              <button
+                onClick={() => setActiveTab('statistiche')}
+                className={`pb-4 px-2 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
+                  activeTab === 'statistiche' ? 'border-[#15803d] text-white' : 'border-transparent text-slate-400 hover:text-white'
+                }`}
+              >
+                Dashboard Statistiche
+              </button>
+              <button
+                onClick={() => setActiveTab('modulo-b')}
+                className={`pb-4 px-2 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
+                  activeTab === 'modulo-b' ? 'border-[#15803d] text-white' : 'border-transparent text-slate-400 hover:text-white'
+                }`}
+              >
+                Modulo B — Dashboard Operativa Uffici
+              </button>
+              <button
+                onClick={() => setActiveTab('modulo-c')}
+                className={`pb-4 px-2 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
+                  activeTab === 'modulo-c' ? 'border-[#15803d] text-white' : 'border-transparent text-slate-400 hover:text-white'
+                }`}
+              >
+                Modulo C — Archivio Anagrafico Digitale
+              </button>
+            </div>
+            {currentUser?.role === 'Admin' && (
+              <a
+                href="/admin/config"
+                className="pb-4 px-2 font-bold text-sm uppercase tracking-wider transition-all border-b-2 border-transparent text-amber-400 hover:text-amber-300 flex items-center gap-1.5 md:ml-auto"
+              >
+                Configurazione Sistema ⚙️
+              </a>
+            )}
           </div>
         </div>
       </div>
@@ -484,11 +533,11 @@ export default function Operatori() {
                 <div className="space-y-4">
                   <div>
                     <div className="flex justify-between text-xs font-bold text-slate-600 mb-1">
-                      <span>Da Gestire (Create)</span>
-                      <span>{reports.filter(r => r.stato === 'CREATA').length}</span>
+                      <span>Da Gestire (Nuove)</span>
+                      <span>{reports.filter(r => r.stato === 'NUOVA' || r.stato === 'IN_CARICO').length}</span>
                     </div>
                     <div className="w-full bg-slate-100 rounded-full h-2">
-                      <div className="bg-red-500 h-2 rounded-full" style={{ width: `${(reports.filter(r => r.stato === 'CREATA').length / Math.max(1, reports.length)) * 100}%` }}></div>
+                      <div className="bg-red-500 h-2 rounded-full" style={{ width: `${(reports.filter(r => r.stato === 'NUOVA' || r.stato === 'IN_CARICO').length / Math.max(1, reports.length)) * 100}%` }}></div>
                     </div>
                   </div>
                   <div>
@@ -713,87 +762,105 @@ export default function Operatori() {
                         </div>
                       </div>
 
-                      {/* Direct Status Altering buttons */}
-                      <div>
-                        <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Imposta Stato Pratica</h4>
-                        <div className="grid grid-cols-2 gap-2">
-                          <button 
-                            onClick={() => handleUpdateStatus(SegnalazioneStato.IN_CARICO)}
-                            className={`p-2 rounded text-xs font-bold uppercase border tracking-wider transition-all ${
-                              selectedReport.stato === SegnalazioneStato.IN_CARICO 
-                                ? 'bg-yellow-100 text-yellow-800 border-yellow-300 shadow-sm' 
-                                : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
-                            }`}
-                          >
-                            In Carico
-                          </button>
-                          <button 
-                            onClick={() => handleUpdateStatus(SegnalazioneStato.CHIUSA)}
-                            className={`p-2 rounded text-xs font-bold uppercase border tracking-wider transition-all ${
-                              selectedReport.stato === SegnalazioneStato.CHIUSA 
-                                ? 'bg-emerald-100 text-emerald-800 border-emerald-300 shadow-sm' 
-                                : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
-                            }`}
-                          >
-                            Risolta (Chiusa)
-                          </button>
+                      {/* Direct Status Altering buttons & Form for Operator Log Timeline */}
+                      {currentUser?.role === 'Volontario' ? (
+                        <div className="bg-amber-50 border border-amber-200 p-5 rounded-xl space-y-3 text-amber-900 shadow-sm text-left">
+                          <p className="font-bold text-xs flex items-center gap-1.5 uppercase tracking-wider text-amber-700">
+                            <ShieldAlert className="h-5 w-5 text-amber-600" /> Profilo Sola Lettura (Volontario)
+                          </p>
+                          <p className="text-xs leading-relaxed text-amber-800">
+                            Gentile <strong>{currentUser.username}</strong>, in qualità di volontario puoi esplorare liberamente le segnalazioni e consultare il registro, ma non disponi dei privilegi amministrativi necessari per emettere log di stato, firmare verbali di intervento o assegnare pratiche.
+                          </p>
+                          <div className="border-t border-amber-200/60 pt-2 flex items-center justify-between text-[10px] font-bold text-amber-700 uppercase">
+                            <span>Abilitazione Ente: Naro</span>
+                            <span>Ruolo: Volontario</span>
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <>
+                          {/* Direct Status Altering buttons */}
+                          <div>
+                            <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Imposta Stato Pratica</h4>
+                            <div className="grid grid-cols-2 gap-2">
+                              <button 
+                                onClick={() => handleUpdateStatus(SegnalazioneStato.IN_CARICO)}
+                                className={`p-2 rounded text-xs font-bold uppercase border tracking-wider transition-all ${
+                                  selectedReport.stato === SegnalazioneStato.IN_CARICO 
+                                    ? 'bg-yellow-100 text-yellow-800 border-yellow-300 shadow-sm' 
+                                    : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
+                                }`}
+                              >
+                                In Carico
+                              </button>
+                              <button 
+                                onClick={() => handleUpdateStatus(SegnalazioneStato.CHIUSA)}
+                                className={`p-2 rounded text-xs font-bold uppercase border tracking-wider transition-all ${
+                                  selectedReport.stato === SegnalazioneStato.CHIUSA 
+                                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300 shadow-sm' 
+                                    : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
+                                }`}
+                              >
+                                Risolta (Chiusa)
+                              </button>
+                            </div>
+                          </div>
 
-                      {/* Form for Operator Log Timeline & Work Assignment */}
-                      <form onSubmit={handleAddLog} className="space-y-4 pt-4 border-t border-slate-100">
-                        <h3 className="text-xs font-black uppercase text-slate-700 tracking-wider flex items-center gap-2">
-                          <CheckSquare className="h-4 w-4 text-[#15803d]" /> Assegnazione e Log Azione
-                        </h3>
+                          {/* Form for Operator Log Timeline & Work Assignment */}
+                          <form onSubmit={handleAddLog} className="space-y-4 pt-4 border-t border-slate-100">
+                            <h3 className="text-xs font-black uppercase text-slate-700 tracking-wider flex items-center gap-2">
+                              <CheckSquare className="h-4 w-4 text-[#15803d]" /> Assegnazione e Log Azione
+                            </h3>
 
-                        {/* Assign Intervention */}
-                        <div>
-                          <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Destinatario Intervento</label>
-                          <select 
-                            value={assignedEntity} 
-                            onChange={(e) => setAssignedEntity(e.target.value as any)}
-                            className="w-full p-3 border border-slate-200 rounded text-xs font-bold text-slate-700 bg-slate-50"
-                          >
-                            <option value="nessuno">Nessuna assegnazione immediata</option>
-                            <option value="canile">Canile Convenzionato Naro</option>
-                            <option value="veterinario">Veterinario ASP Agrigento (ASP AG)</option>
-                            <option value="polizia">Polizia Municipale di Naro</option>
-                          </select>
-                        </div>
+                            {/* Assign Intervention */}
+                            <div>
+                              <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Destinatario Intervento</label>
+                              <select 
+                                value={assignedEntity} 
+                                onChange={(e) => setAssignedEntity(e.target.value as any)}
+                                className="w-full p-3 border border-slate-200 rounded text-xs font-bold text-slate-700 bg-slate-50"
+                              >
+                                <option value="nessuno">Nessuna assegnazione immediata</option>
+                                <option value="canile">Canile Convenzionato Naro</option>
+                                <option value="veterinario">Veterinario ASP Agrigento (ASP AG)</option>
+                                <option value="polizia">Polizia Municipale di Naro</option>
+                              </select>
+                            </div>
 
-                        {/* Signature field */}
-                        <div>
-                          <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Firma dell'Operatore Comunale *</label>
-                          <input 
-                            type="text" 
-                            required
-                            placeholder="es. Geom. Calogero Russo / Dott. Valenti"
-                            value={opSign}
-                            onChange={(e) => setOpSign(e.target.value)}
-                            className="w-full p-3 border border-slate-200 rounded text-xs font-bold text-[#1e3a5f] outline-none focus:border-[#15803d]"
-                          />
-                        </div>
+                            {/* Signature field */}
+                            <div>
+                              <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Firma dell'Operatore Comunale *</label>
+                              <input 
+                                type="text" 
+                                required
+                                placeholder="es. Geom. Calogero Russo / Dott. Valenti"
+                                value={opSign}
+                                onChange={(e) => setOpSign(e.target.value)}
+                                className="w-full p-3 border border-slate-200 rounded text-xs font-bold text-[#1e3a5f] outline-none focus:border-[#15803d]"
+                              />
+                            </div>
 
-                        {/* Note/Comment */}
-                        <div>
-                          <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Dettagli del sopralluogo / Nota di Stato *</label>
-                          <textarea 
-                            required
-                            rows={3}
-                            placeholder="Sopralluogo programmato, contatti con il canile..."
-                            value={opComment}
-                            onChange={(e) => setOpComment(e.target.value)}
-                            className="w-full p-3 border border-slate-200 rounded text-xs font-bold text-slate-700 outline-none focus:border-[#15803d] h-20"
-                          />
-                        </div>
+                            {/* Note/Comment */}
+                            <div>
+                              <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Dettagli del sopralluogo / Nota di Stato *</label>
+                              <textarea 
+                                required
+                                rows={3}
+                                placeholder="Sopralluogo programmato, contatti con il canile..."
+                                value={opComment}
+                                onChange={(e) => setOpComment(e.target.value)}
+                                className="w-full p-3 border border-slate-200 rounded text-xs font-bold text-slate-700 outline-none focus:border-[#15803d] h-20"
+                              />
+                            </div>
 
-                        <button 
-                          type="submit"
-                          className="w-full bg-[#15803d] hover:bg-[#166534] text-white p-3 rounded-lg text-xs font-bold uppercase tracking-wider shadow-md shadow-[#15803d]/20 transition-all text-center"
-                        >
-                          Salva e Firma Intervento
-                        </button>
-                      </form>
+                            <button 
+                              type="submit"
+                              className="w-full bg-[#15803d] hover:bg-[#166534] text-white p-3 rounded-lg text-xs font-bold uppercase tracking-wider shadow-md shadow-[#15803d]/20 transition-all text-center"
+                            >
+                              Salva e Firma Intervento
+                            </button>
+                          </form>
+                        </>
+                      )}
 
                       {/* Log timeline display belonging to this report */}
                       <div className="pt-6 border-t border-slate-100 space-y-3">
@@ -821,6 +888,15 @@ export default function Operatori() {
                             ))
                           )}
                         </div>
+                        {hasMoreLogs && (
+                          <button 
+                            type="button" 
+                            onClick={loadMoreLogs}
+                            className="mt-2 w-full text-center text-[10px] text-blue-600 hover:text-blue-800 font-bold uppercase tracking-wider bg-slate-100/50 py-1.5 rounded border border-dashed border-slate-200"
+                          >
+                            Carica Altri Log Storici ({logs.length} caricati)
+                          </button>
+                        )}
                       </div>
 
                     </div>
@@ -860,53 +936,61 @@ export default function Operatori() {
                   <Star className="h-4 w-4 text-emerald-600 animate-pulse" /> Sincronizzato con Anagrafe Canina Regione Siciliana
                 </div>
 
-                <div className="relative">
-                  <button 
-                    className="flex items-center gap-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 font-bold text-xs px-5 py-3 rounded-lg shadow-sm transition-all uppercase tracking-wider relative overflow-hidden"
-                  >
-                    <FileSpreadsheet className="h-4 w-4" /> Importa da CSV
-                    <input 
-                      type="file" 
-                      accept=".csv" 
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        try {
-                          const text = await file.text();
-                          const rows = text.split('\n').map(r => r.trim()).filter(r => r);
-                          let c = 0;
-                          for(let i = 1; i<rows.length; i++) {
-                            const cols = rows[i].split(',');
-                            if(cols.length>=6) {
-                              const rec = {
-                                microchip: cols[0].trim(),
-                                nome: cols[1].trim(),
-                                specie: cols[2].trim(),
-                                sesso: cols[3].trim(),
-                                taglia: cols[4].trim(),
-                                colore: cols[5].trim(),
-                                condizioniSanitarie: "Sano",
-                                stato: "LIBERO"
-                              };
-                              await fetch('/api/registro', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(rec) });
-                              c++;
+                {currentUser?.role === 'Volontario' ? (
+                  <div className="flex items-center gap-2 bg-amber-50 border border-amber-100 text-amber-700 px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap uppercase tracking-wider">
+                    <ShieldAlert className="h-4 w-4 text-amber-600" /> Sola Lettura (Volontario)
+                  </div>
+                ) : (
+                  <>
+                    <div className="relative">
+                      <button 
+                        className="flex items-center gap-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 font-bold text-xs px-5 py-3 rounded-lg shadow-sm transition-all uppercase tracking-wider relative overflow-hidden"
+                      >
+                        <FileSpreadsheet className="h-4 w-4" /> Importa da CSV
+                        <input 
+                          type="file" 
+                          accept=".csv" 
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            try {
+                              const text = await file.text();
+                              const rows = text.split('\n').map(r => r.trim()).filter(r => r);
+                              let c = 0;
+                              for(let i = 1; i<rows.length; i++) {
+                                const cols = rows[i].split(',');
+                                if(cols.length>=6) {
+                                  const rec = {
+                                    microchip: cols[0].trim(),
+                                    nome: cols[1].trim(),
+                                    specie: cols[2].trim(),
+                                    sesso: cols[3].trim(),
+                                    taglia: cols[4].trim(),
+                                    colore: cols[5].trim(),
+                                    condizioniSanitarie: "Sano",
+                                    stato: "LIBERO"
+                                  };
+                                  await fetch('/api/registro', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(rec) });
+                                  c++;
+                                }
+                              }
+                              alert(`Caricati con successo ${c} record! Ricaricare la pagina.`);
+                            } catch(err) {
+                               alert("Errore caricamento CSV");
                             }
-                          }
-                          alert(`Caricati con successo ${c} record! Ricaricare la pagina.`);
-                        } catch(err) {
-                           alert("Errore caricamento CSV");
-                        }
-                      }}
-                      className="absolute inset-0 opacity-0 cursor-pointer" 
-                    />
-                  </button>
-                </div>
-                <button 
-                  onClick={() => setShowAddSoggetto(true)}
-                  className="flex items-center gap-2 bg-[#15803d] hover:bg-[#166534] text-white font-bold text-xs px-5 py-3 rounded-lg shadow-lg shadow-[#15803d]/20 transition-all uppercase tracking-wider"
-                >
-                  <Plus className="h-4 w-4" /> Registra Nuovo Soggetto standard
-                </button>
+                          }}
+                          className="absolute inset-0 opacity-0 cursor-pointer" 
+                        />
+                      </button>
+                    </div>
+                    <button 
+                      onClick={() => setShowAddSoggetto(true)}
+                      className="flex items-center gap-2 bg-[#15803d] hover:bg-[#166534] text-white font-bold text-xs px-5 py-3 rounded-lg shadow-lg shadow-[#15803d]/20 transition-all uppercase tracking-wider"
+                    >
+                      <Plus className="h-4 w-4" /> Registra Nuovo Soggetto standard
+                    </button>
+                  </>
+                )}
               </div>
 
             </div>
@@ -1139,12 +1223,14 @@ export default function Operatori() {
                           <span>Ultimo agg: {item.dataSincronizzazione}</span>
                           <span className="text-emerald-600 flex items-center gap-1">✔ Sincronizzato ASP AG</span>
                         </div>
-                        <button 
-                          onClick={() => setEditingSoggetto(item)}
-                          className="w-full mt-2 font-bold uppercase tracking-wider text-[10px] text-center border-t border-slate-100 py-2 hover:bg-slate-50 text-blue-600 rounded-b"
-                        >
-                          Modifica
-                        </button>
+                        {currentUser?.role !== 'Volontario' && (
+                          <button 
+                            onClick={() => setEditingSoggetto(item)}
+                            className="w-full mt-2 font-bold uppercase tracking-wider text-[10px] text-center border-t border-slate-100 py-2 hover:bg-slate-50 text-blue-600 rounded-b animate-fade-in"
+                          >
+                            Modifica
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
