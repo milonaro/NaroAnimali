@@ -146,4 +146,47 @@ router.post("/", async (req, res) => {
   }
 });
 
+router.put("/:codiceTracking/stato", async (req, res) => {
+  try {
+    const { codiceTracking } = req.params;
+    const { stato } = req.body;
+
+    if (!stato) return res.status(400).json({ error: "Stato obbligatorio" });
+
+    // Aggiorna MySQL/SQLite
+    if (pool) {
+      await pool.execute(
+        "UPDATE segnalazioni SET stato = ?, updated_at = NOW() WHERE codice_tracking = ?",
+        [stato, codiceTracking]
+      );
+    } else {
+      const dbSq = await getSqliteDb();
+      await dbSq.run(
+        "UPDATE segnalazioni SET stato = ?, updatedAt = CURRENT_TIMESTAMP WHERE codiceTracking = ?",
+        [stato, codiceTracking]
+      );
+    }
+
+    // Sincronizza Firestore (che guida la UI realtime)
+    if (db) {
+      const snapshot = await db.collection("segnalazioni").where("codiceTracking", "==", codiceTracking).get();
+      if (!snapshot.empty) {
+        const batch = db.batch();
+        snapshot.docs.forEach((doc) => {
+          batch.update(doc.ref, { 
+            stato, 
+            updatedAt: admin.firestore.FieldValue.serverTimestamp() 
+          });
+        });
+        await batch.commit();
+      }
+    }
+
+    res.json({ success: true, codiceTracking, stato });
+  } catch (error: any) {
+    console.error("PUT stato error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

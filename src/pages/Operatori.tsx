@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   Briefcase, MapPin, ShieldAlert, BadgeInfo, CheckCircle, 
   Download, Filter, Search, User, FileSpreadsheet, Plus, 
-  Activity, Star, Sparkles, Building, Phone, Calendar, CheckSquare
+  Activity, Star, Sparkles, Building, Phone, Calendar, CheckSquare,
+  Dog, Cat, FileText, AlertTriangle
 } from 'lucide-react';
 import AppMap from '@/src/components/map/Map';
 import { AnimalSpecie, SegnalazioneStato, Segnalazione } from '../types';
@@ -173,7 +174,7 @@ const INITIAL_LOGS: LogIntervento[] = [
 ];
 
 export default function Operatori() {
-  const [activeTab, setActiveTab] = useState<'modulo-b' | 'modulo-c'>('modulo-b');
+  const [activeTab, setActiveTab] = useState<'statistiche' | 'modulo-b' | 'modulo-c'>('statistiche');
   const [reports, setReports] = useState<Segnalazione[]>(INITIAL_REPORTS);
   const [selectedReport, setSelectedReport] = useState<Segnalazione | null>(INITIAL_REPORTS[0]);
   const [registro, setRegistro] = useState<RegistroAnimale[]>(INITIAL_REGISTRO);
@@ -250,7 +251,7 @@ export default function Operatori() {
   });
 
   // Handle adding log / signature for selected report
-  const handleAddLog = (e: React.FormEvent) => {
+  const handleAddLog = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedReport) return;
     if (!opSign.trim() || !opComment.trim()) {
@@ -271,11 +272,23 @@ export default function Operatori() {
 
     // Programmatically upgrade states if assigned to a team
     let updatedStato = selectedReport.stato;
-    if (assignedEntity !== "nessuno") {
+    if (assignedEntity !== "nessuno" && selectedReport.stato !== SegnalazioneStato.CHIUSA && selectedReport.stato !== SegnalazioneStato.FALSO_ALLARME) {
       updatedStato = SegnalazioneStato.INTERVENTO;
     }
 
-    // Update report
+    if (updatedStato !== selectedReport.stato) {
+      try {
+        await fetch(`/api/segnalazioni/${selectedReport.codiceTracking}/stato`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ stato: updatedStato })
+        });
+      } catch(e) {
+        console.error("Errore salvataggio stato", e);
+      }
+    }
+
+    // Update report local state
     const updatedReports = reports.map(r => {
       if (r.id === selectedReport.id) {
         return {
@@ -298,22 +311,34 @@ export default function Operatori() {
   };
 
   // Change individual report status directly
-  const handleUpdateStatus = (status: SegnalazioneStato) => {
+  const handleUpdateStatus = async (status: SegnalazioneStato) => {
     if (!selectedReport) return;
-    const updatedReports = reports.map(r => {
-      if (r.id === selectedReport.id) {
-        return {
-          ...r,
-          stato: status,
-          updatedAt: new Date().toLocaleDateString("it-IT")
-        };
+    
+    try {
+      const res = await fetch(`/api/segnalazioni/${selectedReport.codiceTracking}/stato`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stato: status })
+      });
+      if (!res.ok) throw new Error("API err");
+      
+      const updatedReports = reports.map(r => {
+        if (r.id === selectedReport.id) {
+          return {
+            ...r,
+            stato: status,
+            updatedAt: new Date().toLocaleDateString("it-IT")
+          };
+        }
+        return r;
+      });
+      setReports(updatedReports);
+      const updatedSel = updatedReports.find(r => r.id === selectedReport.id);
+      if (updatedSel) {
+        setSelectedReport(updatedSel);
       }
-      return r;
-    });
-    setReports(updatedReports);
-    const updatedSel = updatedReports.find(r => r.id === selectedReport.id);
-    if (updatedSel) {
-      setSelectedReport(updatedSel);
+    } catch (e) {
+      alert("Errore durante l'aggiornamento dello stato.");
     }
   };
 
@@ -448,6 +473,14 @@ export default function Operatori() {
           {/* Tab Navigation */}
           <div className="flex gap-4 mt-8 border-b border-white/10">
             <button
+              onClick={() => setActiveTab('statistiche')}
+              className={`pb-4 px-2 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
+                activeTab === 'statistiche' ? 'border-[#15803d] text-white' : 'border-transparent text-slate-400 hover:text-white'
+              }`}
+            >
+              Dashboard Statistiche
+            </button>
+            <button
               onClick={() => setActiveTab('modulo-b')}
               className={`pb-4 px-2 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
                 activeTab === 'modulo-b' ? 'border-[#15803d] text-white' : 'border-transparent text-slate-400 hover:text-white'
@@ -468,7 +501,99 @@ export default function Operatori() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
-        {activeTab === 'modulo-b' ? (
+        {activeTab === 'statistiche' ? (
+          /* ================= STATISTICHE ================= */
+          <div className="space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                <div className="flex items-start justify-between">
+                  <div className="text-slate-500 font-bold uppercase text-[10px] tracking-wider mb-2">Segnalazioni Totali</div>
+                  <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-4xl font-black text-slate-800">{reports.length}</div>
+              </div>
+              
+              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                <div className="flex items-start justify-between">
+                  <div className="text-slate-500 font-bold uppercase text-[10px] tracking-wider mb-2">Cani Segnalati</div>
+                  <div className="w-8 h-8 rounded-full bg-[#15803d]/10 text-[#15803d] flex items-center justify-center">
+                    <Dog className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-4xl font-black text-slate-800">{reports.filter(r => r.specie === 'CANE').length}</div>
+              </div>
+              
+              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                <div className="flex items-start justify-between">
+                  <div className="text-slate-500 font-bold uppercase text-[10px] tracking-wider mb-2">Gatti Segnalati</div>
+                  <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center">
+                    <Cat className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-4xl font-black text-slate-800">{reports.filter(r => r.specie === 'GATTO').length}</div>
+              </div>
+
+              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                <div className="flex items-start justify-between">
+                  <div className="text-slate-500 font-bold uppercase text-[10px] tracking-wider mb-2">Emergenze (Feriti/Affetti)</div>
+                  <div className="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
+                    <AlertTriangle className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-4xl font-black text-red-600">{reports.filter(r => r.condizioni === 'FERITO').length}</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                <h3 className="text-sm font-bold text-slate-600 uppercase tracking-widest mb-6">Stato degli Interventi</h3>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between text-xs font-bold text-slate-600 mb-1">
+                      <span>Da Gestire (Create)</span>
+                      <span>{reports.filter(r => r.stato === 'CREATA').length}</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2">
+                      <div className="bg-red-500 h-2 rounded-full" style={{ width: `${(reports.filter(r => r.stato === 'CREATA').length / Math.max(1, reports.length)) * 100}%` }}></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-xs font-bold text-slate-600 mb-1">
+                      <span>In Lavorazione</span>
+                      <span>{reports.filter(r => r.stato === 'INTERVENTO').length}</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2">
+                      <div className="bg-amber-500 h-2 rounded-full" style={{ width: `${(reports.filter(r => r.stato === 'INTERVENTO').length / Math.max(1, reports.length)) * 100}%` }}></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-xs font-bold text-slate-600 mb-1">
+                      <span>Chiuse / Risolte</span>
+                      <span>{reports.filter(r => r.stato === 'CHIUSA').length}</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2">
+                      <div className="bg-[#15803d] h-2 rounded-full" style={{ width: `${(reports.filter(r => r.stato === 'CHIUSA').length / Math.max(1, reports.length)) * 100}%` }}></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center justify-center">
+                 <h3 className="text-sm font-bold text-slate-600 uppercase tracking-widest mb-2">Trend Temporale</h3>
+                 <p className="text-sm text-slate-400 text-center max-w-xs leading-relaxed">
+                   Questa piattaforma elabora i dati in tempo reale aggregandoli per la Regione e l'ASP.
+                 </p>
+                 <div className="w-full h-32 mt-6 flex items-end justify-center gap-2">
+                    {/* Placeholder chart */}
+                    {[40, 25, 60, 30, 80, 45, 90].map((h, i) => (
+                      <div key={i} className="w-8 bg-[#15803d]/20 rounded-t-sm" style={{ height: `${h}%` }}></div>
+                    ))}
+                 </div>
+              </div>
+            </div>
+          </div>
+        ) : activeTab === 'modulo-b' ? (
           /* ================= MODULO B: DASHBOARD OPERATIVA ================= */
           <div className="space-y-8">
             
