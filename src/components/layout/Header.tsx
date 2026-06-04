@@ -38,17 +38,17 @@ export default function Header() {
           </Link>
 
           <nav className={`hidden md:flex items-center gap-10 text-[13px] font-bold transition-colors ${transparentHeader ? 'text-white/90' : 'text-[#64748b]'}`}>
-            <Link to="/" className={`hidden transition-colors flex items-center gap-2 ${transparentHeader ? 'hover:text-white text-white' : 'hover:text-[#101b3a]'}`}>
-              <HomeIcon className="h-4 w-4" /> Home
+            <Link to="/" className={`transition-colors flex flex-col items-start gap-1 ${transparentHeader ? 'hover:text-white text-white' : 'hover:text-[#101b3a]'}`}>
+              <HomeIcon className="h-5 w-5" /> <span>Home</span>
             </Link>
-            <Link to="/segnala" className={`transition-colors flex items-center gap-2 ${transparentHeader ? 'hover:text-white' : 'hover:text-[#101b3a]'}`}>
-              <MapPin className="h-4 w-4" /> Segnala
+            <Link to="/segnala" className={`transition-colors flex flex-col items-start gap-1 ${transparentHeader ? 'hover:text-white' : 'hover:text-[#101b3a]'}`}>
+              <MapPin className="h-5 w-5" /> <span>Segnala</span>
             </Link>
-            <Link to="/mappa" className={`transition-colors flex items-center gap-2 ${transparentHeader ? 'hover:text-white' : 'hover:text-[#101b3a]'}`}>
-              <MapIcon className="h-4 w-4" /> Mappa
+            <Link to="/mappa" className={`transition-colors flex flex-col items-start gap-1 ${transparentHeader ? 'hover:text-white' : 'hover:text-[#101b3a]'}`}>
+              <MapIcon className="h-5 w-5" /> <span>Mappa</span>
             </Link>
-            <Link to="/mia-area" className={`transition-colors flex items-center gap-2 ${transparentHeader ? 'hover:text-white' : 'hover:text-[#101b3a]'}`}>
-              <UserCircle className="h-4 w-4" /> La mia area
+            <Link to="/mia-area" className={`transition-colors flex flex-col items-start gap-1 ${transparentHeader ? 'hover:text-white' : 'hover:text-[#101b3a]'}`}>
+              <UserCircle className="h-5 w-5" /> <span>La mia area</span>
             </Link>
           </nav>
 
