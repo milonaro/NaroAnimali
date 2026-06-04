@@ -9,7 +9,8 @@ import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import sqlite3 from "sqlite3";
 import { open } from "sqlite";
-import mysql from "mysql2/promise";
+import mysqlPool from "./src/lib/mysql";
+import segnalazioniRouter from "./src/pages/api/segnalazioni";
 
 dotenv.config();
 
@@ -62,34 +63,30 @@ if (!admin.apps.length) {
 const db = admin.apps.length ? admin.firestore() : null;
 
 async function startServer() {
-  // Setup Relational Database (MySQL or SQLite fallback)
-  let mysqlPool: mysql.Pool | null = null;
   let sqliteDb: any = null;
 
-  if (process.env.DB_HOST && process.env.DB_NAME && process.env.DB_USER) {
+  if (mysqlPool) {
     try {
-      mysqlPool = mysql.createPool({
-        host: process.env.DB_HOST,
-        user: process.env.DB_USER,
-        database: process.env.DB_NAME,
-        password: process.env.DB_PASS,
-        waitForConnections: true,
-        connectionLimit: 10,
-        queueLimit: 0
-      });
-      console.log("Connesso al database MySQL su Aruba");
+      await mysqlPool.execute(`
+        CREATE TABLE IF NOT EXISTS admin_config (
+          key_name VARCHAR(100) PRIMARY KEY,
+          value_data TEXT
+        )
+      `);
     } catch (e) {
-      console.error("Errore di connessione a MySQL, uso il fallback SQLite:", e);
+      console.error("Errore table MySQL:", e);
     }
-  }
-
-  if (!mysqlPool) {
+  } else {
     sqliteDb = await open({
       filename: './database.sqlite',
       driver: sqlite3.Database
     });
 
     await sqliteDb.exec(`
+      CREATE TABLE IF NOT EXISTS admin_config (
+        key_name TEXT PRIMARY KEY,
+        value_data TEXT
+      );
       CREATE TABLE IF NOT EXISTS segnalazioni (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         codiceTracking TEXT,
@@ -198,130 +195,52 @@ async function startServer() {
     }
   });
 
-  // Segnalazioni Route
-  app.get("/api/segnalazioni", async (req, res) => {
+  // Setup Segnalazioni Router
+  app.use("/api/segnalazioni", segnalazioniRouter);
+
+  // Endpoint per GET e POST della configurazione admin
+  app.get("/api/admin/config", async (req, res) => {
     try {
-      let list = [];
+      let config: Record<string, string> = {};
       if (mysqlPool) {
-        const [rows] = await mysqlPool.query<any>("SELECT * FROM segnalazioni ORDER BY created_at DESC");
-        list = rows.map((r: any) => ({
-          id: r.id.toString(),
-          codiceTracking: r.codice_tracking,
-          specie: r.specie,
-          condizioni: r.condizioni,
-          descrizione: r.descrizione,
-          fotoUrl: r.foto_url,
-          latitudine: r.latitudine,
-          longitudine: r.longitudine,
-          indirizzo: r.indirizzo,
-          stato: r.stato,
-          urgenza: r.urgenza,
-          createdAt: r.created_at || new Date().toISOString(),
-          updatedAt: r.updated_at || new Date().toISOString()
-        }));
+        const [rows] = await mysqlPool.query<any>("SELECT * FROM admin_config");
+        rows.forEach((r: any) => { config[r.key_name] = r.value_data; });
       } else {
-        const rows = await sqliteDb.all("SELECT * FROM segnalazioni ORDER BY createdAt DESC");
-        list = rows.map((r: any) => ({
-          id: r.id.toString(),
-          codiceTracking: r.codiceTracking,
-          specie: r.specie,
-          condizioni: r.condizioni,
-          descrizione: r.descrizione,
-          fotoUrl: r.fotoUrl,
-          latitudine: r.latitudine,
-          longitudine: r.longitudine,
-          indirizzo: r.indirizzo,
-          stato: r.stato,
-          urgenza: r.urgenza,
-          createdAt: r.createdAt || new Date().toISOString(),
-          updatedAt: r.updatedAt || new Date().toISOString()
-        }));
+        const rows = await sqliteDb.all("SELECT * FROM admin_config");
+        rows.forEach((r: any) => { config[r.key_name] = r.value_data; });
       }
-      res.json(list);
+      res.json(config);
     } catch (error: any) {
-      console.error("GET reports error:", error);
+      console.error("GET config error:", error);
       res.status(500).json({ error: error.message });
     }
   });
 
-  app.post("/api/segnalazioni", async (req, res) => {
+  app.post("/api/admin/config", async (req, res) => {
     try {
-      const { lat, lng, specie, condizioni, descrizione, emailSegnalante, consensoPrivacy, fotoUrl, indirizzo } = req.body;
-
-      if (!consensoPrivacy) return res.status(400).json({ error: "Consenso privacy obbligatorio" });
-
-      const anno = new Date().getFullYear();
-      
-      // We retrieve count from our relational DB
-      let count = 0;
+      const { siteName, siteLogo } = req.body;
       if (mysqlPool) {
-        const [rows] = await mysqlPool.query<any>("SELECT COUNT(*) as count FROM segnalazioni WHERE YEAR(created_at) = ?", [anno]);
-        count = rows[0]?.count || 0;
+        await mysqlPool.execute(
+          "INSERT INTO admin_config (key_name, value_data) VALUES ('siteName', ?) ON DUPLICATE KEY UPDATE value_data = ?",
+          [siteName || "Comune di Naro", siteName || "Comune di Naro"]
+        );
+        await mysqlPool.execute(
+          "INSERT INTO admin_config (key_name, value_data) VALUES ('siteLogo', ?) ON DUPLICATE KEY UPDATE value_data = ?",
+          [siteLogo || "", siteLogo || ""]
+        );
       } else {
-        const row = await sqliteDb.get("SELECT COUNT(*) as count FROM segnalazioni WHERE strftime('%Y', createdAt) = ?", [anno.toString()]);
-        count = row?.count || 0;
+        await sqliteDb.run(
+          "INSERT INTO admin_config (key_name, value_data) VALUES ('siteName', ?) ON CONFLICT(key_name) DO UPDATE SET value_data = ?",
+          [siteName || "Comune di Naro", siteName || "Comune di Naro"]
+        );
+        await sqliteDb.run(
+          "INSERT INTO admin_config (key_name, value_data) VALUES ('siteLogo', ?) ON CONFLICT(key_name) DO UPDATE SET value_data = ?",
+          [siteLogo || "", siteLogo || ""]
+        );
       }
-      
-      const numero = String(count + 1).padStart(4, "0");
-      const codiceTracking = `NARO-${anno}-${numero}`;
-
-      const urgenza = (condizioni === "FERITO" || condizioni === "AGGRESSIVO") ? "ALTA" : "NORMALE";
-
-      let sqlId = 0;
-
-      // Insert primary data into Relational DB
-      if (mysqlPool) {
-        const [result] = await mysqlPool.execute<any>(`
-          INSERT INTO segnalazioni (
-            codice_tracking, specie, condizioni, descrizione, foto_url, 
-            latitudine, longitudine, indirizzo, stato, urgenza, 
-            email_segnalante, consenso_privacy
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-          codiceTracking, specie, condizioni, descrizione, fotoUrl, 
-          lat, lng, indirizzo, "CREATA", urgenza, 
-          emailSegnalante || null, consensoPrivacy ? 1 : 0
-        ]);
-        sqlId = result.insertId;
-      } else {
-        const insertResult = await sqliteDb.run(`
-          INSERT INTO segnalazioni (
-            codiceTracking, specie, condizioni, descrizione, fotoUrl, 
-            latitudine, longitudine, indirizzo, stato, urgenza, 
-            emailSegnalante, consensoPrivacy
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-          codiceTracking, specie, condizioni, descrizione, fotoUrl, 
-          lat, lng, indirizzo, "CREATA", urgenza, 
-          emailSegnalante || null, consensoPrivacy ? 1 : 0
-        ]);
-        sqlId = insertResult.lastID;
-      }
-
-      let firestoreId = sqlId.toString();
-
-      // Sync realtime payload to Firestore (for map pins / real-time dashboard)
-      if (db) {
-        const docRef = await db.collection("segnalazioni").add({
-          relationalId: sqlId, // Linking to primary DB
-          codiceTracking,
-          specie,
-          condizioni,
-          descrizione, // Note: For a strict "realtime only" Firestore, we could omit heavy fields like desc/email
-          fotoUrl,
-          latitudine: lat,
-          longitudine: lng,
-          indirizzo,
-          stato: "CREATA",
-          urgenza,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-        firestoreId = docRef.id;
-      }
-
-      res.json({ id: firestoreId, codiceTracking });
+      res.json({ success: true });
     } catch (error: any) {
+      console.error("POST config error:", error);
       res.status(500).json({ error: error.message });
     }
   });

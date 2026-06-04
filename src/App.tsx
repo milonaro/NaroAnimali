@@ -12,6 +12,7 @@ import Mappa from './pages/Mappa';
 import MiaArea from './pages/MiaArea';
 import Guida from './pages/Guida';
 import Operatori from './pages/Operatori';
+import Config from './pages/admin/Config';
 import DebugDb from './pages/DebugDb';
 import { PrivacyPolicy, Accessibilita, CookiePolicy } from './pages/Compliance';
 
@@ -34,6 +35,7 @@ export default function App() {
               <Route path="/mia-area" element={<MiaArea />} />
               <Route path="/guida" element={<Guida />} />
               <Route path="/operatori" element={<Operatori />} />
+              <Route path="/admin/config" element={<Config />} />
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/accessibilita" element={<Accessibilita />} />
               <Route path="/cookie-policy" element={<CookiePolicy />} />

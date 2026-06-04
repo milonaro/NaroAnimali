@@ -19,10 +19,24 @@ export default function Header() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const transparentHeader = isHome && !isScrolled;
+  const [siteName, setSiteName] = useState("Comune di Naro");
+  const [siteLogo, setSiteLogo] = useState("");
 
-  const siteName = localStorage.getItem('siteName') || "Comune di Naro";
-  const siteLogo = localStorage.getItem('siteLogo') || "";
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const res = await fetch("/api/admin/config");
+        if (res.ok) {
+          const config = await res.json();
+          if (config.siteName) setSiteName(config.siteName);
+          if (config.siteLogo) setSiteLogo(config.siteLogo);
+        }
+      } catch(e) {}
+    };
+    fetchConfig();
+  }, []);
+
+  const transparentHeader = isHome && !isScrolled;
 
   return (
     <header className={`fixed top-0 left-0 w-full z-[9999] transition-all duration-300 ${transparentHeader ? "bg-transparent border-none py-2" : "bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm py-0"}`}>
