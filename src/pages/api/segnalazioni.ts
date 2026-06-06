@@ -46,13 +46,17 @@ router.get("/", async (req, res) => {
     let usedSqlite = true;
     const dbSq = await getSqliteDb();
     const activeComune = await getActiveComuneKeyServer(dbSq);
+    const email = req.query.email as string | undefined;
 
     if (getIsMysqlHealthy() && pool) {
       try {
-        const [rows] = await pool.query<any>(
-          "SELECT * FROM segnalazioni WHERE comune_key = ? ORDER BY created_at DESC",
-          [activeComune]
-        );
+        let queryStr = "SELECT * FROM segnalazioni WHERE comune_key = ? ORDER BY created_at DESC";
+        let params = [activeComune];
+        if (email) {
+          queryStr = "SELECT * FROM segnalazioni WHERE comune_key = ? AND email_segnalante = ? ORDER BY created_at DESC";
+          params = [activeComune, email];
+        }
+        const [rows] = await pool.query<any>(queryStr, params);
         list = rows.map((r: any) => ({
           id: r.id.toString(),
           codiceTracking: r.codice_tracking,
@@ -76,10 +80,13 @@ router.get("/", async (req, res) => {
     }
     
     if (usedSqlite) {
-      const rows = await dbSq.all(
-        "SELECT * FROM segnalazioni WHERE comune_key = ? ORDER BY created_at DESC",
-        [activeComune]
-      );
+      let queryStr = "SELECT * FROM segnalazioni WHERE comune_key = ? ORDER BY created_at DESC";
+      let params = [activeComune];
+      if (email) {
+        queryStr = "SELECT * FROM segnalazioni WHERE comune_key = ? AND email_segnalante = ? ORDER BY created_at DESC";
+        params = [activeComune, email];
+      }
+      const rows = await dbSq.all(queryStr, params);
       list = rows.map((r: any) => ({
         id: r.id.toString(),
         codiceTracking: r.codice_tracking,
@@ -117,10 +124,22 @@ router.post("/", async (req, res) => {
       indirizzo,
       nomeSegnalante,
       cognomeSegnalante,
-      telefonoSegnalante
+      telefonoSegnalante,
+      dichiarazioneVeridicita,
+      assunzioneResponsabilita
     } = req.body;
 
-    if (!consensoPrivacy) return res.status(400).json({ error: "Consenso privacy obbligatorio" });
+    if (!nomeSegnalante || !cognomeSegnalante || !telefonoSegnalante || !emailSegnalante) {
+      return res.status(400).json({ error: "I dati identificativi del segnalante (nome, cognome, telefono, email) sono obbligatori." });
+    }
+
+    if (!consensoPrivacy) {
+      return res.status(400).json({ error: "Il consenso al trattamento della privacy è obbligatorio." });
+    }
+
+    if (!dichiarazioneVeridicita || !assunzioneResponsabilita) {
+      return res.status(400).json({ error: "Le dichiarazioni di responsabilità legale (veridicità e assunzione responsabilità) sono obbligatorie." });
+    }
 
     const dbSq = await getSqliteDb();
     const activeComune = await getActiveComuneKeyServer(dbSq);

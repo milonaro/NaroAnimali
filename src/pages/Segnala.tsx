@@ -188,7 +188,18 @@ export default function Segnala() {
   };
 
   const handleSubmit = async () => {
-    if (!location || !formData.dichiarazioneVeridicita || !(formData as any).assunzioneResponsabilita) return;
+    if (!location || 
+        !formData.nomeSegnalante || 
+        !formData.cognomeSegnalante || 
+        !formData.telefonoSegnalante || 
+        !formData.emailSegnalante || 
+        !formData.consensoPrivacy ||
+        !formData.dichiarazioneVeridicita || 
+        !(formData as any).assunzioneResponsabilita
+    ) {
+      setError("Tutti i campi relativi alla tua identità e le dichiarazioni legali di responsabilità ai sensi del DPR 445/2000 devono essere compilati e accettati per poter completare l'invio protocollato.");
+      return;
+    }
     setLoading(true);
     setError(null);
 

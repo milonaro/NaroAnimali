@@ -796,7 +796,7 @@ async function startServer() {
         return res.status(403).json({ error: "Accesso negato. Solo il ruolo Admin può modificare la configurazione." });
       }
 
-      const { siteName, siteLogo } = req.body;
+      const { siteName, siteLogo, activeComune } = req.body;
       let usedSqlite = true;
       if (getIsMysqlHealthy() && mysqlPool) {
         try {
@@ -808,6 +808,12 @@ async function startServer() {
             "INSERT INTO admin_config (key_name, value_data) VALUES ('siteLogo', ?) ON DUPLICATE KEY UPDATE value_data = ?",
             [siteLogo || "", siteLogo || ""]
           );
+          if (activeComune) {
+            await mysqlPool.execute(
+              "INSERT INTO admin_config (key_name, value_data) VALUES ('activeComune', ?) ON DUPLICATE KEY UPDATE value_data = ?",
+              [activeComune.toLowerCase(), activeComune.toLowerCase()]
+            );
+          }
           usedSqlite = false;
         } catch (err) {
           console.error("Errore query MySQL config POST, applico fallback su SQLite:", err);
@@ -824,6 +830,12 @@ async function startServer() {
           "INSERT INTO admin_config (key_name, value_data) VALUES ('siteLogo', ?) ON CONFLICT(key_name) DO UPDATE SET value_data = ?",
           [siteLogo || "", siteLogo || ""]
         );
+        if (activeComune) {
+          await sqliteDb.run(
+            "INSERT INTO admin_config (key_name, value_data) VALUES ('activeComune', ?) ON CONFLICT(key_name) DO UPDATE SET value_data = ?",
+            [activeComune.toLowerCase(), activeComune.toLowerCase()]
+          );
+        }
       }
       res.json({ success: true });
     } catch (error: any) {

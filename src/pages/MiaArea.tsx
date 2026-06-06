@@ -29,26 +29,7 @@ export default function MiaArea() {
     title: ''
   });
 
-  const reports: Report[] = [
-    { 
-      code: 'NARO-2025-0042', 
-      status: 'IN_INTERVENTO', 
-      date: '21 Maggio 2025', 
-      desc: 'Cane ferito avvistato in Contrada San Giorgio',
-      location: 'Contrada San Giorgio, Naro (AG)',
-      specie: 'Cane',
-      image: 'https://images.unsplash.com/photo-1544568100-847a948585b9?auto=format&fit=crop&q=80&w=800'
-    },
-    { 
-      code: 'NARO-2025-0015', 
-      status: 'CHIUSA', 
-      date: '12 Maggio 2025', 
-      desc: 'Gatto con cucciolata vicino al castello',
-      location: 'Via Castello, Naro (AG)',
-      specie: 'Gatto',
-      image: 'https://images.unsplash.com/photo-1543852786-1cf6624b9987?auto=format&fit=crop&q=80&w=800'
-    }
-  ];
+  const [reports, setReports] = useState<Report[]>([]);
 
   const handleSendOTP = async () => {
     setLoading(true);
@@ -62,10 +43,32 @@ export default function MiaArea() {
   const handleVerifyOTP = async () => {
     setLoading(true);
     setError(null);
-    // Simulate API verify
-    await new Promise(r => setTimeout(r, 1000));
-    setStep(3);
-    setLoading(false);
+    try {
+      // Simulate API verify
+      await new Promise(r => setTimeout(r, 1000));
+      
+      const res = await fetch(`/api/segnalazioni?email=${encodeURIComponent(email)}`);
+      if (res.ok) {
+        const data = await res.json();
+        const mapped: Report[] = data.map((item: any) => ({
+          code: item.codiceTracking,
+          status: item.stato as Report['status'],
+          date: new Date(item.createdAt).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }),
+          desc: item.descrizione,
+          location: item.indirizzo,
+          specie: item.specie,
+          image: item.fotoUrl || undefined
+        }));
+        setReports(mapped);
+      } else {
+        throw new Error("Impossibile caricare le segnalazioni.");
+      }
+      setStep(3);
+    } catch (e: any) {
+      setError(e.message || "Errore di connessione o caricamento dei dati.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const generatePDF = (report: Report) => {
