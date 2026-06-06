@@ -35,6 +35,8 @@ interface LogIntervento {
 
 export default function Operatori() {
   const [activeTab, setActiveTab] = useState<'statistiche' | 'modulo-b' | 'modulo-c'>('statistiche');
+  const [activeComune, setActiveComune] = useState(() => (localStorage.getItem('active_comune') || 'naro').toLowerCase());
+  const [siteName, setSiteName] = useState("Comune di Naro");
   const [reports, setReports] = useState<Segnalazione[]>([]);
   const [selectedReport, setSelectedReport] = useState<Segnalazione | null>(null);
   const [registro, setRegistro] = useState<RegistroAnimale[]>([]);
@@ -76,6 +78,26 @@ export default function Operatori() {
       }
     };
     fetchMe();
+
+    const fetchConfig = async () => {
+      try {
+        const res = await fetch('/api/admin/config');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.activeComune) {
+            const lowKey = data.activeComune.toLowerCase();
+            localStorage.setItem('active_comune', lowKey);
+            setActiveComune(lowKey);
+          }
+          if (data.siteName) {
+            setSiteName(data.siteName);
+          }
+        }
+      } catch (e) {
+        console.error("Error fetching admin config in operator portal", e);
+      }
+    };
+    fetchConfig();
 
     const loadRegistro = async () => {
       try {
@@ -128,16 +150,24 @@ export default function Operatori() {
             };
           }) as any;
           
-          setReports(liveData);
-          if (liveData.length > 0) {
+          const activeComKey = (localStorage.getItem('active_comune') || 'naro').toLowerCase();
+          const filteredLiveData = liveData.filter((r: any) => {
+            const rKey = r.comuneKey || r.comune_key || '';
+            return rKey.toLowerCase() === activeComKey;
+          });
+
+          setReports(filteredLiveData);
+          if (filteredLiveData.length > 0) {
             setSelectedReport((prevSelected) => {
               if (prevSelected) {
                 // Keep the current selection if it still exists
-                const stillExists = liveData.find((r: any) => r.id === prevSelected.id);
-                return stillExists || liveData[0];
+                const stillExists = filteredLiveData.find((r: any) => r.id === prevSelected.id);
+                return stillExists || filteredLiveData[0];
               }
-              return liveData[0];
+              return filteredLiveData[0];
             });
+          } else {
+            setSelectedReport(null);
           }
         }, (error) => {
           console.error("Firestore error:", error);
@@ -292,20 +322,20 @@ export default function Operatori() {
     }
 
     // Build standard CSV compliance layout containing ASP AG / Sicily records
-    let content = "REGIONE SICILIANA - COMUNE DI NARO (AG)\n";
+    let content = `REGIONE SICILIANA - ${siteName.toUpperCase()}\n`;
     content += "ESPORTAZIONE OBBLIGATORIA FLUSSO RANDAGISMO E INTERVENTI\n";
     content += `Data estrazione: ${new Date().toLocaleString("it-IT")}\n\n`;
     content += "ID_PRATICA;CODICE_TRACKING;SPECIE;TAGLIA;CONDIZIONI;ZONA;INDIRIZZO;URGENZA;STATO_PRATICA;DATA_CREAZIONE;SEGNALANTE;CONTATTO\n";
     
     filtered.forEach(r => {
-      content += `${r.id};${r.codiceTracking};${r.specie};${r.taglia || "N.D."};${r.condizioni};${r.zona};${r.indirizzo};${r.urgenza};${r.stato};${r.createdAt};${r.nomeSegnalante} ${r.cognomeSegnalante};${r.emailSegnalante}\n`;
+      content += `${r.id};${r.codiceTracking};${r.specie};${r.taglia || "N.D."};${r.condizioni};${r.zona || ''};${r.indirizzo};${r.urgenza};${r.stato};${r.createdAt};${r.nomeSegnalante || ''} ${r.cognomeSegnalante || ''};${r.emailSegnalante || ''}\n`;
     });
 
     const blob = new Blob([content], { type: "text/plain;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", `comune_naro_randagismo_esportazione_${Date.now()}.csv`);
+    link.setAttribute("download", `comune_${activeComune}_randagismo_esportazione_${Date.now()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -423,11 +453,11 @@ export default function Operatori() {
                 <h1 className="text-3xl font-black tracking-tight flex items-center gap-3">
                   Portale Operativo Municipale 
                   <span className="text-xs bg-emerald-500/20 text-emerald-300 font-bold px-3 py-1 rounded-full uppercase border border-emerald-500/30">
-                    Naro (AG)
+                    {activeComune.toUpperCase()}
                   </span>
                 </h1>
                 <p className="text-slate-300 text-sm mt-1">
-                  Pannello di controllo del Comune di Naro per la gestione territoriale del randagismo e archivio sanitario ASP.
+                  Pannello di controllo del {siteName} per la gestione territoriale del randagismo e archivio sanitario ASP.
                 </p>
               </div>
             </div>

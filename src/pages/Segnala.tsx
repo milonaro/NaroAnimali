@@ -9,6 +9,34 @@ import { motion, AnimatePresence } from 'motion/react';
 import { OfflineStore } from '@/src/lib/offline';
 import { Link } from 'react-router-dom';
 
+const ANIMALI_GESTITI = [
+  "Piccioni urbani (Columba livia domestica)",
+  "Gabbiano reale mediterraneo (Larus michahellis)",
+  "Storni (Sturnus vulgaris)",
+  "Corvidi (cornacchie, gazze)",
+  "Ratti e topi urbani (Rattus norvegicus, Mus musculus)",
+  "Cinghiale (Sus scrofa)",
+  "Volpe rossa (Vulpes vulpes)",
+  "Istrice (Hystrix cristata)",
+  "Lepre (Lepus europaeus) in aree periferiche",
+  "Bovini (mucche, vitelli)",
+  "Ovini (pecore)",
+  "Caprini (capre)",
+  "Suini allevati",
+  "Serpenti autoctoni",
+  "Tartarughe abbandonate (es. Trachemys scripta)",
+  "Zanzare (Culex, Aedes)",
+  "Blatte",
+  "Formiche invasive",
+  "Processionaria del pino (Thaumetopoea pityocampa)",
+  "Colonie di piccioni sovrannumerari",
+  "Roditori in reti fognarie",
+  "Parassiti urbani legati a rifiuti e degrado",
+  "Animali feriti o incidentati su strada",
+  "Animali sequestrati o abbandonati in massa",
+  "Fauna selvatica in contesto urbano pericoloso"
+];
+
 export default function Segnala() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -16,9 +44,9 @@ export default function Segnala() {
   const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<Partial<Segnalazione>>({
-    specie: AnimalSpecie.CANE,
-    condizioni: "NORMALE",
-    taglia: "MEDIA",
+    specie: undefined,
+    condizioni: undefined,
+    taglia: undefined,
     colore: "",
     descrizione: "",
     nomeSegnalante: "",
@@ -30,6 +58,11 @@ export default function Segnala() {
     dichiarazioneVeridicita: false,
     assunzioneResponsabilita: false,
   });
+
+  const [isAltroSelected, setIsAltroSelected] = useState(false);
+  const [managedAnimalQuery, setManagedAnimalQuery] = useState("");
+  const [isGeocoding, setIsGeocoding] = useState(false);
+  const [locationDetails, setLocationDetails] = useState<{ address: string; placeName: string } | null>(null);
 
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [photo, setPhoto] = useState<File | null>(null);
@@ -67,13 +100,44 @@ export default function Segnala() {
     { id: 5, label: 'Conferma' }
   ];
 
+  const reverseGeocode = async (lat: number, lng: number) => {
+    setIsGeocoding(true);
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`, {
+        headers: {
+          'Accept-Language': 'it,en',
+          'User-Agent': 'AnimalHubPA'
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const address = data.display_name || `Naro, Lat: ${lat.toFixed(5)}, Lng: ${lng.toFixed(5)}`;
+        const placeName = data.name || data.address?.road || data.address?.suburb || data.address?.village || "Posizione Rilevata";
+        setLocationDetails({ address, placeName });
+        setFormData(prev => ({ ...prev, indirizzo: address }));
+      } else {
+        throw new Error("Geocoding failed");
+      }
+    } catch (e) {
+      console.error(e);
+      const address = `Naro (AG), Lat: ${lat.toFixed(5)}, Lng: ${lng.toFixed(5)}`;
+      const placeName = `Zona di Naro`;
+      setLocationDetails({ address, placeName });
+      setFormData(prev => ({ ...prev, indirizzo: address }));
+    } finally {
+      setIsGeocoding(false);
+    }
+  };
+
   const handleLocationSelect = (lat: number, lng: number) => {
     if (!isInTerritorio(lat, lng)) {
       setError("La posizione selezionata è fuori dal territorio del Comune di Naro.");
       setLocation(null);
+      setLocationDetails(null);
     } else {
       setError(null);
       setLocation({ lat, lng });
+      reverseGeocode(lat, lng);
     }
   };
 
@@ -158,7 +222,7 @@ export default function Segnala() {
           lat: location.lat,
           lng: location.lng,
           fotoUrl,
-          indirizzo: "Località rilevata da mappa",
+          indirizzo: locationDetails?.address || "Località rilevata da mappa",
         })
       });
 
@@ -314,19 +378,44 @@ export default function Segnala() {
                     </button>
                   )}
                 </div>
-                <div className="flex-1 min-h-[600px] w-full rounded-lg overflow-hidden border border-gray-100 relative shadow-inner">
+                <div className="h-[320px] md:h-[420px] w-full rounded-lg overflow-hidden border border-gray-100 relative shadow-inner">
                   <AppMap interactive onLocationSelect={handleLocationSelect} hideFilters />
                 </div>
                 {error && <p className="text-red-500 font-bold text-xs">{error}</p>}
                 {location && (
-                  <div className="flex items-center gap-2 text-[#15803d] font-bold text-sm bg-emerald-50 p-4 rounded-lg border border-emerald-100">
-                    <CheckCircle2 className="h-4 w-4" /> Posizione acquisita correttamente
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="flex-1 space-y-1">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Posizione Rilevata</span>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-[#15803d] shrink-0" />
+                        {isGeocoding ? (
+                          <span className="text-xs text-slate-400 font-medium">Calcolo indirizzo...</span>
+                        ) : (
+                          <p className="text-xs md:text-sm font-black text-[#1e3a5f] leading-relaxed">
+                            {locationDetails?.address || "Coordinate definite sulla mappa"}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-4 border-t md:border-t-0 pt-2 md:pt-0 border-slate-200/60 shrink-0">
+                      <div className="text-right">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Coordinate (Lat, Lng)</span>
+                        <span className="text-xs font-mono font-bold text-[#15803d]">
+                          {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
+                        </span>
+                      </div>
+                      <div className="px-3 py-1 bg-emerald-50 border border-emerald-100 rounded-full flex items-center gap-1.5 shrink-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-[9px] font-bold text-[#15803d] uppercase tracking-wider">Mappa OK</span>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
             )}
 
-            {step === 2 && (
+             {step === 2 && (
               <div className="space-y-12">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
@@ -343,7 +432,7 @@ export default function Segnala() {
                     >
                       <ArrowLeft className="h-5 w-5" /> <span className="md:hidden">Indietro</span>
                     </button>
-                    {(formData.specie && formData.condizioni) && (
+                    {(formData.specie && formData.condizioni && formData.taglia) && (
                       <button
                         onClick={() => setStep(step + 1)}
                         className="w-full md:w-auto bg-[#15803d] text-white px-8 py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-[#166534] transition-all cursor-pointer shadow-lg shadow-[#15803d]/30"
@@ -356,18 +445,27 @@ export default function Segnala() {
 
                 <div className="space-y-8">
                   <div>
-                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 block mb-4">Specie</label>
+                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 block mb-4">Specie *</label>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {[
-                        { id: AnimalSpecie.CANE, label: 'Cane', icon: <Dog className="h-6 w-6" /> },
-                        { id: AnimalSpecie.GATTO, label: 'Gatto', icon: <Cat className="h-6 w-6" /> },
-                        { id: AnimalSpecie.ALTRO, label: 'Altro', icon: <MoreHorizontal className="h-6 w-6" /> }
+                        { id: AnimalSpecie.CANE, label: 'Cane', icon: <Dog className="h-6 w-6" />, active: formData.specie === AnimalSpecie.CANE },
+                        { id: AnimalSpecie.GATTO, label: 'Gatto', icon: <Cat className="h-6 w-6" />, active: formData.specie === AnimalSpecie.GATTO },
+                        { id: AnimalSpecie.ALTRO, label: 'Altro', icon: <MoreHorizontal className="h-6 w-6" />, active: (formData.specie !== undefined && formData.specie !== AnimalSpecie.CANE && formData.specie !== AnimalSpecie.GATTO) || isAltroSelected }
                       ].map((item) => (
                         <button
                           key={item.id}
-                          onClick={() => setFormData({ ...formData, specie: item.id })}
-                          className={`p-6 rounded-lg border-2 transition-all flex flex-col items-center gap-3 ${
-                            formData.specie === item.id ? 'border-[#15803d] bg-emerald-50 text-[#15803d]' : 'border-gray-100 bg-white text-gray-500 hover:border-gray-200'
+                          type="button"
+                          onClick={() => {
+                            if (item.id === AnimalSpecie.ALTRO) {
+                              setFormData({ ...formData, specie: undefined });
+                              setIsAltroSelected(true);
+                            } else {
+                              setFormData({ ...formData, specie: item.id });
+                              setIsAltroSelected(false);
+                            }
+                          }}
+                          className={`p-6 rounded-lg border-2 transition-all flex flex-col items-center gap-3 cursor-pointer ${
+                            item.active ? 'border-[#15803d] bg-emerald-50 text-[#15803d]' : 'border-gray-100 bg-white text-gray-500 hover:border-gray-200'
                           }`}
                         >
                           {item.icon}
@@ -377,14 +475,72 @@ export default function Segnala() {
                     </div>
                   </div>
 
+                  {/* List of Managed Animals from AnimaliGestiti.md */}
+                  {(isAltroSelected || (formData.specie !== undefined && formData.specie !== AnimalSpecie.CANE && formData.specie !== AnimalSpecie.GATTO)) && (
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 md:p-8 space-y-6 animate-in fade-in duration-300">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                          <h3 className="text-base font-black text-[#1e3a5f] uppercase tracking-wide">
+                            Seleziona Animale Gestito dal Comune
+                          </h3>
+                          <p className="text-gray-500 text-xs mt-1">
+                            Seleziona uno dei soggetti tutelati ai sensi del file comunale AnimaliGestiti.md.
+                          </p>
+                        </div>
+                        {formData.specie && formData.specie !== AnimalSpecie.CANE && formData.specie !== AnimalSpecie.GATTO && (
+                          <div className="px-4 py-2 bg-[#15803d]/10 border border-[#15803d]/20 rounded-lg text-xs font-bold text-[#15803d] flex items-center gap-2">
+                            <CheckCircle2 className="h-4 w-4 shrink-0" /> Selezionato: <strong className="uppercase">{formData.specie}</strong>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Cerca animale (es. Cinghiale, Volpe, Piccione...)"
+                          className="w-full bg-white border border-slate-200 px-4 py-3 rounded-lg focus:border-[#15803d] focus:outline-none text-sm placeholder-slate-400 font-medium"
+                          value={managedAnimalQuery}
+                          onChange={(e) => setManagedAnimalQuery(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                        {ANIMALI_GESTITI.filter(animal => 
+                          animal.toLowerCase().includes(managedAnimalQuery.toLowerCase())
+                        ).map((animal) => {
+                          const isSelected = formData.specie === animal;
+                          return (
+                            <button
+                              key={animal}
+                              type="button"
+                              onClick={() => {
+                                setFormData({ ...formData, specie: animal as any });
+                                setIsAltroSelected(true);
+                              }}
+                              className={`p-3 text-left rounded-lg text-xs font-bold transition-all border flex items-center justify-between gap-2 cursor-pointer ${
+                                isSelected 
+                                  ? 'bg-[#15803d] text-white border-[#15803d]' 
+                                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300'
+                              }`}
+                            >
+                              <span>{animal}</span>
+                              {isSelected && <CheckCircle2 className="h-4 w-4 shrink-0" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   <div>
-                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 block mb-4 flex items-center gap-2">Taglia <Info className="h-3 w-3" /></label>
+                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 block mb-4 flex items-center gap-2">Taglia * <Info className="h-3 w-3" /></label>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {['PICCOLA', 'MEDIA', 'GRANDE'].map((t) => (
                         <button
                           key={t}
+                          type="button"
                           onClick={() => setFormData({ ...formData, taglia: t as any })}
-                          className={`p-4 rounded-lg border-2 font-bold text-xs transition-all ${
+                          className={`p-4 rounded-lg border-2 font-bold text-xs transition-all cursor-pointer ${
                             formData.taglia === t ? 'border-[#15803d] bg-emerald-50 text-[#15803d]' : 'border-gray-100 bg-white text-gray-500 hover:border-gray-200'
                           }`}
                         >
@@ -395,7 +551,7 @@ export default function Segnala() {
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 block mb-4">Condizioni</label>
+                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 block mb-4">Condizioni *</label>
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                       {[
                         { id: 'NORMALE', label: 'Normale', icon: <Heart className="h-5 w-5" /> },
@@ -406,8 +562,9 @@ export default function Segnala() {
                       ].map((c) => (
                         <button
                           key={c.id}
+                          type="button"
                           onClick={() => setFormData({ ...formData, condizioni: c.id })}
-                          className={`p-4 rounded-lg border-2 transition-all flex flex-col items-center gap-2 ${
+                          className={`p-4 rounded-lg border-2 transition-all flex flex-col items-center gap-2 cursor-pointer ${
                             formData.condizioni === c.id 
                               ? `border-[#15803d] bg-emerald-50 text-[#15803d]` 
                               : 'border-gray-100 bg-white text-gray-500 hover:border-gray-200'
@@ -525,7 +682,7 @@ export default function Segnala() {
                     >
                       <ArrowLeft className="h-5 w-5" /> <span className="md:hidden">Indietro</span>
                     </button>
-                    {(formData.nomeSegnalante && formData.cognomeSegnalante && formData.emailSegnalante && formData.consensoPrivacy) && (
+                    {(formData.nomeSegnalante && formData.cognomeSegnalante && formData.telefonoSegnalante && formData.emailSegnalante && formData.consensoPrivacy) && (
                       <button
                         onClick={() => setStep(step + 1)}
                         className="w-full md:w-auto bg-[#15803d] text-white px-8 py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-[#166534] transition-all cursor-pointer shadow-lg shadow-[#15803d]/30"
@@ -558,11 +715,11 @@ export default function Segnala() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">Telefono</label>
+                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">Telefono *</label>
                     <input
                       type="tel"
                       className="w-full bg-gray-50 border border-gray-100 p-4 rounded-lg focus:bg-white focus:border-[#15803d] outline-none"
-                      placeholder="Opzionale — per essere ricontattato"
+                      placeholder="Inserisci il tuo numero di telefono"
                       value={formData.telefonoSegnalante}
                       onChange={(e) => setFormData({ ...formData, telefonoSegnalante: e.target.value })}
                     />
@@ -676,52 +833,173 @@ export default function Segnala() {
             )}
 
             {step === 5 && (
-              <div className="space-y-12 text-center py-12">
-                 <div className="flex justify-between items-center mb-4 text-left w-full h-12">
+              <div className="space-y-10 py-6">
+                 {/* Navigation header inside step */}
+                 <div className="flex justify-between items-center w-full">
                     <button
+                      type="button"
                       onClick={() => setStep(step - 1)}
-                      className="bg-white border border-gray-200 text-gray-600 px-6 py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-gray-50 hover:text-[#1e3a5f] transition-all cursor-pointer shadow-sm"
+                      className="bg-white border border-gray-200 text-gray-600 px-6 py-2.5 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-gray-50 hover:text-[#1e3a5f] transition-all cursor-pointer shadow-sm text-sm"
                     >
-                      <ArrowLeft className="h-5 w-5" /> <span className="md:hidden">Indietro</span>
+                      <ArrowLeft className="h-4 w-4" /> <span>Indietro</span>
                     </button>
-                 </div>
-                 <div className="w-24 h-24 bg-emerald-50 text-[#15803d] rounded-full flex items-center justify-center mx-auto mb-8 shadow-xl">
-                    <ShieldCheck className="h-12 w-12" />
-                 </div>
-                 <h2 className="text-4xl font-bold text-[#1e3a5f]">Quasi fatto!</h2>
-                 <p className="text-gray-500 text-lg max-w-md mx-auto">
-                   Rivedi i dati inseriti. Una volta inviata, la segnalazione verrà protocollata dal Comune di Naro.
-                 </p>
-                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-left p-8 bg-gray-50 rounded-lg mt-8">
-                    <div>
-                      <span className="text-[9px] font-bold text-gray-400 uppercase block mb-1">Animale</span>
-                      <span className="font-bold text-sm text-[#1e3a5f]">{formData.specie}</span>
-                    </div>
-                    <div>
-                      <span className="text-[9px] font-bold text-gray-400 uppercase block mb-1">Condizione</span>
-                      <span className="font-bold text-sm text-[#1e3a5f]">{formData.condizioni}</span>
-                    </div>
-                    <div>
-                      <span className="text-[9px] font-bold text-gray-400 uppercase block mb-1">Segnalante</span>
-                      <span className="font-bold text-sm text-[#1e3a5f] truncate">{formData.nomeSegnalante}</span>
-                    </div>
-                    <div>
-                      <span className="text-[9px] font-bold text-gray-400 uppercase block mb-1">Protocollo</span>
-                      <span className="font-bold text-sm text-[#15803d]">Digitale</span>
+                    <div className="px-3 py-1 bg-emerald-50 border border-emerald-100 rounded-full flex items-center gap-1.5 shrink-0">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-[9px] font-black text-[#15803d] uppercase tracking-wider">Riepilogo Pronto</span>
                     </div>
                  </div>
-                 <div className="pt-8">
+
+                 {/* Success Badge */}
+                 <div className="text-center space-y-3">
+                   <div className="w-16 h-16 bg-emerald-50 text-[#15803d] rounded-full flex items-center justify-center mx-auto shadow-md">
+                      <ShieldCheck className="h-8 w-8" />
+                   </div>
+                   <h2 className="text-3xl font-black text-[#1e3a5f] tracking-tight">Rivedi la tua Segnalazione</h2>
+                   <p className="text-gray-500 text-sm max-w-lg mx-auto">
+                     Verifica attentamente tutti i dettagli inseriti. Una volta cliccato su "Invia", la segnalazione verrà registrata nel protocollo comunale digitale di Naro.
+                   </p>
+                 </div>
+
+                 {/* Detailed Sections Grid */}
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto text-left">
+                   {/* Col 1: Animale & Allegati */}
+                   <div className="bg-slate-50 rounded-xl p-6 border border-slate-200/60 space-y-4">
+                     <h3 className="text-xs font-black text-[#1e3a5f] uppercase tracking-widest flex items-center gap-2 border-b border-slate-200 pb-2">
+                       <PawPrint className="h-4 w-4 text-[#15803d]" />
+                       Animale Segnalato
+                     </h3>
+                     <div className="grid grid-cols-2 gap-4">
+                       <div>
+                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Specie</span>
+                         <span className="font-bold text-sm text-[#1e3a5f] uppercase block">{formData.specie}</span>
+                       </div>
+                       <div>
+                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Taglia</span>
+                         <span className="font-bold text-sm text-[#1e3a5f] block">{formData.taglia || 'N.D.'}</span>
+                       </div>
+                       <div>
+                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Condizioni</span>
+                         <span className="font-bold text-sm text-[#1e3a5f] block">
+                           <span className="px-2 py-0.5 bg-[#15803d]/10 border border-[#15803d]/20 rounded text-xs font-extrabold text-[#15803d] uppercase inline-block mt-0.5">
+                             {formData.condizioni}
+                           </span>
+                         </span>
+                       </div>
+                       <div>
+                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Colore Mantello</span>
+                         <span className="font-bold text-sm text-[#1e3a5f] block">{formData.colore || 'Non specificato'}</span>
+                       </div>
+                     </div>
+                     
+                     {formData.descrizione && (
+                       <div className="bg-white p-3 rounded-lg border border-slate-200/40">
+                         <span className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Note / Descrizione</span>
+                         <p className="text-xs text-slate-600 leading-relaxed font-medium">"{formData.descrizione}"</p>
+                       </div>
+                     )}
+
+                     {/* Image Thumbnail inside review if available */}
+                     {photo && (
+                       <div className="bg-white p-3 rounded-lg border border-slate-200/40 flex items-center gap-3">
+                         <div className="h-12 w-12 rounded overflow-hidden border border-slate-200 shrink-0">
+                           <img src={URL.createObjectURL(photo)} className="w-full h-full object-cover" alt="" />
+                         </div>
+                         <div className="min-w-0">
+                           <span className="text-[9px] font-bold text-slate-400 uppercase block">Fotografia Allegata</span>
+                           <p className="text-xs font-bold text-slate-700 truncate">{photo.name}</p>
+                         </div>
+                       </div>
+                     )}
+                   </div>
+
+                   {/* Col 2: Posizione & Segnalante */}
+                   <div className="space-y-6">
+                     {/* Posizione Card */}
+                     <div className="bg-slate-50 rounded-xl p-6 border border-slate-200/60 space-y-3">
+                       <h3 className="text-xs font-black text-[#1e3a5f] uppercase tracking-widest flex items-center gap-2 border-b border-slate-200 pb-2">
+                         <MapPin className="h-4 w-4 text-[#15803d]" />
+                         Localizzazione
+                       </h3>
+                       <div>
+                         <span className="text-[9px] font-bold text-slate-400 uppercase block mb-0.5">Indirizzo Rilevato</span>
+                         <p className="text-xs font-bold text-slate-700 leading-relaxed mb-2">
+                           {locationDetails?.address || "Coordinate sulla mappa"}
+                         </p>
+                       </div>
+                       <div className="flex justify-between items-center">
+                         <div>
+                           <span className="text-[9px] font-bold text-slate-400 uppercase block">Coordinate Geografiche</span>
+                           <span className="text-xs font-mono font-semibold text-slate-600">
+                             {location?.lat.toFixed(6)}, {location?.lng.toFixed(6)}
+                           </span>
+                         </div>
+                         <span className="text-[10px] font-bold text-[#15803d] uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                           In Territorio Naro
+                         </span>
+                       </div>
+                     </div>
+
+                     {/* Segnalante Card */}
+                     <div className="bg-slate-50 rounded-xl p-6 border border-slate-200/60 space-y-3">
+                       <h3 className="text-xs font-black text-[#1e3a5f] uppercase tracking-widest flex items-center gap-2 border-b border-slate-200 pb-2">
+                         <User className="h-4 w-4 text-[#15803d]" />
+                         Dati del Segnalante
+                       </h3>
+                       <div className="grid grid-cols-2 gap-4">
+                         <div>
+                           <span className="text-[9px] font-bold text-slate-400 uppercase block mb-0.5">Nome & Cognome</span>
+                           <span className="font-bold text-xs text-[#1e3a5f] block">
+                             {formData.nomeSegnalante} {formData.cognomeSegnalante}
+                           </span>
+                         </div>
+                         <div>
+                           <span className="text-[9px] font-bold text-slate-400 uppercase block mb-0.5">Telefono</span>
+                           <span className="font-bold text-xs text-[#1e3a5f] block">{formData.telefonoSegnalante}</span>
+                         </div>
+                       </div>
+                       <div>
+                         <span className="text-[9px] font-bold text-slate-400 uppercase block mb-0.5">Indirizzo Email</span>
+                         <span className="font-bold text-xs text-slate-600 block truncate">{formData.emailSegnalante}</span>
+                       </div>
+                       
+                       {/* Consent Checklist status representation */}
+                       <div className="pt-2 border-t border-slate-200/60 flex flex-col gap-1">
+                         <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-500">
+                           <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                           Conformità Privacy & DPR 445/2000
+                         </div>
+                         {formData.consensoNotifiche ? (
+                           <div className="flex items-center gap-1.5 text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100/60 rounded px-2 py-0.5 mt-1 self-start">
+                             <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                             Notifiche Email Attive
+                           </div>
+                         ) : (
+                           <div className="flex items-center gap-1.5 text-[9px] font-medium text-slate-400">
+                             Nessun invio notifiche automatiche richiesto
+                           </div>
+                         )}
+                       </div>
+                     </div>
+                   </div>
+                 </div>
+
+                 {/* Action Panel */}
+                 <div className="pt-6 border-t border-slate-100 text-center space-y-4">
                     <button
+                      type="button"
                       onClick={handleSubmit}
                       disabled={loading}
-                      className="w-full md:w-[300px] mx-auto bg-[#15803d] text-white px-8 py-4 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-[#166534] transition-all cursor-pointer shadow-lg shadow-[#15803d]/30 disabled:opacity-50"
+                      className="w-full md:w-[350px] mx-auto bg-[#15803d] text-white px-8 py-4 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-[#166534] transition-all cursor-pointer shadow-lg shadow-[#15803d]/30 disabled:opacity-50 text-base"
                     >
                       {loading ? (
                         <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       ) : (
-                        <>Invia Segnalazione <ArrowRight className="h-5 w-5" /></>
+                        <>Invia Segnalazione Ufficiale <ArrowRight className="h-5 w-5" /></>
                       )}
                     </button>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider max-w-sm mx-auto">
+                      Cliccando dichiari la veridicità delle informazioni inserite ai sensi delle norme vigenti.
+                    </p>
                  </div>
               </div>
             )}

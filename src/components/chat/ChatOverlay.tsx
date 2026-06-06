@@ -13,6 +13,25 @@ export default function ChatOverlay() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  const [siteName, setSiteName] = useState("Comune di Naro");
+  const [cityName, setCityName] = useState("Naro");
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const res = await fetch("/api/admin/config");
+        if (res.ok) {
+          const config = await res.json();
+          if (config.siteName) {
+            setSiteName(config.siteName);
+            setCityName(config.siteName.replace("Comune di ", ""));
+          }
+        }
+      } catch(e) {}
+    };
+    fetchConfig();
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -68,7 +87,7 @@ export default function ChatOverlay() {
                 </div>
                 <div>
                    <h3 className="text-sm font-bold uppercase tracking-widest">Assistente AnimalHub</h3>
-                   <p className="text-[10px] text-white/50 font-medium tracking-tight">AI Istituzionale Comune di Naro</p>
+                   <p className="text-[10px] text-white/50 font-medium tracking-tight">AI Istituzionale {siteName}</p>
                 </div>
               </div>
               <button 
@@ -94,7 +113,7 @@ export default function ChatOverlay() {
                   </div>
                   <h4 className="text-base font-black text-[#1e3a5f] uppercase tracking-tight">Come posso aiutarti oggi?</h4>
                   <p className="text-xs text-gray-500 font-medium leading-relaxed">
-                    Sono l'assistente virtuale del Comune di Naro. Chiedimi informazioni sulla procedura di segnalazione, sulle normative regionali (L.R. 15/2000), o su come adottare un cane dal nostro rifugio.
+                    Sono l'assistente virtuale del {siteName}. Chiedimi informazioni sulla procedura di segnalazione, sulle normative regionali (L.R. 15/2000), o su come adottare un cane dal nostro rifugio.
                   </p>
                   <div className="flex flex-col gap-2 pt-6">
                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-left mb-2">Domande frequenti</p>

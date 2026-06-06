@@ -11,6 +11,27 @@ export default function Mappa() {
   const [searchParams] = useSearchParams();
   const selectedId = searchParams.get('id');
   
+  const [siteName, setSiteName] = useState("Comune di Naro");
+  const [activeComune, setActiveComune] = useState("naro");
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const res = await fetch("/api/admin/config");
+        if (res.ok) {
+          const config = await res.json();
+          if (config.siteName) setSiteName(config.siteName);
+          if (config.activeComune) setActiveComune(config.activeComune);
+        }
+      } catch(e) {}
+    };
+    fetchConfig();
+  }, []);
+
+  const cityName = useMemo(() => {
+    return siteName.replace("Comune di ", "");
+  }, [siteName]);
+  
   useEffect(() => {
     const q = query(collection(db, 'segnalazioni'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -26,11 +47,15 @@ export default function Mappa() {
   }, []);
 
   const animalMarkers = useMemo(() => {
-    const filtered = segnalazioni.filter(a => 
-      (a.specie || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
-      (a.indirizzo || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (a.colore || '').toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filtered = segnalazioni.filter(a => {
+      const matchSearch = 
+        (a.specie || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+        (a.indirizzo || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (a.colore || '').toLowerCase().includes(searchQuery.toLowerCase());
+      const itemComune = (a.comuneKey || a.comune_key || 'naro').toLowerCase();
+      const matchComune = itemComune === activeComune.toLowerCase();
+      return matchSearch && matchComune;
+    });
 
     return filtered.map(a => ({
       lat: a.latitudine || 37.2925,
@@ -43,7 +68,7 @@ export default function Mappa() {
       status: a.stato as 'CREATA' | 'IN_CARICO' | 'PULIZIA' | 'RISOLTA',
       id: a.id
     }));
-  }, [segnalazioni, searchQuery]);
+  }, [segnalazioni, searchQuery, activeComune]);
 
   const mapCenter = useMemo(() => {
     if (selectedId && segnalazioni.length > 0) {
@@ -61,7 +86,7 @@ export default function Mappa() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <h1 className="text-4xl font-bold text-[#1e3a5f] tracking-tight mb-2">Mappa del territorio</h1>
-            <p className="text-gray-500 font-medium">Monitoraggio in tempo reale delle segnalazioni e della presenza animale a Naro.</p>
+            <p className="text-gray-500 font-medium font-bold">Monitoraggio in tempo reale delle segnalazioni e della presenza animale a {cityName}.</p>
           </div>
           
           <div className="flex flex-wrap gap-4 items-center">

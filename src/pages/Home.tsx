@@ -24,6 +24,31 @@ interface SegnalazioneDoc {
 }
 
 export default function Home() {
+  const [siteName, setSiteName] = useState("Comune di Naro");
+  const [activeComune, setActiveComune] = useState(() => (localStorage.getItem('active_comune') || 'naro').toLowerCase());
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const res = await fetch("/api/admin/config");
+        if (res.ok) {
+          const config = await res.json();
+          if (config.siteName) setSiteName(config.siteName);
+          if (config.activeComune) {
+            const lowKey = config.activeComune.toLowerCase();
+            localStorage.setItem('active_comune', lowKey);
+            setActiveComune(lowKey);
+          }
+        }
+      } catch(e) {}
+    };
+    fetchConfig();
+  }, []);
+
+  const cityName = useMemo(() => {
+    return siteName.replace("Comune di ", "");
+  }, [siteName]);
+
   const [runTour, setRunTour] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -50,8 +75,15 @@ export default function Home() {
   const [speciesFilter, setSpeciesFilter] = useState<'Tutti' | 'Cane' | 'Gatto'>('Tutti');
   const [locationFilter, setLocationFilter] = useState('Tutte');
 
+  const comuneSegnalazioni = useMemo(() => {
+    return segnalazioni.filter(s => {
+      const sKey = (s as any).comuneKey || '';
+      return sKey.toLowerCase() === activeComune.toLowerCase();
+    });
+  }, [segnalazioni, activeComune]);
+
   const filteredAnimals = useMemo(() => {
-    return segnalazioni.filter(animal => {
+    return comuneSegnalazioni.filter(animal => {
       const matchesSearch = 
         (animal.specie?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
         (animal.colore?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
@@ -62,12 +94,12 @@ export default function Home() {
       
       return matchesSearch && matchesSpecies && matchesLocation;
     });
-  }, [searchQuery, speciesFilter, locationFilter, segnalazioni]);
+  }, [searchQuery, speciesFilter, locationFilter, comuneSegnalazioni]);
 
   const uniqueLocations = useMemo(() => {
-    const locs = segnalazioni.map(a => a.indirizzo).filter(Boolean) as string[];
+    const locs = comuneSegnalazioni.map(a => a.indirizzo).filter(Boolean) as string[];
     return ['Tutte', ...new Set(locs)];
-  }, [segnalazioni]);
+  }, [comuneSegnalazioni]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -109,13 +141,13 @@ export default function Home() {
     {
       target: '#hero-step',
       title: '🌟 Benvenuto su AnimalHub PA',
-      content: 'Il portale civico ufficiale ed esclusivo del Comune di Naro per la tutela, segnalazione e salvaguardia dei nostri amici a quattro zampe.',
+      content: `Il portale civico ufficiale ed esclusivo del ${siteName} per la tutela, segnalazione e salvaguardia dei nostri amici a quattro zampe.`,
       placement: 'center',
     },
     {
       target: '#segnala-step',
       title: '📍 Invia Segnalazione (Modulo A)',
-      content: 'Da qui puoi avviare la segnalazione controllata e geolocalizzata di un cane o gatto randagio in difficoltà sul territorio di Naro.',
+      content: `Da qui puoi avviare la segnalazione controllata e geolocalizzata di un cane o gatto randagio in difficoltà sul territorio di ${cityName}.`,
       placement: 'bottom',
     },
     {
@@ -139,7 +171,7 @@ export default function Home() {
   ];
 
   const animalMarkers = useMemo(() => {
-    return segnalazioni.map(a => ({
+    return comuneSegnalazioni.map(a => ({
       lat: a.latitudine || 37.2925,
       lng: a.longitudine || 13.7925,
       title: `${a.specie} - ${a.colore || 'Non specificato'}`,
@@ -149,7 +181,7 @@ export default function Home() {
       date: new Date(a.createdAt).toLocaleDateString(),
       status: a.stato as 'CREATA' | 'IN_CARICO' | 'PULIZIA' | 'RISOLTA'
     }));
-  }, [segnalazioni]);
+  }, [comuneSegnalazioni]);
 
   const JoyrideAny = Joyride as any;
 
@@ -265,10 +297,10 @@ export default function Home() {
                 >
                   <div className="flex items-center gap-3 mb-8">
                     <PawPrint className="h-10 w-10 text-white fill-white/20" />
-                    <span className="text-white font-bold uppercase tracking-[0.3em] text-xs">Comune di Naro</span>
+                    <span className="text-white font-bold uppercase tracking-[0.3em] text-xs">{siteName}</span>
                   </div>
                   <h1 className="text-5xl lg:text-7xl font-bold text-white mb-8 tracking-tight leading-tight">
-                    Segnala un animale randagio a Naro
+                    Segnala un animale randagio a {cityName}
                   </h1>
                   <p className="text-white/80 text-xl mb-12 leading-relaxed max-w-xl font-medium">
                     Aiutaci a tutelare gli animali del nostro territorio. Con una segnalazione puoi contribuire alla loro sicurezza.
@@ -589,7 +621,7 @@ export default function Home() {
             <div className="max-w-2xl">
               <div className="inline-block px-4 py-1.5 bg-emerald-50 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-[#15803d] mb-6">Feed Real-Time</div>
               <h2 className="text-4xl font-black text-[#101b3a] tracking-tight mb-4">Ultime segnalazioni</h2>
-              <p className="text-slate-700 font-semibold">Monitoraggio costante gestito dagli amministratori e operatori del Comune di Naro.</p>
+              <p className="text-slate-700 font-semibold">Monitoraggio costante gestito dagli amministratori e operatori del {siteName}.</p>
             </div>
             <Link to="/mia-area" className="bg-gray-50 hover:bg-gray-100 text-[#101b3a] px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 border border-gray-100">
                Tutte le attività <ArrowRight className="h-4 w-4" />
@@ -597,7 +629,7 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {segnalazioni.slice(0, 4).map((report) => (
+            {comuneSegnalazioni.slice(0, 4).map((report) => (
               <div key={report.id} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all flex items-center gap-6 group cursor-pointer" onClick={() => navigate(`/mappa?id=${report.id}`)}>
                 <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110 ${
                   report.stato === 'RISOLTA' || report.stato === 'CHIUSA' ? 'bg-indigo-50 text-indigo-600' : 
@@ -609,7 +641,7 @@ export default function Home() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-1">
-                    <h3 className="text-lg font-black text-[#101b3a] truncate">{report.specie} in {report.indirizzo || 'Naro'}</h3>
+                    <h3 className="text-lg font-black text-[#101b3a] truncate">{report.specie} in {report.indirizzo || cityName}</h3>
                     <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
                       report.urgenza === 'ALTA' || report.urgenza === 'CRITICA' ? 'bg-red-50 text-red-600' : 'bg-gray-50 text-gray-400'
                     }`}>
@@ -637,17 +669,17 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="bg-gray-50 p-12 rounded-lg border border-gray-100 flex flex-col items-center">
               <Info className="h-5 w-5 text-slate-500 mb-4" />
-              <div className="text-6xl font-bold text-[#101b3a] mb-2">{segnalazioni.length}</div>
+              <div className="text-6xl font-bold text-[#101b3a] mb-2">{comuneSegnalazioni.length}</div>
               <div className="text-slate-800 font-bold uppercase tracking-widest text-xs">Segnalazioni totali</div>
             </div>
             <div className="bg-[#15803d]/5 p-12 rounded-lg border border-[#15803d]/10 flex flex-col items-center">
               <CheckCircle className="h-5 w-5 text-[#15803d]/40 mb-4" />
-              <div className="text-6xl font-bold text-[#15803d] mb-2">{segnalazioni.filter(s => s.stato === 'CHIUSA' || s.stato === 'RISOLTA').length}</div>
+              <div className="text-6xl font-bold text-[#15803d] mb-2">{comuneSegnalazioni.filter(s => s.stato === 'CHIUSA' || s.stato === 'RISOLTA').length}</div>
               <div className="text-[#15803d]/60 font-bold uppercase tracking-widest text-xs">Segnalazioni risolte</div>
             </div>
             <div className="bg-[#15803d]/5 p-12 rounded-lg border border-[#15803d]/10 flex flex-col items-center">
               <PawPrint className="h-5 w-5 text-[#15803d]/40 mb-4" />
-              <div className="text-6xl font-bold text-[#15803d] mb-2">{segnalazioni.length * 3 + 12}</div>
+              <div className="text-6xl font-bold text-[#15803d] mb-2">{comuneSegnalazioni.length * 3 + 12}</div>
               <div className="text-[#15803d]/60 font-bold uppercase tracking-widest text-xs">Animali censiti</div>
             </div>
           </div>

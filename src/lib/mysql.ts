@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 let pool: mysql.Pool | null = null;
+let isHealthy = false;
 
 if (process.env.DB_HOST && process.env.DB_NAME && process.env.DB_USER) {
   try {
@@ -14,13 +15,32 @@ if (process.env.DB_HOST && process.env.DB_NAME && process.env.DB_USER) {
       password: process.env.DB_PASS,
       waitForConnections: true,
       connectionLimit: 10,
-      queueLimit: 0
+      queueLimit: 0,
+      connectTimeout: 3000 // 3 seconds timeout
     });
-    console.log("Connesso al database MySQL su Aruba");
+    isHealthy = true; // Set to true provisionally; can be verified later.
+    console.log("Pool MySQL su Aruba inizializzato.");
   } catch (e) {
-    console.error("Errore di connessione a MySQL:", e);
+    console.error("Errore di inizializzazione pool MySQL:", e);
+    isHealthy = false;
   }
 }
 
-export const getPool = () => pool;
+export function setMysqlHealthy(val: boolean) {
+  isHealthy = val;
+  if (!val) {
+    console.warn("[FAILOVER] MySQL è stato segnalato come NON sano o Offline. Tutte le query useranno SQLite.");
+  }
+}
+
+export function getIsMysqlHealthy() {
+  return isHealthy && pool !== null;
+}
+
+export const getPool = () => {
+  if (isHealthy) return pool;
+  return null;
+};
+
 export default pool;
+

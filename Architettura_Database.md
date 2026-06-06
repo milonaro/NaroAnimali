@@ -1,76 +1,131 @@
-# Architettura Database MySQL (Aruba)
+# Architettura Database Unificato (MySQL & Firestore)
 
-Questo documento descrive la struttura del database relazionale principale per l'applicazione **AnimalHub PA**. Come da architettura delineata, Firestore verrà mantenuto esclusivamente come strato di transito per i dati real-time (es. notifiche e pin sulla mappa), mentre **MySQL** sarà la vera sorgente dati permanente da interrogare.
+Questo documento descrive l'architettura unificata del database relazionale principale (**MySQL Aruba / SQLite Local Fallback**) e del database real-time (**Firestore**) convenzionati per l'applicazione **AnimalHub PA**.
 
-## Credenziali di Accesso
+Invece di duplicare schemi e dati o purgare tabelle a ogni cambio comune nelle demo, tutte le segnalazioni, i verbali, e le anagrafiche dei vari comuni risiedono permanentemente all'interno di un **unico database relazionale unificato** e di un **unico Firestore**. L'isolamento e la profilazione dei dati per ciascun comune avvengono in modo logico e sicuro tramite la colonna `comune_key`.
 
-```env
-# Configurazione per Node.js (es. mysql2 / TypeORM / Prisma)
-DB_HOST=31.11.38.16
-DB_NAME=Sql1906971_1
-DB_USER=Sql1906971
-DB_PASS=*********
-DB_PORT=3306
+---
+
+## 1. Relational Database Schema (MySQL / SQLite Fallback)
+
+Ciascuna tabella è predisposta per supportare più comuni contemporaneamente. Il comune attivo al momento della visualizzazione client o recuperato dalle sessioni dell'utente viene filtrato tramite la colonna `comune_key` (es. `'naro'`, `'agrigento'`, `'canicatti'`, `'favara'`, `'palermo'`).
+
+### 1.1 Tabella Comuni Convenzionati (`comuni`)
+Definisce le configurazioni territoriali e di geofencing per ciascun comune.
+```sql
+CREATE TABLE comuni (
+    key_name VARCHAR(50) PRIMARY KEY, -- es. 'naro', 'agrigento'
+    name VARCHAR(100) NOT NULL,
+    lat DECIMAL(10, 8) NOT NULL,
+    lng DECIMAL(11, 8) NOT NULL,
+    radius_km DECIMAL(5, 2) NOT NULL,
+    lat_min DECIMAL(10, 8) NOT NULL,
+    lat_max DECIMAL(10, 8) NOT NULL,
+    lng_min DECIMAL(11, 8) NOT NULL,
+    lng_max DECIMAL(11, 8) NOT NULL
+);
 ```
 
-## Struttura Tabelle (Schema DDL)
-
-Questo script SQL definisce la struttura delle tabelle e le relative chiavi esterne per mantenere l'integrità referenziale.
-
+### 1.2 Tabella Configurazione Attiva (`admin_config`)
+Mantiene la configurazione attiva del portale o preset correntemente visualizzato.
 ```sql
--- 1. Tabella Utenti (Operatori, Amministratori e Veterinari del Comune)
-CREATE TABLE utenti (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    nome VARCHAR(100) NOT NULL,
-    cognome VARCHAR(100) NOT NULL,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    ruolo ENUM('ADMIN', 'OPERATORE', 'VETERINARIO', 'VOLONTARIO') DEFAULT 'OPERATORE',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+CREATE TABLE admin_config (
+    key_name VARCHAR(100) PRIMARY KEY, -- es. 'activeComune', 'siteName', 'siteLogo'
+    value_data TEXT
 );
+```
 
--- 2. Tabella Segnalazioni (Il core dell'applicativo)
+### 1.3 Tabella Ruoli Operatore (`ruoli_operatore`)
+Definisce i ruoli operativi nel sistema.
+```sql
+CREATE TABLE ruoli_operatore (
+    ruolo_key VARCHAR(50) PRIMARY KEY,
+    descrizione VARCHAR(255) NOT NULL
+);
+```
+
+### 1.4 Tabella Tipologie Animali (`tipologie_animali`)
+```sql
+CREATE TABLE tipologie_animali (
+    specie_key VARCHAR(50) PRIMARY KEY,
+    descrizione VARCHAR(255) NOT NULL
+);
+```
+
+### 1.5 Tabella Utenti & Operatori (`admin_users`)
+Identifica gli operatori del comune, ciascuno profilato e associato a uno o più comuni.
+```sql
+CREATE TABLE admin_users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(100) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(50) DEFAULT 'OPERATORE', -- es. 'ADMIN', 'POLIZIA_LOCALE', 'CANILE_SANITARIO', 'VOLONTARIO'
+    comune_key VARCHAR(50) DEFAULT 'naro'
+);
+```
+
+### 1.6 Tabella Core Segnalazioni (`segnalazioni`)
+Stato del randagismo sul territorio.
+```sql
 CREATE TABLE segnalazioni (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    codice_tracking VARCHAR(50) UNIQUE NOT NULL,
+    comune_key VARCHAR(50) NOT NULL DEFAULT 'naro',
+    codice_tracking VARCHAR(100) UNIQUE NOT NULL,
     specie VARCHAR(50) NOT NULL,
-    taglia VARCHAR(50),
-    colore VARCHAR(50),
-    condizioni VARCHAR(100),
+    condizioni VARCHAR(255),
     descrizione TEXT,
-    foto_url VARCHAR(255),
+    foto_url TEXT,
     latitudine DECIMAL(10, 8) NOT NULL,
     longitudine DECIMAL(11, 8) NOT NULL,
     indirizzo VARCHAR(255),
-    stato ENUM('CREATA', 'IN_CARICO', 'INTERVENTO', 'RISOLTA', 'CHIUSA') DEFAULT 'CREATA',
-    urgenza ENUM('BASSA', 'NORMALE', 'ALTA', 'CRITICA') DEFAULT 'NORMALE',
-    email_segnalante VARCHAR(255),
+    stato VARCHAR(50) DEFAULT 'CREATA', -- es. 'CREATA', 'IN_CARICO', 'PULIZIA', 'RISOLTA'
+    urgenza VARCHAR(50) DEFAULT 'NORMALE', -- es. 'BASSA', 'NORMALE', 'ALTA', 'CRITICA'
+    email_segnalante VARCHAR(150),
     nome_segnalante VARCHAR(100),
-    cognome_segnalante VARCHAR(100),
-    consenso_privacy BOOLEAN DEFAULT 0,
+    consenso_privacy TINYINT DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+```
 
--- 3. Tabella Interventi (Storico delle azioni compiute sulle segnalazioni)
-CREATE TABLE interventi (
+### 1.7 Tabella Storico Interventi (`interventi_logs`)
+```sql
+CREATE TABLE interventi_logs (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    segnalazione_id INT NOT NULL,
-    utente_id INT, -- Può essere null se l'utente viene eliminato, mantenendo lo storico
-    note TEXT NOT NULL,
-    stato_precedente ENUM('CREATA', 'IN_CARICO', 'INTERVENTO', 'RISOLTA', 'CHIUSA'),
-    stato_nuovo ENUM('CREATA', 'IN_CARICO', 'INTERVENTO', 'RISOLTA', 'CHIUSA') NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (segnalazione_id) REFERENCES segnalazioni(id) ON DELETE CASCADE,
-    FOREIGN KEY (utente_id) REFERENCES utenti(id) ON DELETE SET NULL
+    comune_key VARCHAR(50) NOT NULL DEFAULT 'naro',
+    segnalazione_codice VARCHAR(100) NOT NULL,
+    operatore VARCHAR(100) NOT NULL,
+    azione VARCHAR(255) NOT NULL,
+    note TEXT,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+```
 
--- 4. Tabella Strutture (Canili, Gattili, Cliniche convenzionate)
+### 1.8 Tabella Registro Anagrafico Canino/Feline (`registro_anagrafica`)
+```sql
+CREATE TABLE registro_anagrafica (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    microchip VARCHAR(50) UNIQUE NOT NULL,
+    comune_key VARCHAR(50) NOT NULL DEFAULT 'naro',
+    nome VARCHAR(100) NOT NULL,
+    specie VARCHAR(50) NOT NULL,
+    sesso VARCHAR(10) NOT NULL,
+    taglia VARCHAR(50) NOT NULL,
+    colore VARCHAR(100) NOT NULL,
+    condizioni_sanitarie TEXT,
+    stato VARCHAR(50) NOT NULL, -- es. 'ADOTTABILE', 'OSPITE', 'ADOTTATO'
+    foto_url TEXT,
+    data_registrazione TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### 1.9 Tabella Strutture Convenzionate (`strutture`)
+```sql
 CREATE TABLE strutture (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    comune_key VARCHAR(50) NOT NULL DEFAULT 'naro',
     nome VARCHAR(150) NOT NULL,
-    tipo ENUM('CANILE', 'GATTILE', 'CLINICA_VET', 'RIFUGIO') NOT NULL,
+    tipo VARCHAR(50) NOT NULL, -- es. 'CANILE', 'GATTILE', 'CLINICA_VET', 'RIFUGIO'
     indirizzo VARCHAR(255) NOT NULL,
     telefono VARCHAR(20),
     capacita_max INT,
@@ -79,64 +134,36 @@ CREATE TABLE strutture (
 );
 ```
 
-## Relazioni
+---
 
-- **`interventi` ➔ `segnalazioni`**: Relazione 1 a Molti (Una segnalazione ha molti interventi di registro log). Se viene rimossa una segnalazione, l'integrità rimuove gli interventi associati (`ON DELETE CASCADE`).
-- **`interventi` ➔ `utenti`**: Relazione 1 a Molti (Un utente compie più interventi). 
+## 2. Real-Time Sync Strategy (Firestore)
 
-## Query per Inserimento Dati Demo
+Firestore viene impiegato come strato di transito reattivo ad alte prestazioni, ideale per sincronizzare i pin sulla mappa interattiva senza gravare sul database operazionale relazionale.
 
-Esegui queste query per popolare il database Aruba e verificare l'architettura.
-
-```sql
--- Dati Demo: Utenti
-INSERT INTO utenti (nome, cognome, email, password_hash, ruolo) VALUES 
-('Mario', 'Rossi', 'mario.rossi@comune.naro.it', '$2a$10$xyz...', 'ADMIN'),
-('Luigi', 'Verdi', 'luigi.verdi@comune.naro.it', '$2a$10$xyz...', 'OPERATORE'),
-('Giulia', 'Bianchi', 'giulia.bianchi@vetnaro.it', '$2a$10$xyz...', 'VETERINARIO');
-
--- Dati Demo: Segnalazioni
-INSERT INTO segnalazioni (
-    codice_tracking, specie, taglia, colore, condizioni, descrizione, 
-    foto_url, latitudine, longitudine, indirizzo, stato, urgenza, 
-    email_segnalante, nome_segnalante, cognome_segnalante, consenso_privacy
-) VALUES 
-('NARO-2026-0001', 'CANE', 'MEDIA', 'Nero focato', 'FERITO', 'Cane zoppicante sul ciglio della strada', 
- 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b', 37.29120000, 13.79150000, 'Via Cavour 15, Naro', 'CREATA', 'ALTA', 
- 'cittadino1@gmail.com', 'Francesco', 'Tese', 1),
-
-('NARO-2026-0002', 'GATTO', 'PICCOLA', 'Tigrato', 'ABBANDONATO', 'Scatolone con gattini vicino ai cassonetti', 
- 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba', 37.29450000, 13.79320000, 'Via Kennedy, Naro', 'IN_CARICO', 'NORMALE', 
- 'cittadino2@gmail.com', 'Anna', 'Gialli', 1);
-
--- Dati Demo: Interventi (Log delle azioni)
-INSERT INTO interventi (segnalazione_id, utente_id, note, stato_precedente, stato_nuovo) VALUES 
-(1, 2, 'Presa in carico la segnalazione, inviata pattuglia per verifica sul posto.', 'CREATA', 'IN_CARICO'),
-(2, 2, 'Recuperati e portati al gattile.', 'CREATA', 'IN_CARICO'),
-(2, 3, 'Visita di base effettuata, gattini in salute.', 'IN_CARICO', 'RISOLTA');
-
--- Dati Demo: Strutture
-INSERT INTO strutture (nome, tipo, indirizzo, telefono, capacita_max, postazioni_occupate) VALUES 
-('Canile Comprensoriale Dogland', 'CANILE', 'Contrada Zaffuti, Naro', '0922 123456', 150, 120),
-('Oasi Felina La Coda', 'GATTILE', 'Via Agrigento, Naro', '0922 654321', 50, 30);
+### 2.1 Struttura Documento Firestore (`/segnalazioni/{id}`)
+Ciascun report sincronizzato in tempo reale possiede l'attributo `comuneKey`:
+```json
+{
+  "id": "TRK-2026-N2",
+  "comuneKey": "naro",
+  "codiceTracking": "TRK-2026-N2",
+  "specie": "GATTO",
+  "condizioni": "Ferito alla zampa posteriore",
+  "descrizione": "Gattino europeo grigio pezzato bianco.",
+  "fotoUrl": "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba",
+  "latitudine": 37.2915,
+  "longitudine": 13.7915,
+  "indirizzo": "Via Castello, Naro (AG)",
+  "stato": "IN_CARICO",
+  "urgenza": "ALTA",
+  "createdAt": "2026-06-06T13:13:54Z"
+}
 ```
 
-## Strategia di Sincronizzazione (Firestore Realtime)
-
-Quando si svilupperà il Backend Node.js per interfacciarsi con queste tabelle, la procedura di immissione sarà:
-
-1. **Inserimento in MySQL**: Il backend Node.js (usando `mysql2`) riceve la POST e fa la query `INSERT` su Aruba. Convalida la transazione.
-2. **Aggiornamento Firebase**: Immediatamente dopo il successo (e avendo il nuovo `insertId`), il backend Node.js inserisce un documento estremamente sfoltito su Firestore.
-   *Esempio Documento Firebase:*
-   ```json
-   {
-      "sql_id": 1,
-      "codice_tracking": "NARO-2026-0001",
-      "latitudine": 37.2912,
-      "longitudine": 13.7915,
-      "specie": "CANE",
-      "stato": "CREATA",
-      "urgenza": "ALTA"
-   }
-   ```
-3. **Ascolto Client**: La Mappa React ascolta i documenti limitati da Firestore, assicurando rendering in tempo reale senza dover sovraccaricare il DB SQL tramite polling. Il record completo viene poi recuperato dal DB MySQL solo al click del marker sulla Mappa.
+### 2.2 Filtraggio Client Realtime
+La mappa interattiva React istanzia un unico listener su Firestore e filtra i record in memoria in base alla preferenza attiva:
+```typescript
+const activeComuneKey = localStorage.getItem('active_comune') || 'naro';
+const activeMarkers = segnalazioni.filter(s => s.comuneKey.toLowerCase() === activeComuneKey.toLowerCase());
+```
+Questo consente cambi comune istantanei sul client con zero scritture pendenti o ritardi di propagazione.

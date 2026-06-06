@@ -1,5 +1,5 @@
 import { Router } from "express";
-import pool from "../../lib/mysql";
+import pool, { getIsMysqlHealthy, setMysqlHealthy } from "../../lib/mysql";
 import sqlite3 from "sqlite3";
 import { open } from "sqlite";
 import admin from "firebase-admin";
@@ -19,11 +19,67 @@ async function getSqliteDb() {
   return sqliteDb;
 }
 
+// Funzione helper centralizzata per estrarre il comune attivo configurato sul backend
+async function getActiveComuneKeyServer(dbSq: any): Promise<string> {
+  let key = "naro";
+  try {
+    if (getIsMysqlHealthy() && pool) {
+      const [rows]: any = await pool.query("SELECT value_data FROM admin_config WHERE key_name = 'activeComune'");
+      if (rows && rows[0]) {
+        key = rows[0].value_data;
+      }
+    } else {
+      const row = await dbSq.get("SELECT value_data FROM admin_config WHERE key_name = 'activeComune'");
+      if (row) {
+        key = row.value_data;
+      }
+    }
+  } catch (err) {
+    console.error("Errore lettura activeComune:", err);
+  }
+  return key;
+}
+
 router.get("/", async (req, res) => {
   try {
     let list = [];
-    if (pool) {
-      const [rows] = await pool.query<any>("SELECT * FROM segnalazioni ORDER BY created_at DESC");
+    let usedSqlite = true;
+    const dbSq = await getSqliteDb();
+    const activeComune = await getActiveComuneKeyServer(dbSq);
+
+    if (getIsMysqlHealthy() && pool) {
+      try {
+        const [rows] = await pool.query<any>(
+          "SELECT * FROM segnalazioni WHERE comune_key = ? ORDER BY created_at DESC",
+          [activeComune]
+        );
+        list = rows.map((r: any) => ({
+          id: r.id.toString(),
+          codiceTracking: r.codice_tracking,
+          specie: r.specie,
+          condizioni: r.condizioni,
+          descrizione: r.descrizione,
+          fotoUrl: r.foto_url,
+          latitudine: r.latitudine,
+          longitudine: r.longitudine,
+          indirizzo: r.indirizzo,
+          stato: r.stato,
+          urgenza: r.urgenza,
+          createdAt: r.created_at || new Date().toISOString(),
+          updatedAt: r.updated_at || new Date().toISOString()
+        }));
+        usedSqlite = false;
+      } catch (err) {
+        console.error("Errore query MySQL segnalazioni GET, applico fallback su SQLite:", err);
+        setMysqlHealthy(false);
+      }
+    }
+    
+    if (usedSqlite) {
+      const rows = await dbSq.all(
+        "SELECT * FROM segnalazioni WHERE comune_key = ? ORDER BY created_at DESC",
+        [activeComune]
+      );
       list = rows.map((r: any) => ({
         id: r.id.toString(),
         codiceTracking: r.codice_tracking,
@@ -39,24 +95,6 @@ router.get("/", async (req, res) => {
         createdAt: r.created_at || new Date().toISOString(),
         updatedAt: r.updated_at || new Date().toISOString()
       }));
-    } else {
-      const dbSq = await getSqliteDb();
-      const rows = await dbSq.all("SELECT * FROM segnalazioni ORDER BY createdAt DESC");
-      list = rows.map((r: any) => ({
-        id: r.id.toString(),
-        codiceTracking: r.codiceTracking,
-        specie: r.specie,
-        condizioni: r.condizioni,
-        descrizione: r.descrizione,
-        fotoUrl: r.fotoUrl,
-        latitudine: r.latitudine,
-        longitudine: r.longitudine,
-        indirizzo: r.indirizzo,
-        stato: r.stato,
-        urgenza: r.urgenza,
-        createdAt: r.createdAt || new Date().toISOString(),
-        updatedAt: r.updatedAt || new Date().toISOString()
-      }));
     }
     res.json(list);
   } catch (error: any) {
@@ -67,54 +105,88 @@ router.get("/", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const { lat, lng, specie, condizioni, descrizione, emailSegnalante, consensoPrivacy, fotoUrl, indirizzo } = req.body;
+    const { 
+      lat, 
+      lng, 
+      specie, 
+      condizioni, 
+      descrizione, 
+      emailSegnalante, 
+      consensoPrivacy, 
+      fotoUrl, 
+      indirizzo,
+      nomeSegnalante,
+      cognomeSegnalante,
+      telefonoSegnalante
+    } = req.body;
 
     if (!consensoPrivacy) return res.status(400).json({ error: "Consenso privacy obbligatorio" });
 
+    const dbSq = await getSqliteDb();
+    const activeComune = await getActiveComuneKeyServer(dbSq);
+    const prefix = activeComune.toUpperCase();
     const anno = new Date().getFullYear();
     
     let count = 0;
-    if (pool) {
-      const [rows] = await pool.query<any>("SELECT COUNT(*) as count FROM segnalazioni WHERE YEAR(created_at) = ?", [anno]);
-      count = rows[0]?.count || 0;
-    } else {
-      const dbSq = await getSqliteDb();
-      const row = await dbSq.get("SELECT COUNT(*) as count FROM segnalazioni WHERE strftime('%Y', createdAt) = ?", [anno.toString()]);
+    let countSuccess = false;
+    if (getIsMysqlHealthy() && pool) {
+      try {
+        const [rows] = await pool.query<any>("SELECT COUNT(*) as count FROM segnalazioni WHERE YEAR(created_at) = ?", [anno]);
+        count = rows[0]?.count || 0;
+        countSuccess = true;
+      } catch (err) {
+        console.error("Errore query MySQL segnalazione count, applico fallback su SQLite:", err);
+        setMysqlHealthy(false);
+      }
+    }
+    
+    if (!countSuccess) {
+      const row = await dbSq.get("SELECT COUNT(*) as count FROM segnalazioni WHERE strftime('%Y', created_at) = ?", [anno.toString()]);
       count = row?.count || 0;
     }
     
     const numero = String(count + 1).padStart(4, "0");
-    const codiceTracking = `NARO-${anno}-${numero}`;
+    const codiceTracking = `${prefix}-${anno}-${numero}`;
 
     const urgenza = (condizioni === "FERITO" || condizioni === "AGGRESSIVO") ? "ALTA" : "NORMALE";
+    const fullName = `${nomeSegnalante || ""} ${cognomeSegnalante || ""}`.trim() || null;
+    const finalDesc = `${descrizione || ""}${telefonoSegnalante ? ` [Telefono: ${telefonoSegnalante}]` : ""}`.trim();
 
     let sqlId = 0;
+    let insertSuccess = false;
 
-    if (pool) {
-      const [result] = await pool.execute<any>(`
-        INSERT INTO segnalazioni (
-          codice_tracking, specie, condizioni, descrizione, foto_url, 
-          latitudine, longitudine, indirizzo, stato, urgenza, 
-          email_segnalante, consenso_privacy
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [
-        codiceTracking, specie, condizioni, descrizione, fotoUrl, 
-        lat, lng, indirizzo, "CREATA", urgenza, 
-        emailSegnalante || null, consensoPrivacy ? 1 : 0
-      ]);
-      sqlId = result.insertId;
-    } else {
-      const dbSq = await getSqliteDb();
+    if (getIsMysqlHealthy() && pool) {
+      try {
+        const [result] = await pool.execute<any>(`
+          INSERT INTO segnalazioni (
+            comune_key, codice_tracking, specie, condizioni, descrizione, foto_url, 
+            latitudine, longitudine, indirizzo, stato, urgenza, 
+            email_segnalante, consenso_privacy, nome_segnalante
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+          activeComune, codiceTracking, specie, condizioni, finalDesc, fotoUrl, 
+          lat, lng, indirizzo, "CREATA", urgenza, 
+          emailSegnalante || null, consensoPrivacy ? 1 : 0, fullName
+        ]);
+        sqlId = result.insertId;
+        insertSuccess = true;
+      } catch (err) {
+        console.error("Errore query MySQL segnalazione insert, applico fallback su SQLite:", err);
+        setMysqlHealthy(false);
+      }
+    }
+    
+    if (!insertSuccess) {
       const insertResult = await dbSq.run(`
         INSERT INTO segnalazioni (
-          codiceTracking, specie, condizioni, descrizione, fotoUrl, 
+          comune_key, codice_tracking, specie, condizioni, descrizione, foto_url, 
           latitudine, longitudine, indirizzo, stato, urgenza, 
-          emailSegnalante, consensoPrivacy
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          email_segnalante, consenso_privacy, nome_segnalante
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
-        codiceTracking, specie, condizioni, descrizione, fotoUrl, 
+        activeComune, codiceTracking, specie, condizioni, finalDesc, fotoUrl, 
         lat, lng, indirizzo, "CREATA", urgenza, 
-        emailSegnalante || null, consensoPrivacy ? 1 : 0
+        emailSegnalante || null, consensoPrivacy ? 1 : 0, fullName
       ]);
       sqlId = insertResult.lastID;
     }
@@ -124,16 +196,20 @@ router.post("/", async (req, res) => {
     if (db) {
       const docRef = await db.collection("segnalazioni").add({
         relationalId: sqlId,
+        comuneKey: activeComune,
         codiceTracking,
         specie,
         condizioni,
-        descrizione,
+        descrizione: finalDesc,
         fotoUrl,
         latitudine: lat,
         longitudine: lng,
         indirizzo,
         stato: "CREATA",
         urgenza,
+        nomeSegnalante: fullName,
+        emailSegnalante,
+        telefonoSegnalante,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
@@ -154,15 +230,24 @@ router.put("/:codiceTracking/stato", async (req, res) => {
     if (!stato) return res.status(400).json({ error: "Stato obbligatorio" });
 
     // Aggiorna MySQL/SQLite
-    if (pool) {
-      await pool.execute(
-        "UPDATE segnalazioni SET stato = ?, updated_at = NOW() WHERE codice_tracking = ?",
-        [stato, codiceTracking]
-      );
-    } else {
+    let updateSuccess = false;
+    if (getIsMysqlHealthy() && pool) {
+      try {
+        await pool.execute(
+          "UPDATE segnalazioni SET stato = ?, updated_at = NOW() WHERE codice_tracking = ?",
+          [stato, codiceTracking]
+        );
+        updateSuccess = true;
+      } catch (err) {
+        console.error("Errore query MySQL segnalazione update stato, applico fallback su SQLite:", err);
+        setMysqlHealthy(false);
+      }
+    }
+    
+    if (!updateSuccess) {
       const dbSq = await getSqliteDb();
       await dbSq.run(
-        "UPDATE segnalazioni SET stato = ?, updatedAt = CURRENT_TIMESTAMP WHERE codiceTracking = ?",
+        "UPDATE segnalazioni SET stato = ?, updated_at = CURRENT_TIMESTAMP WHERE codice_tracking = ?",
         [stato, codiceTracking]
       );
     }
@@ -196,27 +281,38 @@ router.post("/:codiceTracking/log", async (req, res) => {
 
     if (!operatore || !azione) return res.status(400).json({ error: "Operatore e azione obbligatori" });
 
+    const dbSq = await getSqliteDb();
+    const activeComune = await getActiveComuneKeyServer(dbSq);
+
     // Inserisce il log
-    if (pool) {
-      await pool.execute(
-        "INSERT INTO interventi_logs (segnalazione_codice, operatore, azione, note) VALUES (?, ?, ?, ?)",
-        [codiceTracking, operatore, azione, note || ""]
-      );
-      if (nuovoStato) {
+    let logSuccess = false;
+    if (getIsMysqlHealthy() && pool) {
+      try {
         await pool.execute(
-          "UPDATE segnalazioni SET stato = ?, updated_at = NOW() WHERE codice_tracking = ?",
-          [nuovoStato, codiceTracking]
+          "INSERT INTO interventi_logs (comune_key, segnalazione_codice, operatore, azione, note) VALUES (?, ?, ?, ?, ?)",
+          [activeComune, codiceTracking, operatore, azione, note || ""]
         );
+        if (nuovoStato) {
+          await pool.execute(
+            "UPDATE segnalazioni SET stato = ?, updated_at = NOW() WHERE codice_tracking = ?",
+            [nuovoStato, codiceTracking]
+          );
+        }
+        logSuccess = true;
+      } catch (err) {
+        console.error("Errore query MySQL log insert, applico fallback su SQLite:", err);
+        setMysqlHealthy(false);
       }
-    } else {
-      const dbSq = await getSqliteDb();
+    }
+    
+    if (!logSuccess) {
       await dbSq.run(
-        "INSERT INTO interventi_logs (segnalazione_codice, operatore, azione, note) VALUES (?, ?, ?, ?)",
-        [codiceTracking, operatore, azione, note || ""]
+        "INSERT INTO interventi_logs (comune_key, segnalazione_codice, operatore, azione, note) VALUES (?, ?, ?, ?, ?)",
+        [activeComune, codiceTracking, operatore, azione, note || ""]
       );
       if (nuovoStato) {
         await dbSq.run(
-          "UPDATE segnalazioni SET stato = ?, updatedAt = CURRENT_TIMESTAMP WHERE codiceTracking = ?",
+          "UPDATE segnalazioni SET stato = ?, updated_at = CURRENT_TIMESTAMP WHERE codice_tracking = ?",
           [nuovoStato, codiceTracking]
         );
       }
@@ -241,18 +337,26 @@ router.post("/:codiceTracking/log", async (req, res) => {
       }
     } else {
       // Find from sql
-      if (pool) {
-        const [rows]: any = await pool.execute("SELECT emailSegnalante, nomeSegnalante FROM segnalazioni WHERE codice_tracking = ?", [codiceTracking]);
-        if (rows[0]) {
-          userEmail = rows[0].emailSegnalante;
-          userName = rows[0].nomeSegnalante;
+      let sqlLookupSuccess = false;
+      if (getIsMysqlHealthy() && pool) {
+        try {
+          const [rows]: any = await pool.execute("SELECT email_segnalante, nome_segnalante FROM segnalazioni WHERE codice_tracking = ?", [codiceTracking]);
+          if (rows[0]) {
+            userEmail = rows[0].email_segnalante;
+            userName = rows[0].nome_segnalante;
+          }
+          sqlLookupSuccess = true;
+        } catch (err) {
+          console.error("Errore query MySQL lookup segnalazione, applico fallback su SQLite:", err);
+          setMysqlHealthy(false);
         }
-      } else {
-        const dbSq = await getSqliteDb();
-        const row = await dbSq.get("SELECT emailSegnalante, nomeSegnalante FROM segnalazioni WHERE codiceTracking = ?", [codiceTracking]);
+      }
+      
+      if (!sqlLookupSuccess) {
+        const row = await dbSq.get("SELECT email_segnalante, nome_segnalante FROM segnalazioni WHERE codice_tracking = ?", [codiceTracking]);
         if (row) {
-          userEmail = row.emailSegnalante;
-          userName = row.nomeSegnalante;
+          userEmail = row.email_segnalante;
+          userName = row.nome_segnalante;
         }
       }
     }
