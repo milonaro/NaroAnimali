@@ -56,6 +56,18 @@ export default function Home() {
   
   const [segnalazioni, setSegnalazioni] = useState<SegnalazioneDoc[]>([]);
   
+  const formatReportDate = (createdAt: any) => {
+    if (!createdAt) return 'Non specificato';
+    if (typeof createdAt.toDate === 'function') {
+      return createdAt.toDate().toLocaleDateString('it-IT');
+    }
+    if (createdAt.seconds) {
+      return new Date(createdAt.seconds * 1000).toLocaleDateString('it-IT');
+    }
+    const d = new Date(createdAt);
+    return isNaN(d.getTime()) ? 'Non specificato' : d.toLocaleDateString('it-IT');
+  };
+  
   useEffect(() => {
     const q = query(collection(db, 'segnalazioni'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -178,7 +190,7 @@ export default function Home() {
       specie: a.specie === 'CANE' ? 'Cane' : a.specie === 'GATTO' ? 'Gatto' : 'Altro',
       urgenza: (a.urgenza === 'ALTA' || a.urgenza === 'CRITICA' ? 'Alta' : a.urgenza === 'BASSA' ? 'Bassa' : 'Normale') as 'Alta' | 'Normale' | 'Bassa',
       image: a.fotoUrl || 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&q=80&w=600',
-      date: new Date(a.createdAt).toLocaleDateString(),
+      date: formatReportDate(a.createdAt),
       status: a.stato as 'CREATA' | 'IN_CARICO' | 'PULIZIA' | 'RISOLTA'
     }));
   }, [comuneSegnalazioni]);
@@ -649,7 +661,7 @@ export default function Home() {
                     </span>
                   </div>
                   <div className="flex items-center gap-4 text-xs font-bold text-slate-500">
-                    <span className="flex items-center gap-1.5"><Clock className="h-3 w-3" /> {new Date(report.createdAt).toLocaleDateString()}</span>
+                    <span className="flex items-center gap-1.5"><Clock className="h-3 w-3" /> {formatReportDate(report.createdAt)}</span>
                     <span className="flex items-center gap-1.5"><UserCheck className="h-3 w-3" /> {report.nomeSegnalante || 'Anonimo'}</span>
                   </div>
                 </div>

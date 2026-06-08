@@ -4,12 +4,27 @@ import { open } from 'sqlite';
 import dotenv from 'dotenv';
 import path from 'path';
 import admin from 'firebase-admin';
+import { getFirestore as getFirestoreAdmin } from 'firebase-admin/firestore';
+
+import fs from 'fs';
 
 // Assicuriamoci che l'ambiente sia caricato
 dotenv.config();
 
 let mysqlPool: mysql.Pool | null = null;
 let sqliteDb: any = null;
+
+// Leggiamo la configurazione client per estrarre la corretta istanza di database Firestore
+let firestoreDatabaseId: string | undefined = undefined;
+try {
+  const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
+  if (fs.existsSync(configPath)) {
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    firestoreDatabaseId = config.firestoreDatabaseId;
+  }
+} catch (e) {
+  console.error("Error reading firebase-applet-config.json in db.ts:", e);
+}
 
 // FIREBASE ADMIN
 if (!admin.apps.length) {
@@ -26,7 +41,7 @@ if (!admin.apps.length) {
   }
 }
 
-export const dbAdmin = admin.apps.length ? admin.firestore() : null;
+export const dbAdmin = admin.apps.length ? (firestoreDatabaseId ? getFirestoreAdmin(admin.app(), firestoreDatabaseId) : admin.firestore()) : null;
 
 // MYSQL ARUBA / LOCAL FALLBACK
 export async function getDatabase() {

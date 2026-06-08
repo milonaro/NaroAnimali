@@ -5,6 +5,8 @@ import { GoogleGenAI } from "@google/genai";
 import { Resend } from "resend";
 import bcrypt from "bcryptjs";
 import admin from "firebase-admin";
+import { getFirestore as getFirestoreAdmin } from "firebase-admin/firestore";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import sqlite3 from "sqlite3";
@@ -48,6 +50,18 @@ function getResend() {
   return resendInstance;
 }
 
+// Leggiamo la configurazione client per estrarre la corretta istanza del database Firestore
+let firestoreDatabaseId: string | undefined = undefined;
+try {
+  const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
+  if (fs.existsSync(configPath)) {
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    firestoreDatabaseId = config.firestoreDatabaseId;
+  }
+} catch (e) {
+  console.error("Error reading firebase-applet-config.json in server.ts:", e);
+}
+
 // Initialize Firebase Admin
 if (!admin.apps.length) {
   try {
@@ -62,7 +76,7 @@ if (!admin.apps.length) {
   }
 }
 
-const db = admin.apps.length ? admin.firestore() : null;
+const db = admin.apps.length ? (firestoreDatabaseId ? getFirestoreAdmin(admin.app(), firestoreDatabaseId) : admin.firestore()) : null;
 
 async function startServer() {
   let sqliteDb: any = null;

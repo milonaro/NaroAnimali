@@ -96,8 +96,7 @@ export default function Segnala() {
     { id: 1, label: 'Dove' },
     { id: 2, label: 'Animale' },
     { id: 3, label: 'I tuoi dati' },
-    { id: 4, label: 'Dichiarazione' },
-    { id: 5, label: 'Conferma' }
+    { id: 4, label: 'Conferma' }
   ];
 
   const reverseGeocode = async (lat: number, lng: number) => {
@@ -365,7 +364,7 @@ export default function Segnala() {
               />
             </div>
             <p className="text-[10px] text-gray-400 font-extrabold uppercase tracking-[0.15em] mt-3.5 text-center">
-              {step === 5 ? "Pronto per l'invio ufficiale al Comune di Naro" : `Prossimo passo: ${steps[step].label}`}
+              {step === 4 ? "Pronto per l'invio ufficiale al Comune di Naro" : `Prossimo passo: ${steps[step].label}`}
             </p>
           </div>
 
@@ -682,8 +681,8 @@ export default function Segnala() {
                   <div className="flex items-center gap-3">
                      <div className="p-3 bg-emerald-50 text-[#15803d] rounded-lg"><User className="h-6 w-6" /></div>
                      <div>
-                       <h2 className="text-2xl font-bold text-[#1e3a5f]">I tuoi dati personali</h2>
-                       <p className="text-gray-500 text-sm">I tuoi dati sono necessari per gestire la segnalazione e poterti aggiornare sullo stato.</p>
+                       <h2 className="text-2xl font-bold text-[#1e3a5f]">Dati personali e Dichiarazioni</h2>
+                       <p className="text-gray-500 text-sm">Inserisci i tuoi contatti e firma le dichiarazioni di veridicità richieste per legge.</p>
                      </div>
                   </div>
                   <div className="flex gap-2 w-full md:w-auto">
@@ -693,10 +692,18 @@ export default function Segnala() {
                     >
                       <ArrowLeft className="h-5 w-5" /> <span className="md:hidden">Indietro</span>
                     </button>
-                    {(formData.nomeSegnalante && formData.cognomeSegnalante && formData.telefonoSegnalante && formData.emailSegnalante && formData.consensoPrivacy) && (
+                    {(formData.nomeSegnalante && formData.cognomeSegnalante && formData.telefonoSegnalante && formData.emailSegnalante && formData.consensoPrivacy && formData.dichiarazioneVeridicita && formData.assunzioneResponsabilita) ? (
                       <button
                         onClick={() => setStep(step + 1)}
                         className="w-full md:w-auto bg-[#15803d] text-white px-8 py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-[#166534] transition-all cursor-pointer shadow-lg shadow-[#15803d]/30"
+                      >
+                        Avanti <ArrowRight className="h-5 w-5" />
+                      </button>
+                    ) : (
+                      <button
+                        disabled
+                        className="w-full md:w-auto bg-gray-100 text-gray-400 px-8 py-3 rounded-lg font-bold flex items-center justify-center gap-2 cursor-not-allowed border border-gray-200/60"
+                        title="Compila tutti i campi obbligatori e firma le dichiarazioni legali per procedere"
                       >
                         Avanti <ArrowRight className="h-5 w-5" />
                       </button>
@@ -704,42 +711,42 @@ export default function Segnala() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-slate-50/50 p-6 rounded-xl border border-slate-100">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">Nome *</label>
+                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#1e3a5f]">Nome *</label>
                     <input
                       type="text"
-                      className="w-full bg-gray-50 border border-gray-100 p-4 rounded-lg focus:bg-white focus:border-[#15803d] outline-none"
+                      className="w-full bg-white border border-gray-200 p-4 rounded-lg focus:border-[#15803d] outline-none transition-all shadow-sm"
                       placeholder="Il tuo nome"
                       value={formData.nomeSegnalante}
                       onChange={(e) => setFormData({ ...formData, nomeSegnalante: e.target.value })}
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">Cognome *</label>
+                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#1e3a5f]">Cognome *</label>
                     <input
                       type="text"
-                      className="w-full bg-gray-50 border border-gray-100 p-4 rounded-lg focus:bg-white focus:border-[#15803d] outline-none"
+                      className="w-full bg-white border border-gray-200 p-4 rounded-lg focus:border-[#15803d] outline-none transition-all shadow-sm"
                       placeholder="Il tuo cognome"
                       value={formData.cognomeSegnalante}
                       onChange={(e) => setFormData({ ...formData, cognomeSegnalante: e.target.value })}
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">Telefono *</label>
+                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#1e3a5f]">Telefono *</label>
                     <input
                       type="tel"
-                      className="w-full bg-gray-50 border border-gray-100 p-4 rounded-lg focus:bg-white focus:border-[#15803d] outline-none"
+                      className="w-full bg-white border border-gray-200 p-4 rounded-lg focus:border-[#15803d] outline-none transition-all shadow-sm"
                       placeholder="Inserisci il tuo numero di telefono"
                       value={formData.telefonoSegnalante}
                       onChange={(e) => setFormData({ ...formData, telefonoSegnalante: e.target.value })}
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">Email *</label>
+                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#1e3a5f]">Email *</label>
                     <input
                       type="email"
-                      className="w-full bg-gray-50 border border-gray-100 p-4 rounded-lg focus:bg-white focus:border-[#15803d] outline-none"
+                      className="w-full bg-white border border-gray-200 p-4 rounded-lg focus:border-[#15803d] outline-none transition-all shadow-sm"
                       placeholder="la.tua@email.it"
                       value={formData.emailSegnalante}
                       onChange={(e) => setFormData({ ...formData, emailSegnalante: e.target.value })}
@@ -747,103 +754,85 @@ export default function Segnala() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 pt-8">
-                  <label className="flex gap-4 p-6 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+                {/* Sezione Autocertificazione DPR 445/2000 */}
+                <div className="bg-gray-50 border border-gray-200 p-6 md:p-10 rounded-xl relative space-y-4">
+                  <ShieldCheck className="absolute top-6 right-6 h-8 w-8 text-indigo-100 invisible md:visible" />
+                  <div className="prose prose-sm text-gray-600 max-w-none space-y-4">
+                    <p className="font-bold flex items-center gap-2 text-[#1e3a5f]">
+                      <Info className="h-4 w-4 text-emerald-600" />
+                      Dichiarazione sostitutiva di certificazione (DPR n. 445/2000)
+                    </p>
+                    <p className="text-xs leading-relaxed text-slate-500">
+                      Il/la sottoscritt/a <strong className="text-slate-800">{formData.nomeSegnalante || '_________________'} {formData.cognomeSegnalante || '_________________'}</strong>, consapevole delle sanzioni penali previste dall'art. 76 del DPR 445/2000 per le ipotesi di falsità in atti e dichiarazioni mendaci,
+                    </p>
+                    <p className="font-black uppercase tracking-widest text-xs text-[#1e3a5f]">DICHIARA SOTTO LA PROPRIA RESPONSABILITÀ</p>
+                    <p className="text-xs leading-relaxed text-slate-500">
+                      che i dati forniti nella presente segnalazione — relativi allo stato, alle condizioni, alla specie dell'animale, alla localizzazione dell'evento e ai propri dati anagrafici — sono veritieri e corrispondenti alla realtà dei fatti constatata personalmente.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                  {/* Checkbox 1: Privacy policy (Required) */}
+                  <label className="flex gap-4 p-5 bg-white border border-gray-150 rounded-lg cursor-pointer hover:bg-slate-50/50 transition-colors">
                     <input
                       type="checkbox"
                       className="mt-1 h-5 w-5 rounded border-gray-300 text-[#15803d] focus:ring-[#15803d]"
                       checked={formData.consensoPrivacy}
                       onChange={(e) => setFormData({ ...formData, consensoPrivacy: e.target.checked })}
                     />
-                    <span className="text-sm font-medium text-gray-600">
-                      Ho letto e accetto la <Link to="/privacy-policy" className="text-[#15803d] font-bold hover:underline">Privacy Policy</Link> *
-                    </span>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-[#1e3a5f]">Accetto la Privacy Policy *</span>
+                      <span className="text-[10px] text-gray-400 mt-0.5">I dati forniti sono trattati secondo il Regolamento GDPR. <Link to="/privacy-policy" className="text-[#15803d] font-bold hover:underline">Leggi Privacy Policy</Link></span>
+                    </div>
                   </label>
-                  <label className="flex gap-4 p-6 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+
+                  {/* Checkbox 2: Notifiche email (Optional) */}
+                  <label className="flex gap-4 p-5 bg-white border border-gray-150 rounded-lg cursor-pointer hover:bg-slate-50/50 transition-colors">
                     <input
                       type="checkbox"
                       className="mt-1 h-5 w-5 rounded border-gray-300 text-[#15803d] focus:ring-[#15803d]"
                       checked={formData.consensoNotifiche}
                       onChange={(e) => setFormData({ ...formData, consensoNotifiche: e.target.checked })}
                     />
-                    <span className="text-sm font-medium text-gray-600">
-                      Acconsento a ricevere notifiche via email sugli aggiornamenti della segnalazione
-                    </span>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-slate-600">Invio notifiche automatiche (Facoltativo)</span>
+                      <span className="text-[10px] text-gray-400 mt-0.5">Acconsento a ricevere aggiornamenti sullo stato di avanzamento dell'intervento via email.</span>
+                    </div>
+                  </label>
+
+                  {/* Checkbox 3: Veridicita (Required) */}
+                  <label className="flex gap-4 p-5 bg-[#15803d]/5 border border-[#15803d]/20 rounded-lg cursor-pointer hover:bg-[#15803d]/10 transition-colors">
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-5 w-5 rounded border-gray-300 text-[#15803d] focus:ring-[#15803d]"
+                      checked={formData.dichiarazioneVeridicita}
+                      onChange={(e) => setFormData({ ...formData, dichiarazioneVeridicita: e.target.checked })}
+                    />
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-[#1e3a5f]">Autocertificazione di veridicità ai sensi del DPR 445/2000 *</span>
+                      <span className="text-[10px] text-[#15803d] font-bold uppercase tracking-widest mt-0.5">Obbligatorio ai fini della corretta assunzione in carico del protocollo digitale</span>
+                    </div>
+                  </label>
+
+                  {/* Checkbox 4: Responsabilità (Required) */}
+                  <label className="flex gap-4 p-5 bg-amber-50/50 border border-amber-200/80 rounded-lg cursor-pointer hover:bg-amber-50 transition-colors">
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-5 w-5 rounded border-amber-500 text-amber-600 focus:ring-amber-500"
+                      checked={(formData as any).assunzioneResponsabilita}
+                      onChange={(e) => setFormData({ ...formData, assunzioneResponsabilita: e.target.checked } as any)}
+                    />
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-[#1e3a5f]">Assunzione di responsabilità penale e legale *</span>
+                      <span className="text-[10px] text-amber-600 font-bold uppercase tracking-widest mt-0.5">La segnalazione non è anonima e l'abuso/falso allarme è perseguibile</span>
+                    </div>
                   </label>
                 </div>
               </div>
             )}
 
             {step === 4 && (
-              <div className="space-y-12">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                     <div className="p-3 bg-emerald-50 text-[#15803d] rounded-lg"><ShieldCheck className="h-6 w-6" /></div>
-                     <div>
-                       <h2 className="text-2xl font-bold text-[#1e3a5f]">Dichiarazione di veridicità</h2>
-                       <p className="text-gray-500 text-sm">Ai sensi del DPR 445/2000, è necessario dichiarare la veridicità dei dati forniti.</p>
-                     </div>
-                  </div>
-                  <div className="flex gap-2 w-full md:w-auto">
-                    <button
-                      onClick={() => setStep(step - 1)}
-                      className="w-full md:w-auto bg-white border border-gray-200 text-gray-600 px-6 py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-gray-50 hover:text-[#1e3a5f] transition-all cursor-pointer shadow-sm"
-                    >
-                      <ArrowLeft className="h-5 w-5" /> <span className="md:hidden">Indietro</span>
-                    </button>
-                    {formData.dichiarazioneVeridicita && (formData as any).assunzioneResponsabilita && (
-                      <button
-                        onClick={() => setStep(step + 1)}
-                        className="w-full md:w-auto bg-[#15803d] text-white px-8 py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-[#166534] transition-all cursor-pointer shadow-lg shadow-[#15803d]/30"
-                      >
-                        Avanti <ArrowRight className="h-5 w-5" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="bg-gray-50 border border-gray-200 p-8 md:p-12 rounded-lg relative">
-                   <ShieldCheck className="absolute top-8 right-8 h-8 w-8 text-indigo-100 invisible md:visible" />
-                   <div className="prose prose-sm text-gray-600 max-w-none space-y-6">
-                      <p className="font-bold flex items-center gap-2"><Info className="h-4 w-4 text-indigo-500" /> Dichiarazione sostitutiva di certificazione</p>
-                      <p>Il/la sottoscritt/a <strong>{formData.nomeSegnalante} {formData.cognomeSegnalante}</strong>, consapevole delle sanzioni penali previste dall'art. 76 del DPR 445/2000 per le ipotesi di falsità in atti e dichiarazioni mendaci,</p>
-                      <p className="font-bold uppercase tracking-widest text-[#1e3a5f]">DICHIARA</p>
-                      <p>che i dati forniti nella presente segnalazione — relativi alla posizione dell'animale, alle sue condizioni e ai propri dati personali — sono veritieri e corrispondenti a realtà.</p>
-                      <p>La presente dichiarazione è resa ai sensi degli articoli 46 e 47 del DPR 28 dicembre 2000, n. 445, e disciplina le modalità con le quali i cittadini possono autocertificare stati e fatti personali.</p>
-                   </div>
-                </div>
-
-                <div className="space-y-4">
-                  <label className="flex gap-4 p-6 bg-[#15803d]/5 border-2 border-[#15803d]/20 rounded-lg cursor-pointer hover:bg-[#15803d]/10 transition-colors shadow-sm">
-                    <input
-                      type="checkbox"
-                      className="mt-1 h-6 w-6 rounded border-gray-300 text-[#15803d] focus:ring-[#15803d]"
-                      checked={formData.dichiarazioneVeridicita}
-                      onChange={(e) => setFormData({ ...formData, dichiarazioneVeridicita: e.target.checked })}
-                    />
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-[#1e3a5f]">Dichiaro di aver letto la dichiarazione sopra riportata e confermo la veridicità dei dati forniti *</span>
-                      <span className="text-[10px] text-[#15803d] font-bold uppercase tracking-widest mt-1">La dichiarazione è obbligatoria ai sensi del DPR 445/2000</span>
-                    </div>
-                  </label>
-
-                  <label className="flex gap-4 p-6 bg-amber-50 border-2 border-amber-200 rounded-lg cursor-pointer hover:bg-amber-100 transition-colors shadow-sm">
-                    <input
-                      type="checkbox"
-                      className="mt-1 h-6 w-6 rounded border-amber-500 text-amber-600 focus:ring-amber-500"
-                      checked={(formData as any).assunzioneResponsabilita}
-                      onChange={(e) => setFormData({ ...formData, assunzioneResponsabilita: e.target.checked } as any)}
-                    />
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-[#1e3a5f]">Mi assumo la piena responsabilità della segnalazione effettuata nel rispetto della legge *</span>
-                      <span className="text-[10px] text-amber-600 font-bold uppercase tracking-widest mt-1">L'abuso del servizio o procurato allarme è perseguibile</span>
-                    </div>
-                  </label>
-                </div>
-              </div>
-            )}
-
-            {step === 5 && (
               <div className="space-y-10 py-6">
                  {/* Navigation header inside step */}
                  <div className="flex justify-between items-center w-full">

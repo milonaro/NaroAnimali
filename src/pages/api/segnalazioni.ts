@@ -3,9 +3,24 @@ import pool, { getIsMysqlHealthy, setMysqlHealthy } from "../../lib/mysql";
 import sqlite3 from "sqlite3";
 import { open } from "sqlite";
 import admin from "firebase-admin";
+import { getFirestore as getFirestoreAdmin } from "firebase-admin/firestore";
+import fs from "fs";
+import path from "path";
+
+// Leggiamo la configurazione client per estrarre la corretta istanza del database Firestore
+let firestoreDatabaseId: string | undefined = undefined;
+try {
+  const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
+  if (fs.existsSync(configPath)) {
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    firestoreDatabaseId = config.firestoreDatabaseId;
+  }
+} catch (e) {
+  console.error("Error reading firebase-applet-config.json in API:", e);
+}
 
 const router = Router();
-const db = admin.apps.length ? admin.firestore() : null;
+const db = admin.apps.length ? (firestoreDatabaseId ? getFirestoreAdmin(admin.app(), firestoreDatabaseId) : admin.firestore()) : null;
 
 // Gestiamo SQLite come fallback. Dobbiamo recuperare o inizializzare il DB.
 let sqliteDb: any = null;
