@@ -3,7 +3,7 @@ import {
   Briefcase, MapPin, ShieldAlert, BadgeInfo, CheckCircle, 
   Download, Filter, Search, User, FileSpreadsheet, Plus, 
   Activity, Star, Sparkles, Building, Phone, Calendar, CheckSquare,
-  Dog, Cat, FileText, AlertTriangle
+  Dog, Cat, FileText, AlertTriangle, X
 } from 'lucide-react';
 import AppMap from '@/src/components/map/Map';
 import { AnimalSpecie, SegnalazioneStato, Segnalazione } from '../types';
@@ -45,6 +45,222 @@ export default function Operatori() {
   const [logsOffset, setLogsOffset] = useState(0);
   const [hasMoreLogs, setHasMoreLogs] = useState(false);
   const [totalLogs, setTotalLogs] = useState(0);
+
+  // ECOSYSTEM STATE VARIABLES FOR ADOPTIONS & FINANCES
+  const [adozioni, setAdozioni] = useState<any[]>([]);
+  const [strutture, setStrutture] = useState<any[]>([]);
+  const [convenzioni, setConvenzioni] = useState<any[]>([]);
+  const [fatture, setFatture] = useState<any[]>([]);
+  
+  const [showNuovaAdozioneModal, setShowNuovaAdozioneModal] = useState(false);
+  const [showNuovaStrutturaModal, setShowNuovaStrutturaModal] = useState(false);
+  const [showNuovaFatturaModal, setShowNuovaFatturaModal] = useState(false);
+  const [showNuovaConvenzioneModal, setShowNuovaConvenzioneModal] = useState(false);
+
+  // Form states
+  const [formAdozione, setFormAdozione] = useState({ registroId: '', nome: '', cf: '', tel: '', email: '', note: '' });
+  const [formStruttura, setFormStruttura] = useState({ nome: '', tipo: 'CANILE', indirizzo: '', telefono: '', capacitaMax: 100 });
+  const [formFattura, setFormFattura] = useState({ fornitore: '', numero: '', data: '', importo: '', stato: 'DA_PAGARE' });
+  const [formConvenzione, setFormConvenzione] = useState({ strutturaId: '', tipoServizio: '', dataInizio: '', dataFine: '', importoAnnuo: '', stato: 'ATTIVA' });
+
+  const fetchAdozioni = async () => {
+    try {
+      const res = await fetch('/api/adozioni');
+      if (res.ok) {
+        const data = await res.json();
+        setAdozioni(data);
+      }
+    } catch (e) {
+      console.error("Error fetching adozioni", e);
+    }
+  };
+
+  const fetchStrutture = async () => {
+    try {
+      const res = await fetch('/api/strutture');
+      if (res.ok) {
+        const data = await res.json();
+        setStrutture(data);
+      }
+    } catch (e) {
+      console.error("Error fetching strutture", e);
+    }
+  };
+
+  const fetchFatture = async () => {
+    try {
+      const res = await fetch('/api/fatture');
+      if (res.ok) {
+        const data = await res.json();
+        setFatture(data);
+      }
+    } catch (e) {
+      console.error("Error fetching data", e);
+    }
+  };
+
+  const fetchConvenzioni = async () => {
+    try {
+      const res = await fetch('/api/convenzioni');
+      if (res.ok) {
+        const data = await res.json();
+        setConvenzioni(data);
+      }
+    } catch (e) {
+      console.error("Error fetching data", e);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'modulo-adozioni') {
+      fetchAdozioni();
+      fetchStrutture();
+      fetchFatture();
+      fetchConvenzioni();
+    }
+  }, [activeTab]);
+
+  const handleApproveAdoption = async (id: number) => {
+    try {
+      const res = await fetch(`/api/adozioni/${id}/stato`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stato: 'APPROVATA', esito: 'CANDIDATO_IDONEO', note: 'Certificato approvato dall\'ente comunale.' })
+      });
+      if (res.ok) {
+        alert("Adozione approvata con successo!");
+        fetchAdozioni();
+        // Reload registry list to sync updated states
+        const regRes = await fetch('/api/registro');
+        if (regRes.ok) setRegistro(await regRes.json());
+      }
+    } catch(e) {
+      alert("Errore nell'approvazione");
+    }
+  };
+
+  const handleRejectAdoption = async (id: number) => {
+    try {
+      const res = await fetch(`/api/adozioni/${id}/stato`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stato: 'RIFIUTATA', esito: 'NON_SUPPORTATO', note: 'Richiesta respinta dall\'operatore.' })
+      });
+      if (res.ok) {
+        alert("Adozione rifiutata.");
+        fetchAdozioni();
+      }
+    } catch(e) {
+      alert("Errore nel rifiuto");
+    }
+  };
+
+  const handleCreaAdozione = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formAdozione.registroId) {
+      alert("Seleziona prima un animale dal registro!");
+      return;
+    }
+    try {
+      const res = await fetch('/api/adozioni', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          registro_id: formAdozione.registroId,
+          adottante_nome: formAdozione.nome,
+          adottante_cf: formAdozione.cf,
+          adottante_tel: formAdozione.tel,
+          adottante_email: formAdozione.email,
+          note: formAdozione.note
+        })
+      });
+      if (res.ok) {
+        alert("Richiesta di adozione salvata con successo!");
+        setFormAdozione({ registroId: '', nome: '', cf: '', tel: '', email: '', note: '' });
+        setShowNuovaAdozioneModal(false);
+        fetchAdozioni();
+      }
+    } catch (e) {
+      alert("Errore durante il salvataggio.");
+    }
+  };
+
+  const handleCreaStruttura = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/strutture', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nome: formStruttura.nome,
+          tipo: formStruttura.tipo,
+          indirizzo: formStruttura.indirizzo,
+          telefono: formStruttura.telefono,
+          capacita_max: formStruttura.capacitaMax,
+          postazioni_occupate: 0
+        })
+      });
+      if (res.ok) {
+        alert("Nuova struttura convenzionata registrata!");
+        setFormStruttura({ nome: '', tipo: 'CANILE', indirizzo: '', telefono: '', capacitaMax: 100 });
+        setShowNuovaStrutturaModal(false);
+        fetchStrutture();
+      }
+    } catch(e) {
+      alert("Errore durante l'inserimento.");
+    }
+  };
+
+  const handleCreaFattura = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/fatture', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fornitore: formFattura.fornitore,
+          numero_fattura: formFattura.numero,
+          data_emissione: formFattura.data,
+          importo_totale: parseFloat(formFattura.importo),
+          stato: formFattura.stato
+        })
+      });
+      if (res.ok) {
+        alert("Fattura registrata con successo!");
+        setFormFattura({ fornitore: '', numero: '', data: '', importo: '', stato: 'DA_PAGARE' });
+        setShowNuovaFatturaModal(false);
+        fetchFatture();
+      }
+    } catch(e) {
+      alert("Errore durante l'inserimento.");
+    }
+  };
+
+  const handleCreaConvenzione = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/convenzioni', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          struttura_id: parseInt(formConvenzione.strutturaId),
+          tipo_servizio: formConvenzione.tipoServizio,
+          data_inizio: formConvenzione.dataInizio,
+          data_fine: formConvenzione.dataFine,
+          importo_annuo: parseFloat(formConvenzione.importoAnnuo),
+          stato: formConvenzione.stato
+        })
+      });
+      if (res.ok) {
+        alert("Nuova convenzione registrata con successo!");
+        setFormConvenzione({ strutturaId: '', tipoServizio: '', dataInizio: '', dataFine: '', importoAnnuo: '', stato: 'ATTIVA' });
+        setShowNuovaConvenzioneModal(false);
+        fetchConvenzioni();
+      }
+    } catch(e) {
+      alert("Errore durante la creazione.");
+    }
+  };
 
   const loadMoreLogs = () => {
     const nextOffset = logsOffset + 10;
@@ -1327,50 +1543,738 @@ export default function Operatori() {
             )}
 
           </div>
-                ) : activeTab === 'modulo-adozioni' ? (
+                 ) : activeTab === 'modulo-adozioni' ? (
           /* ================= MODULO ADOZIONI & COSTI ================= */
-          <div className="space-y-8 animate-fade-in">
-            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-              <div className="flex items-center gap-3 mb-6">
-                 <Building className="h-6 w-6 text-indigo-600" />
-                 <h2 className="text-xl font-black uppercase text-[#1e3a5f] tracking-widest">Gestione Pratiche Adozione & Finanze</h2>
+          <div className="space-y-8 animate-fade-in text-left">
+            
+            {/* KPI OVERVIEW */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 border border-indigo-200 p-6 rounded-2xl shadow-sm relative overflow-hidden">
+                <div className="absolute top-4 right-4 text-indigo-400">
+                  <Activity className="h-10 w-10 opacity-30" />
+                </div>
+                <h3 className="font-extrabold text-indigo-900 uppercase tracking-wider text-xs mb-1">Pratiche in Valutazione</h3>
+                <div className="text-4xl font-black text-indigo-900">
+                  {adozioni.filter(a => a.stato === 'IN_VALUTAZIONE' || a.stato === 'CREATA').length} Attive
+                </div>
+                <p className="text-xs text-indigo-600 font-bold mt-2">Dossier di affido in carico alle associazioni</p>
               </div>
-              <p className="text-sm text-slate-500 mb-6">Integrazione con le tabelle ANIMALHUB PA. Da questo pannello è possibile gestire le adozioni e visualizzare i costi.</p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                <div className="border border-slate-100 p-6 rounded-xl bg-slate-50 relative overflow-hidden">
-                   <h3 className="font-bold text-slate-700 uppercase tracking-wider text-sm mb-4">Costi Mensili Convenzioni</h3>
-                   <div className="text-3xl font-black text-rose-600 mb-2">€ 1.450,00</div>
-                   <div className="text-xs text-slate-500 uppercase font-bold tracking-wider">Mese Corrente</div>
-                   
-                   <div className="mt-6 flex flex-col gap-2">
-                     <button className="bg-white border border-slate-200 text-xs font-bold uppercase p-3 rounded text-slate-600 hover:text-indigo-600 transition-colors text-left">
-                        Gestione Costi/Voci
-                     </button>
-                     <button className="bg-white border border-slate-200 text-xs font-bold uppercase p-3 rounded text-slate-600 hover:text-indigo-600 transition-colors text-left">
-                        Fatture Fornitori
-                     </button>
-                   </div>
-                </div>
 
-                <div className="border border-slate-100 p-6 rounded-xl bg-indigo-50 relative overflow-hidden">
-                   <h3 className="font-bold text-indigo-900 uppercase tracking-wider text-sm mb-4">Richieste Adozione / Affido</h3>
-                   <div className="text-3xl font-black text-indigo-600 mb-2">3 In Attesa</div>
-                   <div className="text-xs text-indigo-400 uppercase font-bold tracking-wider">Da Registro Anagrafe</div>
-                   
-                   <div className="mt-6 flex flex-col gap-2">
-                     <button className="bg-white border border-indigo-100 text-xs font-bold uppercase p-3 rounded text-indigo-700 hover:bg-indigo-600 hover:text-white transition-colors shadow-sm text-left">
-                        Approva Adozione
-                     </button>
-                     <button className="bg-white border border-indigo-100 text-xs font-bold uppercase p-3 rounded text-indigo-700 hover:bg-indigo-600 hover:text-white transition-colors shadow-sm text-left">
-                        Storico Affidi / Subentri
-                     </button>
-                   </div>
+              <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 p-6 rounded-2xl shadow-sm relative overflow-hidden">
+                <div className="absolute top-4 right-4 text-emerald-400">
+                  <Building className="h-10 w-10 opacity-30" />
                 </div>
+                <h3 className="font-extrabold text-emerald-900 uppercase tracking-wider text-xs mb-1">Capacità Canili & Gattili</h3>
+                <div className="text-4xl font-black text-emerald-900">
+                  {strutture.reduce((acc, curr) => acc + (curr.postazioni_occupate || 0), 0)} / {strutture.reduce((acc, curr) => acc + (curr.capacita_max || 100), 0)}
+                </div>
+                <p className="text-xs text-emerald-600 font-bold mt-2">Posti occupati in strutture convenzionate</p>
+              </div>
 
+              <div className="bg-gradient-to-br from-rose-50 to-rose-100 border border-rose-200 p-6 rounded-2xl shadow-sm relative overflow-hidden">
+                <div className="absolute top-4 right-4 text-rose-400">
+                  <Briefcase className="h-10 w-10 opacity-30" />
+                </div>
+                <h3 className="font-extrabold text-rose-900 uppercase tracking-wider text-xs mb-1">Costi Totali Liquidati</h3>
+                <div className="text-4xl font-black text-rose-900">
+                  € {fatture.reduce((acc, curr) => acc + (parseFloat(curr.importo_totale) || 0), 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                </div>
+                <p className="text-xs text-rose-600 font-bold mt-2">Spese complessive per ricoveri e assistenza</p>
               </div>
             </div>
+
+            {/* SEZIONE 1: ANAGRAFE DELLE ADOZIONI & AFFIDAMENTI */}
+            <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-indigo-100 text-indigo-700 rounded-xl">
+                    <CheckSquare className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-[#1e3a5f] uppercase tracking-wider">Registro Adozioni Digitali (COF)</h3>
+                    <p className="text-xs text-slate-500 font-bold">Monitoraggio pratiche di tutela, adozione e affidi dei randagi sul territorio di {siteName}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowNuovaAdozioneModal(true)}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs uppercase tracking-wider px-5 py-3.5 rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-indigo-600/20 active:scale-95"
+                >
+                  <Plus className="h-4 w-4" /> Nuova Pratica Adozione
+                </button>
+              </div>
+
+              {adozioni.length === 0 ? (
+                <div className="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                  <BadgeInfo className="h-8 w-8 text-slate-400 mx-auto mb-2" />
+                  <p className="text-sm font-semibold text-slate-500">Nessuna richiesta di adozione registrata nel database.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-slate-100 shadow-sm">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 text-slate-400 text-[10px] uppercase font-black tracking-widest border-b border-slate-100">
+                        <th className="p-4">Animale</th>
+                        <th className="p-4">Richiedente / CF</th>
+                        <th className="p-4">Contatti</th>
+                        <th className="p-4">Data Pratica</th>
+                        <th className="p-4">Stato</th>
+                        <th className="p-4 text-right">Azioni Istruttoria</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-sm font-semibold text-slate-700 bg-white">
+                      {adozioni.map((adop) => (
+                        <tr key={adop.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="p-4">
+                            <div className="flex items-center gap-3">
+                              <img
+                                src={adop.animal_foto || "https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=150"}
+                                alt={adop.animal_nome}
+                                className="w-10 h-10 object-cover rounded-lg border border-slate-200"
+                              />
+                              <div>
+                                <p className="font-extrabold text-slate-800 leading-tight">{adop.animal_nome || "Animale Registrato"}</p>
+                                <p className="text-[10px] text-indigo-500 uppercase font-bold tracking-wider">{adop.animal_specie || "CANE"}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <p className="text-slate-850 font-extrabold">{adop.adottante_nome}</p>
+                            <p className="text-[10px] font-mono text-slate-400">{adop.adottante_cf}</p>
+                          </td>
+                          <td className="p-4">
+                            <p className="text-xs text-slate-600">{adop.adottante_tel}</p>
+                            <p className="text-xs text-slate-400 font-mono">{adop.adottante_email}</p>
+                          </td>
+                          <td className="p-4 text-xs font-bold text-slate-500">
+                            {adop.data_richiesta ? new Date(adop.data_richiesta).toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "N.D."}
+                          </td>
+                          <td className="p-4">
+                            <span className={`inline-flex px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                              adop.stato === "APPROVATA" ? "bg-emerald-50 text-emerald-700 border border-emerald-100" :
+                              adop.stato === "RIFIUTATA" ? "bg-rose-50 text-rose-700 border border-rose-100" :
+                              "bg-amber-50 text-amber-700 border border-amber-100"
+                            }`}>
+                              {adop.stato}
+                            </span>
+                          </td>
+                          <td className="p-4 text-right">
+                            {(adop.stato === "IN_VALUTAZIONE" || adop.stato === "CREATA") ? (
+                              <div className="inline-flex gap-2">
+                                <button
+                                  onClick={() => handleApproveAdoption(adop.id)}
+                                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] uppercase tracking-widest px-3 py-2 rounded-lg transition-colors flex items-center gap-1 active:scale-95 shadow-sm"
+                                >
+                                  <CheckCircle className="h-3 w-3" /> Approva
+                                </button>
+                                <button
+                                  onClick={() => handleRejectAdoption(adop.id)}
+                                  className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] uppercase tracking-widest px-3 py-2 rounded-lg transition-colors flex items-center gap-1 active:scale-95 shadow-sm"
+                                >
+                                  <AlertTriangle className="h-3 w-3" /> Respigi
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] uppercase font-black text-slate-400">Dossier Chiuso</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* SEZIONE 2: STRUTTURE ECOSYSTEM & CONVENZIONI ATTIVE */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              
+              {/* BOARDING FACILITIES (CUSTODIA) */}
+              <div className="lg:col-span-7 bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                <div className="flex items-center justify-between pb-6 border-b border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-emerald-100 text-emerald-700 rounded-xl">
+                      <Building className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-[#1e3a5f] uppercase tracking-wider">Strutture di Custodia</h3>
+                      <p className="text-[11px] text-slate-400 font-bold">Rifugi sanitari e alloggi convenzionati</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowNuovaStrutturaModal(true)}
+                    className="border border-slate-200 hover:border-emerald-500 hover:text-emerald-700 text-slate-600 bg-white font-extrabold text-[10px] uppercase tracking-wider px-4 py-3 rounded-lg transition-colors active:scale-95 shadow-sm"
+                  >
+                    + Aggiungi Struttura
+                  </button>
+                </div>
+
+                {strutture.length === 0 ? (
+                  <div className="text-center py-10 bg-slate-50 border border-slate-150 rounded-xl">
+                    <p className="text-sm font-semibold text-slate-500">Nessun rifugio o clinica registrato.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {strutture.map((s) => (
+                      <div key={s.id} className="p-5 border border-slate-200 rounded-xl bg-slate-50 flex flex-col justify-between space-y-4 hover:shadow-md transition-shadow relative">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${
+                              s.tipo === "CANILE" ? "bg-amber-100 text-amber-800" :
+                              s.tipo === "GATTILE" ? "bg-indigo-100 text-indigo-800" :
+                              "bg-indigo-100 text-indigo-800 animate-pulse"
+                            }`}>
+                              {s.tipo}
+                            </span>
+                            <span className="text-[11px] font-bold text-slate-400">ID: #{s.id}</span>
+                          </div>
+                          <h4 className="font-extrabold text-slate-800 text-base">{s.nome}</h4>
+                          <p className="text-xs text-slate-500 flex items-center gap-1">
+                            <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" /> {s.indirizzo}
+                          </p>
+                          {s.telefono && (
+                            <p className="text-xs text-slate-400 flex items-center gap-1">
+                              <Phone className="h-3.5 w-3.5 text-slate-300 shrink-0" /> {s.telefono}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Gage Capienza */}
+                        <div className="space-y-1 pt-2 border-t border-slate-200/60">
+                          <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                            <span>Saturazione:</span>
+                            <span className="font-extrabold text-[#1e3a5f]">
+                              {s.postazioni_occupate || 0} / {s.capacita_max || 100} ({Math.round(((s.postazioni_occupate || 0) / (s.capacita_max || 100)) * 100)}%)
+                            </span>
+                          </div>
+                          <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                ((s.postazioni_occupate || 0) / (s.capacita_max || 100)) > 0.85 ? "bg-rose-500" : "bg-emerald-500"
+                              }`}
+                              style={{ width: `${Math.min(100, ((s.postazioni_occupate || 0) / (s.capacita_max || 100)) * 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* COVENANTS & ACCORDS (CONVENZIONI) */}
+              <div className="lg:col-span-5 bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                <div className="flex items-center justify-between pb-6 border-b border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-blue-100 text-blue-700 rounded-xl">
+                      <FileText className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-[#1e3a5f] uppercase tracking-wider">Convenzioni Attive</h3>
+                      <p className="text-[11px] text-slate-400 font-bold">Dotazioni economiche e atti istituzionali</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowNuovaConvenzioneModal(true)}
+                    className="border border-slate-200 hover:border-blue-500 hover:text-blue-700 text-slate-600 bg-white font-extrabold text-[10px] uppercase tracking-wider px-4 py-3 rounded-lg transition-colors active:scale-95 shadow-sm"
+                  >
+                    + Nuova Convenzione
+                  </button>
+                </div>
+
+                {convenzioni.length === 0 ? (
+                  <div className="text-center py-10 bg-slate-50 border border-dashed border-slate-250 rounded-xl">
+                    <p className="text-sm font-semibold text-slate-500">Nessun patto economico registrato.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {convenzioni.map((c) => (
+                      <div key={c.id} className="p-4 border border-slate-100 rounded-xl bg-slate-50 flex items-start justify-between gap-4">
+                        <div className="space-y-1">
+                          <p className="font-extrabold text-slate-800 text-sm">{c.struttura_nome || "Rifugio Convenzionato"}</p>
+                          <p className="text-xs text-indigo-600 font-extrabold">{c.tipo_servizio}</p>
+                          <p className="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
+                            <Calendar className="h-3 w-3 shrink-0" />
+                            Dal {new Date(c.data_inizio).toLocaleDateString('it-IT')} al {new Date(c.data_fine).toLocaleDateString('it-IT')}
+                          </p>
+                        </div>
+                        <div className="text-right space-y-1 shrink-0">
+                          <p className="text-sm font-black text-rose-600">€ {(parseFloat(c.importo_annuo) || 0).toLocaleString('it-IT')}</p>
+                          <span className="inline-block px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-800 border border-emerald-100">
+                            {c.stato || "ATTIVA"}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* SEZIONE 3: FATTURAZIONE & LIQUIDAZIONE VETERINARIA */}
+            <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-rose-100 text-rose-700 rounded-xl">
+                    <Briefcase className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-[#1e3a5f] uppercase tracking-wider">Bilancio Liquidazioni & Spese</h3>
+                    <p className="text-xs text-slate-500 font-bold">Disborsi per terapie veterinarie, acquisto microchip, cliniche e fornitori esterni convenzionati</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowNuovaFatturaModal(true)}
+                  className="bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs uppercase tracking-wider px-5 py-3.5 rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-rose-600/20 active:scale-95"
+                >
+                  <Plus className="h-4 w-4" /> Registra Nuova Spesa
+                </button>
+              </div>
+
+              {fatture.length === 0 ? (
+                <div className="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                  <BadgeInfo className="h-8 w-8 text-slate-400 mx-auto mb-2" />
+                  <p className="text-sm font-semibold text-slate-500">Nessuna fattura inserita.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-slate-100 shadow-sm">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 text-slate-400 text-[10px] uppercase font-black tracking-widest border-b border-slate-100">
+                        <th className="p-4">Fornitore / Clinica</th>
+                        <th className="p-4">N. Fattura / Protocollo</th>
+                        <th className="p-4">Data Emissione</th>
+                        <th className="p-4">Stato Pagamento</th>
+                        <th className="p-4 text-right">Importo Totale</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-sm font-semibold text-slate-700 bg-white">
+                      {fatture.map((fat) => (
+                        <tr key={fat.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="p-4">
+                            <p className="font-extrabold text-slate-800 leading-tight">{fat.fornitore}</p>
+                          </td>
+                          <td className="p-4">
+                            <p className="font-mono text-slate-500 uppercase">{fat.numero_fattura}</p>
+                          </td>
+                          <td className="p-4 text-xs font-bold text-slate-500">
+                            {fat.data_emissione ? new Date(fat.data_emissione).toLocaleDateString("it-IT") : "N.D."}
+                          </td>
+                          <td className="p-4">
+                            <span className={`inline-flex px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
+                              fat.stato === 'PAGATA' ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' : 'bg-rose-50 text-rose-800 border border-rose-100 font-black animate-pulse'
+                            }`}>
+                              {fat.stato}
+                            </span>
+                          </td>
+                          <td className="p-4 text-right font-black text-rose-650">
+                            € {(parseFloat(fat.importo_totale) || 0).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* MODAL 1: REGISTRAZIONE PRATICA ADOZIONE */}
+            {showNuovaAdozioneModal && (
+              <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden max-w-lg w-full flex flex-col max-h-[90vh]">
+                  <div className="bg-slate-900 px-6 py-4 flex items-center justify-between text-white border-b border-slate-800">
+                    <h3 className="font-extrabold uppercase tracking-wider text-sm flex items-center gap-2">
+                      <Plus className="h-5 w-5 text-indigo-400" /> Avvia Pratica Adozione (COF)
+                    </h3>
+                    <button onClick={() => setShowNuovaAdozioneModal(false)} className="text-slate-400 hover:text-white transition-colors">
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                  <form onSubmit={handleCreaAdozione} className="p-6 space-y-4 overflow-y-auto w-full text-left">
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Seleziona Canide / Felide da Affidare</label>
+                      <select
+                        required
+                        value={formAdozione.registroId}
+                        onChange={(e) => setFormAdozione({ ...formAdozione, registroId: e.target.value })}
+                        className="w-full p-2.5 border border-slate-200 rounded-lg text-sm text-slate-800 font-semibold outline-none focus:border-indigo-600 bg-white"
+                      >
+                        <option value="">Seleziona Animale dal Catalogo...</option>
+                        {registro
+                          .filter((animal) => animal.stato !== 'ADOTTATO')
+                          .map((animal) => (
+                            <option key={animal.id} value={animal.id}>
+                              {animal.nome || `Senza Nome ID #${animal.id}`} ({animal.specie}) - Microchip: {animal.microchip}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Nome e Cognome Adottante</label>
+                        <input
+                          type="text"
+                          required
+                          value={formAdozione.nome}
+                          onChange={(e) => setFormAdozione({ ...formAdozione, nome: e.target.value })}
+                          className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-600"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Codice Fiscale / ID</label>
+                        <input
+                          type="text"
+                          required
+                          value={formAdozione.cf}
+                          onChange={(e) => setFormAdozione({ ...formAdozione, cf: e.target.value.toUpperCase() })}
+                          className="w-full p-2.5 border border-slate-200 rounded-lg text-sm font-mono outline-none focus:border-indigo-600"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Telefono Primario</label>
+                        <input
+                          type="tel"
+                          required
+                          value={formAdozione.tel}
+                          onChange={(e) => setFormAdozione({ ...formAdozione, tel: e.target.value })}
+                          className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-600"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Indirizzo Email Certificato</label>
+                        <input
+                          type="email"
+                          required
+                          value={formAdozione.email}
+                          onChange={(e) => setFormAdozione({ ...formAdozione, email: e.target.value })}
+                          className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-600"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Note / Relazione Sociale / Esito Pre-affido</label>
+                      <textarea
+                        value={formAdozione.note}
+                        onChange={(e) => setFormAdozione({ ...formAdozione, note: e.target.value })}
+                        className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-600 h-20 resize-none"
+                      />
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowNuovaAdozioneModal(false)}
+                        className="border border-slate-200 px-4 py-2.5 rounded-lg text-xs font-bold uppercase text-slate-600 hover:bg-slate-50"
+                      >
+                        Annulla
+                      </button>
+                      <button
+                        type="submit"
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs uppercase tracking-wider px-5 py-2.5 rounded-lg active:scale-95"
+                      >
+                        Salva Pratica
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* MODAL 2: CRIA STRUTTURA CUSTODIA */}
+            {showNuovaStrutturaModal && (
+              <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden max-w-md w-full flex flex-col">
+                  <div className="bg-slate-900 px-6 py-4 flex items-center justify-between text-white border-b border-slate-800">
+                    <h3 className="font-extrabold uppercase tracking-wider text-sm flex items-center gap-2">
+                      <Plus className="h-5 w-5 text-emerald-400" /> Registra Struttura di Custodia
+                    </h3>
+                    <button onClick={() => setShowNuovaStrutturaModal(false)} className="text-slate-400 hover:text-white transition-colors">
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                  <form onSubmit={handleCreaStruttura} className="p-6 space-y-4 text-left">
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Nome Struttura / Ente Convenzionato</label>
+                      <input
+                        type="text"
+                        required
+                        value={formStruttura.nome}
+                        onChange={(e) => setFormStruttura({ ...formStruttura, nome: e.target.value })}
+                        className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-emerald-500"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Tipologia d'Uso</label>
+                        <select
+                          value={formStruttura.tipo}
+                          onChange={(e) => setFormStruttura({ ...formStruttura, tipo: e.target.value })}
+                          className="w-full p-2.5 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:border-emerald-500"
+                        >
+                          <option value="CANILE">Canile</option>
+                          <option value="GATTILE">Gattile</option>
+                          <option value="CLINICA_VET">Clinica Veterinaria</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Capacità Max Box</label>
+                        <input
+                          type="number"
+                          required
+                          value={formStruttura.capacitaMax}
+                          onChange={(e) => setFormStruttura({ ...formStruttura, capacitaMax: parseInt(e.target.value) || 100 })}
+                          className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-emerald-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Indirizzo Sede Operativa</label>
+                      <input
+                        type="text"
+                        required
+                        value={formStruttura.indirizzo}
+                        onChange={(e) => setFormStruttura({ ...formStruttura, indirizzo: e.target.value })}
+                        className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-emerald-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Telefono / Referente Reperibile</label>
+                      <input
+                        type="text"
+                        value={formStruttura.telefono}
+                        onChange={(e) => setFormStruttura({ ...formStruttura, telefono: e.target.value })}
+                        className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-emerald-500"
+                      />
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowNuovaStrutturaModal(false)}
+                        className="border border-slate-200 px-4 py-2.5 rounded-lg text-xs font-bold uppercase text-slate-600 hover:bg-slate-50"
+                      >
+                        Annulla
+                      </button>
+                      <button
+                        type="submit"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs uppercase tracking-wider px-5 py-2.5 rounded-lg"
+                      >
+                        Salva Struttura
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* MODAL 3: REGISTRAZIONE SPESE VETERINARIO & FATTURE */}
+            {showNuovaFatturaModal && (
+              <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden max-w-md w-full flex flex-col">
+                  <div className="bg-slate-900 px-6 py-4 flex items-center justify-between text-white border-b border-slate-800">
+                    <h3 className="font-extrabold uppercase tracking-wider text-sm flex items-center gap-2">
+                      <Plus className="h-5 w-5 text-rose-400" /> Registra Nuova Fattura Spese
+                    </h3>
+                    <button onClick={() => setShowNuovaFatturaModal(false)} className="text-slate-400 hover:text-white transition-colors">
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                  <form onSubmit={handleCreaFattura} className="p-6 space-y-4 text-left">
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Causale / Fornitore / Studio Veterinario</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Es. Clinica Vet San Leone, Acquisto Microchip ASP"
+                        value={formFattura.fornitore}
+                        onChange={(e) => setFormFattura({ ...formFattura, fornitore: e.target.value })}
+                        className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-rose-500"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">N. Fattura / Lotto</label>
+                        <input
+                          type="text"
+                          required
+                          value={formFattura.numero}
+                          onChange={(e) => setFormFattura({ ...formFattura, numero: e.target.value })}
+                          className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-rose-500 font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Data Spesa</label>
+                        <input
+                          type="date"
+                          required
+                          value={formFattura.data}
+                          onChange={(e) => setFormFattura({ ...formFattura, data: e.target.value })}
+                          className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-rose-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Importo Monetario (€)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          required
+                          value={formFattura.importo}
+                          onChange={(e) => setFormFattura({ ...formFattura, importo: e.target.value })}
+                          className="w-full p-2.5 border border-slate-200 rounded-lg text-sm font-bold text-[#1e3a5f] outline-none focus:border-rose-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Stato Liquidazione</label>
+                        <select
+                          value={formFattura.stato}
+                          onChange={(e) => setFormFattura({ ...formFattura, stato: e.target.value })}
+                          className="w-full p-2.5 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:border-rose-500"
+                        >
+                          <option value="DA_PAGARE">Da Pagare</option>
+                          <option value="PAGATA">Liquidato / Pagato</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowNuovaFatturaModal(false)}
+                        className="border border-slate-200 px-4 py-2.5 rounded-lg text-xs font-bold uppercase text-slate-600 hover:bg-slate-50"
+                      >
+                        Annulla
+                      </button>
+                      <button
+                        type="submit"
+                        className="bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs uppercase tracking-wider px-5 py-2.5 rounded-lg"
+                      >
+                        Salva Spesa
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* MODAL 4: CREA CONVENZIONE */}
+            {showNuovaConvenzioneModal && (
+              <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden max-w-md w-full flex flex-col">
+                  <div className="bg-slate-900 px-6 py-4 flex items-center justify-between text-white border-b border-slate-800">
+                    <h3 className="font-extrabold uppercase tracking-wider text-sm flex items-center gap-2">
+                      <Plus className="h-5 w-5 text-blue-400" /> Attiva Convenzione Istituzionale
+                    </h3>
+                    <button onClick={() => setShowNuovaConvenzioneModal(false)} className="text-slate-400 hover:text-white transition-colors">
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                  <form onSubmit={handleCreaConvenzione} className="p-6 space-y-4 text-left">
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Seleziona Partner / Struttura di Destinazione</label>
+                      <select
+                        required
+                        value={formConvenzione.strutturaId}
+                        onChange={(e) => setFormConvenzione({ ...formConvenzione, strutturaId: e.target.value })}
+                        className="w-full p-2.5 border border-slate-200 rounded-lg text-sm text-slate-800 bg-white outline-none focus:border-blue-500 font-bold"
+                      >
+                        <option value="">Seleziona Ente dal database...</option>
+                        {strutture.map((s) => (
+                          <option key={s.id} value={s.id}>{s.nome} ({s.tipo})</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Tipologia d'Accordo / Servizio Offerto</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Es. Servizio di Sterilizzazione e Accalappiatura 24h"
+                        value={formConvenzione.tipoServizio}
+                        onChange={(e) => setFormConvenzione({ ...formConvenzione, tipoServizio: e.target.value })}
+                        className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Data Inizio Accordo</label>
+                        <input
+                          type="date"
+                          required
+                          value={formConvenzione.dataInizio}
+                          onChange={(e) => setFormConvenzione({ ...formConvenzione, dataInizio: e.target.value })}
+                          className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Data Fine Accordo</label>
+                        <input
+                          type="date"
+                          required
+                          value={formConvenzione.dataFine}
+                          onChange={(e) => setFormConvenzione({ ...formConvenzione, dataFine: e.target.value })}
+                          className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Dote Annua Accantonata (€)</label>
+                        <input
+                          type="number"
+                          required
+                          value={formConvenzione.importoAnnuo}
+                          onChange={(e) => setFormConvenzione({ ...formConvenzione, importoAnnuo: e.target.value })}
+                          className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500 font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Stato Convenzione</label>
+                        <select
+                          value={formConvenzione.stato}
+                          onChange={(e) => setFormConvenzione({ ...formConvenzione, stato: e.target.value })}
+                          className="w-full p-2.5 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:border-blue-500"
+                        >
+                          <option value="ATTIVA">Attiva</option>
+                          <option value="CONCLUSA">Conclusa</option>
+                          <option value="SOCIOSANITARIA">Accordo Socio-Sanitario Speciale</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowNuovaConvenzioneModal(false)}
+                        className="border border-slate-200 px-4 py-2.5 rounded-lg text-xs font-bold uppercase text-slate-600 hover:bg-slate-50"
+                      >
+                        Annulla
+                      </button>
+                      <button
+                        type="submit"
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs uppercase tracking-wider px-5 py-2.5 rounded-lg"
+                      >
+                        Salva Accordo
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
           </div>
         ) : null}
       </div>

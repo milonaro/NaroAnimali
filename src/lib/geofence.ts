@@ -11,108 +11,94 @@ export interface ComuneConfig {
   datiCatastaliCompleti?: string;
 }
 
-export const COMUNI: Record<string, ComuneConfig> = {
-  naro: {
+// Map database row to ComuneConfig format
+export function mapRowToComuneConfig(row: any): ComuneConfig {
+  return {
+    name: row.name || "Naro",
+    center: { 
+      lat: parseFloat(row.lat) || 37.2957, 
+      lng: parseFloat(row.lng) || 13.7936 
+    },
+    radiusKm: parseFloat(row.radius_km) || 8.0,
+    bounds: {
+      latMin: parseFloat(row.lat_min) || 37.25,
+      latMax: parseFloat(row.lat_max) || 37.35,
+      lngMin: parseFloat(row.lng_min) || 13.74,
+      lngMax: parseFloat(row.lng_max) || 13.85,
+    },
+    codiceCatastale: row.codice_catastale,
+    superficieTotaleKm2: row.superficie_totale_km2 ? parseFloat(row.superficie_totale_km2) : undefined,
+    foglioCatastaleHub: row.foglio_catastale_hub,
+    particellaCatastaleHub: row.particella_catastale_hub,
+    estensioneEttariHub: row.estensione_ettari_hub ? parseFloat(row.estensione_ettari_hub) : undefined,
+    datiCatastaliCompleti: row.dati_catastali_completi
+  };
+}
+
+// Load COMUNI dictionary dynamically from localStorage cache
+export function getDynComuni(): Record<string, ComuneConfig> {
+  const map: Record<string, ComuneConfig> = {};
+  
+  // Default fallback if database values are not yet loaded in localStorage
+  const defaultNaro: ComuneConfig = {
     name: "Naro",
     center: { lat: 37.2957, lng: 13.7936 },
     radiusKm: 8,
     bounds: { latMin: 37.25, latMax: 37.35, lngMin: 13.74, lngMax: 13.85 },
     codiceCatastale: "F845",
-    superficieTotaleKm2: 162.24,
+    superficieTotaleKm2: 207.49,
     foglioCatastaleHub: "72",
     particellaCatastaleHub: "145",
     estensioneEttariHub: 1.85,
-    datiCatastaliCompleti: "Ente Urbano destinato a Centro di Soccorso e Servizi Sanitari Zootecnici. Connessione integrata con canile municipale di contrada Zaffuti. Esente IMU usi pubblici."
-  },
-  agrigento: {
-    name: "Agrigento",
-    center: { lat: 37.3111, lng: 13.5765 },
-    radiusKm: 12,
-    bounds: { latMin: 37.20, latMax: 37.40, lngMin: 13.45, lngMax: 13.70 },
-    codiceCatastale: "A089",
-    superficieTotaleKm2: 245.43,
-    foglioCatastaleHub: "118",
-    particellaCatastaleHub: "239",
-    estensioneEttariHub: 2.45,
-    datiCatastaliCompleti: "Hub di Soccorso Sanitario e Clinica della Valle dei Templi. Sezione Centralizzata Polizia Locale Agrigento."
-  },
-  canicatti: {
-    name: "Canicattì",
-    center: { lat: 37.3591, lng: 13.8496 },
-    radiusKm: 10,
-    bounds: { latMin: 37.30, latMax: 37.42, lngMin: 13.75, lngMax: 13.95 },
-    codiceCatastale: "B602",
-    superficieTotaleKm2: 92.06,
-    foglioCatastaleHub: "45",
-    particellaCatastaleHub: "512",
-    estensioneEttariHub: 1.20,
-    datiCatastaliCompleti: "Oasi Felina di Canicattì, rifugi sanitari convenzionati. Monitoraggio in convenzione ASP Agrigento."
-  },
-  favara: {
-    name: "Favara",
-    center: { lat: 37.3151, lng: 13.6628 },
-    radiusKm: 9,
-    bounds: { latMin: 37.26, latMax: 37.37, lngMin: 13.60, lngMax: 13.72 },
-    codiceCatastale: "D514",
-    superficieTotaleKm2: 81.88,
-    foglioCatastaleHub: "31",
-    particellaCatastaleHub: "809",
-    estensioneEttariHub: 0.95,
-    datiCatastaliCompleti: "Presidio Ambulatoriale e tutela benessere animale di Favara. Gestione microchip attiva."
-  },
-  palermo: {
-    name: "Palermo",
-    center: { lat: 38.1157, lng: 13.3614 },
-    radiusKm: 15,
-    bounds: { latMin: 38.00, latMax: 38.25, lngMin: 13.20, lngMax: 13.50 },
-    codiceCatastale: "G273",
-    superficieTotaleKm2: 160.59,
-    foglioCatastaleHub: "92",
-    particellaCatastaleHub: "1004",
-    estensioneEttariHub: 4.50,
-    datiCatastaliCompleti: "Rifugio Sanitario Canile Favorita di Palermo. Centro d'eccellenza veterinaria accreditato."
-  },
-  montallegro: {
-    name: "Montallegro",
-    center: { lat: 37.3915, lng: 13.3512 },
-    radiusKm: 6,
-    bounds: { latMin: 37.35, latMax: 37.43, lngMin: 13.28, lngMax: 13.42 },
-    codiceCatastale: "F514",
-    superficieTotaleKm2: 27.41,
-    foglioCatastaleHub: "12",
-    particellaCatastaleHub: "335",
-    estensioneEttariHub: 0.78,
-    datiCatastaliCompleti: "Presidio ed Hub di Degenza Randagismo e Avifauna Torre Salsa. Sorveglianza convenzionata Ente Parco."
-  },
-  portoempedocle: {
-    name: "Porto Empedocle",
-    center: { lat: 37.2911, lng: 13.5283 },
-    radiusKm: 7,
-    bounds: { latMin: 37.25, latMax: 37.33, lngMin: 13.47, lngMax: 13.58 },
-    codiceCatastale: "G914",
-    superficieTotaleKm2: 25.11,
-    foglioCatastaleHub: "8",
-    particellaCatastaleHub: "202",
-    estensioneEttariHub: 1.10,
-    datiCatastaliCompleti: "Hub costiero Soccorso Animali Marina di Porto Empedocle. Supporto veterinario transitorio Guardia Costiera."
-  },
-  sciacca: {
-    name: "Sciacca",
-    center: { lat: 37.5081, lng: 13.0881 },
-    radiusKm: 11,
-    bounds: { latMin: 37.42, latMax: 37.58, lngMin: 12.96, lngMax: 13.20 },
-    codiceCatastale: "I533",
-    superficieTotaleKm2: 191.01,
-    foglioCatastaleHub: "84",
-    particellaCatastaleHub: "402",
-    estensioneEttariHub: 3.20,
-    datiCatastaliCompleti: "Santuario Felino e Canile Sanitario Sciacca Est. Sala operatoria per sterilizzazioni e primo soccorso animali randagi."
+    datiCatastaliCompleti: "Ente Urbano destinato a Centro di Soccorso e Servizi Sanitari Zootecnici."
+  };
+
+  try {
+    const cached = localStorage.getItem('cached_comuni');
+    if (cached) {
+      const list = JSON.parse(cached);
+      if (Array.isArray(list)) {
+        list.forEach((row: any) => {
+          if (row && row.key_name) {
+            map[row.key_name.toLowerCase()] = mapRowToComuneConfig(row);
+          }
+        });
+      }
+    }
+  } catch (e) {
+    console.error("Errore nel parsing dei comuni memorizzati:", e);
   }
-};
+
+  // Always guarantee "naro" exists in the map
+  if (!map.naro) {
+    map.naro = defaultNaro;
+  }
+
+  return map;
+}
+
+// Backward-compatible COMUNI proxy that gets current dynamic dictionary
+export const COMUNI = new Proxy({} as Record<string, ComuneConfig>, {
+  get(target, prop) {
+    const dyn = getDynComuni();
+    const key = String(prop).toLowerCase();
+    return dyn[key] || dyn.naro;
+  },
+  ownKeys() {
+    return Object.keys(getDynComuni());
+  },
+  getOwnPropertyDescriptor(target, prop) {
+    return {
+      enumerable: true,
+      configurable: true
+    };
+  }
+});
 
 export function getActiveComune(): ComuneConfig {
   const activeKey = (localStorage.getItem('active_comune') || 'naro').toLowerCase();
-  return COMUNI[activeKey] || COMUNI.naro;
+  const dyn = getDynComuni();
+  return dyn[activeKey] || dyn.naro;
 }
 
 // Dynamic Object maintains 100% backward-compatibility with rest of codebase importing `NARO`

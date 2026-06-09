@@ -22,8 +22,26 @@ import { AccessibilityProvider } from './contexts/AccessibilityContext';
 import ChatOverlay from './components/chat/ChatOverlay';
 import BottomNavigation from './components/layout/BottomNavigation';
 import CookieBanner from './components/CookieBanner';
+import { useEffect } from 'react';
 
 export default function App() {
+  useEffect(() => {
+    const initComuniCache = async () => {
+      try {
+        const res = await fetch('/api/comuni');
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            localStorage.setItem('cached_comuni', JSON.stringify(data));
+          }
+        }
+      } catch (e) {
+        console.error("Errore nel recupero dinamico dei comuni:", e);
+      }
+    };
+    initComuniCache();
+  }, []);
+
   return (
     <AccessibilityProvider>
       <Router>

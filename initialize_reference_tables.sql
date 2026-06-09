@@ -125,7 +125,7 @@ INSERT INTO comuni (key_name, name, lat, lng, radius_km, lat_min, lat_max, lng_m
 ('palermo', 'Palermo', 38.1157, 13.3614, 15.0, 38.00, 38.25, 13.20, 13.50, 'G273', 160.59, '92', '1004', 4.50, 'Rifugio Sanitario Canile Favorita di Palermo. Centro d\'eccellenza veterinaria accreditato.'),
 ('montallegro', 'Montallegro', 37.3915, 13.3512, 6.0, 37.35, 37.43, 13.28, 13.42, 'F514', 27.41, '12', '335', 0.78, 'Presidio ed Hub di Degenza Randagismo e Avifauna Torre Salsa. Sorveglianza convenzionata Ente Parco.'),
 ('portoempedocle', 'Porto Empedocle', 37.2911, 13.5283, 7.0, 37.25, 37.33, 13.47, 13.58, 'G914', 25.11, '8', '202', 1.10, 'Hub costiero Soccorso Animali Marina di Porto Empedocle. Supporto veterinario transitorio Guardia Costiera.'),
-('sciacca', 'Sciacca', 37.5081, 13.0881, 11.0, 37.42, 37.58, 13.96, 13.20, 'I533', 191.01, '84', '402', 3.20, 'Santuario Felino e Canile Sanitario Sciacca Est. Sala operatoria per sterilizzazioni e primo soccorso animali randagi.')
+('sciacca', 'Sciacca', 37.5081, 13.0881, 11.0, 37.42, 37.58, 12.96, 13.20, 'I533', 191.01, '84', '402', 3.20, 'Santuario Felino e Canile Sanitario Sciacca Est. Sala operatoria per sterilizzazioni e primo soccorso animali randagi.')
 ON DUPLICATE KEY UPDATE 
   name=VALUES(name), lat=VALUES(lat), lng=VALUES(lng), radius_km=VALUES(radius_km),
   lat_min=VALUES(lat_min), lat_max=VALUES(lat_max), lng_min=VALUES(lng_min), lng_max=VALUES(lng_max),
@@ -207,4 +207,274 @@ INSERT INTO strutture (id, comune_key, nome, tipo, indirizzo, telefono, capacita
 (4, 'canicatti', 'Oasi Felina Canicattì', 'GATTILE', 'Via Vittorio Veneto, Canicattì (AG)', '0922 774411', 80, 45),
 (5, 'favara', 'Clinica Veterinaria Favara Vet', 'CLINICA_VET', 'Viale S. Angelo, Favara (AG)', '0922 885522', 20, 12),
 (6, 'palermo', 'Rifugio Municipale Palermo', 'CANILE', 'Parco della Favorita, Palermo (PA)', '091 668822', 300, 245)
-ON DUPLICATE KEY UPDATE comune_key=VALUES(comune_key), nome=VALUES(nome), tipo=VALUES(tipo), indirizzo=VALUES(indirizzo), telefono=VALUES(telefono), capacita_max=VALUES(capacita_max), postazioni_occupate=VALUES(postazioni_occupate);
+-- =====================================================================
+-- ANIMALHUB PA — AGGIORNAMENTI E PROPOSTE DI SCHEMA
+-- =====================================================================
+
+UPDATE comuni SET superficie_totale_km2 = 207.49 WHERE key_name = 'naro';
+UPDATE comuni SET superficie_totale_km2 = 244.57 WHERE key_name = 'agrigento';
+UPDATE comuni SET superficie_totale_km2 = 91.40 WHERE key_name = 'canicatti';
+UPDATE comuni SET superficie_totale_km2 = 25.23 WHERE key_name = 'portoempedocle';
+
+ALTER TABLE comuni
+  -- Dati anagrafici base
+  ADD COLUMN codice_istat       VARCHAR(10)    COMMENT 'Codice ISTAT comune (es. 084026 per Naro)',
+  ADD COLUMN cap                VARCHAR(5)     COMMENT 'Codice di Avviamento Postale',
+  ADD COLUMN prefisso_tel       VARCHAR(5)     COMMENT 'Prefisso telefonico (es. 0922)',
+  ADD COLUMN sito_web           VARCHAR(255)   COMMENT 'URL sito istituzionale del comune',
+  ADD COLUMN pec                VARCHAR(255)   COMMENT 'Indirizzo PEC del comune',
+
+  -- Dati geografici aggiuntivi
+  ADD COLUMN altitudine_m       INT            COMMENT 'Altitudine sede municipio in metri s.l.m.',
+  ADD COLUMN zona_sismica       VARCHAR(10)    COMMENT 'Zona sismica INGV (es. Zona 2, Zona 3)',
+  ADD COLUMN zona_climatica     VARCHAR(5)     COMMENT 'Zona climatica (A–F)',
+  ADD COLUMN comuni_confinanti  TEXT           COMMENT 'Lista comuni confinanti separata da virgola',
+
+  -- Stato operativo hub AnimalHub
+  ADD COLUMN hub_attivo         TINYINT(1)     DEFAULT 1  COMMENT '1 = hub attivo, 0 = sospeso',
+  ADD COLUMN data_attivazione   DATE           COMMENT 'Data di attivazione convenzione AnimalHub',
+  ADD COLUMN referente_comune   VARCHAR(150)   COMMENT 'Nome referente comunale per il servizio',
+  ADD COLUMN tel_referente      VARCHAR(20)    COMMENT 'Telefono referente comunale';
+
+
+-- =====================================================================
+-- PARTE 3 — TABELLA NUOVA: convenzioni
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS convenzioni (
+  id                INT AUTO_INCREMENT PRIMARY KEY,
+  comune_key        VARCHAR(50) NOT NULL,
+  numero_atto       VARCHAR(50)   COMMENT 'Numero delibera/determina di approvazione',
+  data_stipula      DATE          NOT NULL,
+  data_scadenza     DATE,
+  stato             VARCHAR(30)   DEFAULT 'ATTIVA' COMMENT 'ATTIVA | SCADUTA | RINNOVATA | REVOCATA',
+  oggetto           TEXT          COMMENT 'Descrizione oggetto della convenzione',
+  importo_annuo     DECIMAL(10,2) COMMENT 'Eventuale corrispettivo annuo in euro',
+  documento_url     TEXT          COMMENT 'URL o path documento convenzione',
+  created_at        TIMESTAMP     DEFAULT CURRENT_TIMESTAMP
+);
+
+
+-- =====================================================================
+-- PARTE 4 — TABELLA NUOVA: notifiche
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS notifiche (
+  id              INT AUTO_INCREMENT PRIMARY KEY,
+  comune_key      VARCHAR(50)  NOT NULL,
+  destinatario    VARCHAR(150) NOT NULL COMMENT 'Email o username destinatario',
+  tipo            VARCHAR(50)  NOT NULL COMMENT 'NUOVA_SEGNALAZIONE | STATO_AGGIORNATO | ADOZIONE | SISTEMA',
+  titolo          VARCHAR(255) NOT NULL,
+  messaggio       TEXT,
+  letta           TINYINT(1)   DEFAULT 0,
+  ref_segnalazione VARCHAR(100) COMMENT 'codice_tracking segnalazione correlata (opzionale)',
+  created_at      TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
+);
+
+
+-- =====================================================================
+-- PARTE 5 — TABELLA NUOVA: adozioni
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS adozioni (
+  id                  INT AUTO_INCREMENT PRIMARY KEY,
+  microchip           VARCHAR(50)  NOT NULL COMMENT 'FK verso registro_anagrafica',
+  comune_key          VARCHAR(50)  NOT NULL,
+  nome_adottante      VARCHAR(150) NOT NULL,
+  cognome_adottante   VARCHAR(150) NOT NULL,
+  cf_adottante        VARCHAR(16)  COMMENT 'Codice fiscale adottante',
+  telefono_adottante  VARCHAR(20),
+  email_adottante     VARCHAR(150),
+  indirizzo_adottante VARCHAR(255),
+  data_richiesta      DATE         NOT NULL,
+  data_approvazione   DATE,
+  data_consegna       DATE,
+  stato               VARCHAR(30)  DEFAULT 'IN_VALUTAZIONE' COMMENT 'IN_VALUTAZIONE | APPROVATA | NEGATA | COMPLETATA | REVOCATA',
+  note_operatore      TEXT,
+  documento_url       TEXT         COMMENT 'Modulo adozione firmato',
+  created_at          TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
+);
+
+
+-- =====================================================================
+-- PARTE 6 — TABELLA NUOVA: calendari_intervento
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS calendari_intervento (
+  id              INT AUTO_INCREMENT PRIMARY KEY,
+  comune_key      VARCHAR(50)  NOT NULL,
+  tipo_intervento VARCHAR(80)  NOT NULL COMMENT 'STERILIZZAZIONE | CATTURA | SOPRALLUOGO | TRASPORTO | VACCINAZIONE',
+  operatore       VARCHAR(100) NOT NULL,
+  data_prevista   DATETIME     NOT NULL,
+  data_effettiva  DATETIME,
+  ref_segnalazione VARCHAR(100) COMMENT 'Eventuale segnalazione collegata',
+  ref_microchip   VARCHAR(50)  COMMENT 'Eventuale animale coinvolto',
+  esito           VARCHAR(50)  COMMENT 'COMPLETATO | ANNULLATO | RINVIATO',
+  note            TEXT,
+  created_at      TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =====================================================================
+-- PARTE 7 — COSTI E FATTURAZIONE PER COMUNE
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS tariffario (
+  id              INT AUTO_INCREMENT PRIMARY KEY,
+  comune_key      VARCHAR(50)   NOT NULL,
+  servizio_key    VARCHAR(80)   NOT NULL  COMMENT 'Es: CATTURA | RICOVERO_GIORNO | STERILIZZAZIONE | VACCINAZIONE | MICROCHIP | TRASPORTO | EUTANASIA',
+  descrizione     VARCHAR(255),
+  prezzo_unitario DECIMAL(10,2) NOT NULL  COMMENT 'Prezzo in euro IVA esclusa',
+  unita_misura    VARCHAR(30)   DEFAULT 'cadauno' COMMENT 'cadauno | giorno | km | ora',
+  iva_pct         DECIMAL(5,2)  DEFAULT 22.00,
+  attivo          TINYINT(1)    DEFAULT 1,
+  valido_dal      DATE          NOT NULL,
+  valido_al       DATE,
+  UNIQUE KEY uq_tariffa (comune_key, servizio_key, valido_dal)
+);
+
+CREATE TABLE IF NOT EXISTS costi_voci (
+  id                  INT AUTO_INCREMENT PRIMARY KEY,
+  comune_key          VARCHAR(50)   NOT NULL,
+  servizio_key        VARCHAR(80)   NOT NULL,
+  descrizione         VARCHAR(255),
+  quantita            DECIMAL(10,3) DEFAULT 1.000,
+  prezzo_unitario     DECIMAL(10,2) NOT NULL,
+  importo_netto       DECIMAL(10,2) GENERATED ALWAYS AS (quantita * prezzo_unitario) STORED,
+  iva_pct             DECIMAL(5,2)  DEFAULT 22.00,
+  importo_iva         DECIMAL(10,2) GENERATED ALWAYS AS (ROUND(quantita * prezzo_unitario * iva_pct / 100, 2)) STORED,
+  importo_lordo       DECIMAL(10,2) GENERATED ALWAYS AS (ROUND(quantita * prezzo_unitario * (1 + iva_pct / 100), 2)) STORED,
+  ref_fattura_id      INT           COMMENT 'FK verso fatture.id, NULL finché non fatturato',
+  ref_intervento_id   INT           COMMENT 'FK verso calendari_intervento.id (opzionale)',
+  ref_segnalazione    VARCHAR(100)  COMMENT 'codice_tracking segnalazione (opzionale)',
+  ref_microchip       VARCHAR(50)   COMMENT 'Microchip animale coinvolto (opzionale)',
+  data_voce           DATE          NOT NULL,
+  note                TEXT,
+  created_at          TIMESTAMP     DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS fatture (
+  id                  INT AUTO_INCREMENT PRIMARY KEY,
+  comune_key          VARCHAR(50)   NOT NULL,
+  numero_fattura      VARCHAR(50)   UNIQUE NOT NULL COMMENT 'Es: 2026/001/NAR',
+  data_emissione      DATE          NOT NULL,
+  data_scadenza       DATE,
+  periodo_dal         DATE          COMMENT 'Periodo di competenza inizio',
+  periodo_al          DATE          COMMENT 'Periodo di competenza fine',
+  imponibile          DECIMAL(10,2) NOT NULL,
+  totale_iva          DECIMAL(10,2) NOT NULL,
+  totale_fattura      DECIMAL(10,2) NOT NULL,
+  stato               VARCHAR(30)   DEFAULT 'EMESSA' COMMENT 'EMESSA | INVIATA | PAGATA | SCADUTA | ANNULLATA',
+  data_pagamento      DATE,
+  metodo_pagamento    VARCHAR(50)   COMMENT 'BONIFICO | F24 | ALTRO',
+  cig                 VARCHAR(20)   COMMENT 'Codice Identificativo Gara (appalti PA)',
+  cup                 VARCHAR(20)   COMMENT 'Codice Unico Progetto (se applicabile)',
+  note                TEXT,
+  documento_url       TEXT          COMMENT 'Path/URL XML fattura elettronica PA',
+  created_at          TIMESTAMP     DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE OR REPLACE VIEW v_crediti_per_comune AS
+SELECT
+  f.comune_key,
+  c.name                                          AS nome_comune,
+  COUNT(f.id)                                     AS num_fatture_aperte,
+  SUM(f.totale_fattura)                           AS totale_da_incassare,
+  MIN(f.data_scadenza)                            AS prossima_scadenza,
+  SUM(CASE WHEN f.data_scadenza < CURDATE()
+           THEN f.totale_fattura ELSE 0 END)      AS totale_scaduto
+FROM fatture f
+JOIN comuni c ON c.key_name = f.comune_key
+WHERE f.stato NOT IN ('PAGATA', 'ANNULLATA')
+GROUP BY f.comune_key, c.name;
+
+CREATE OR REPLACE VIEW v_costi_per_servizio_anno AS
+SELECT
+  cv.comune_key,
+  cv.servizio_key,
+  YEAR(cv.data_voce)                              AS anno,
+  COUNT(*)                                        AS num_prestazioni,
+  SUM(cv.quantita)                                AS quantita_totale,
+  SUM(cv.importo_netto)                           AS totale_netto,
+  SUM(cv.importo_lordo)                           AS totale_lordo
+FROM costi_voci cv
+GROUP BY cv.comune_key, cv.servizio_key, YEAR(cv.data_voce);
+
+CREATE TABLE IF NOT EXISTS stats_snapshot_giornaliero (
+  id                        INT AUTO_INCREMENT PRIMARY KEY,
+  comune_key                VARCHAR(50) NOT NULL,
+  data_snapshot             DATE        NOT NULL,
+  segnalazioni_totali       INT DEFAULT 0,
+  segnalazioni_aperte       INT DEFAULT 0,
+  segnalazioni_in_carico    INT DEFAULT 0,
+  segnalazioni_risolte      INT DEFAULT 0,
+  segnalazioni_urgenti      INT DEFAULT 0  COMMENT 'ALTA + CRITICA',
+  animali_totali            INT DEFAULT 0,
+  animali_adottabili        INT DEFAULT 0,
+  animali_ospiti            INT DEFAULT 0,
+  animali_adottati          INT DEFAULT 0 COMMENT 'Storico cumulativo adozioni',
+  animali_cani              INT DEFAULT 0,
+  animali_gatti             INT DEFAULT 0,
+  animali_altri             INT DEFAULT 0,
+  posti_totali              INT DEFAULT 0,
+  posti_occupati            INT DEFAULT 0,
+  tasso_occupazione_pct     DECIMAL(5,2) DEFAULT 0.00,
+  interventi_pianificati    INT DEFAULT 0,
+  interventi_completati     INT DEFAULT 0,
+  sterilizzazioni_mese      INT DEFAULT 0,
+  vaccinazioni_mese         INT DEFAULT 0,
+  fatturato_mese_corrente   DECIMAL(10,2) DEFAULT 0.00,
+  incassato_mese_corrente   DECIMAL(10,2) DEFAULT 0.00,
+  credito_aperto            DECIMAL(10,2) DEFAULT 0.00,
+  created_at                TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_snap (comune_key, data_snapshot)
+);
+
+CREATE OR REPLACE VIEW v_kpi_dashboard AS
+SELECT
+  c.key_name,
+  c.name                                                      AS comune,
+  COUNT(DISTINCT s.id)                                        AS segnalazioni_totali,
+  SUM(s.stato NOT IN ('RISOLTA','CHIUSA'))                    AS segnalazioni_attive,
+  SUM(s.urgenza = 'CRITICA' AND s.stato NOT IN ('RISOLTA','CHIUSA')) AS segnalazioni_critiche,
+  COUNT(DISTINCT ra.id)                                       AS animali_in_gestione,
+  SUM(ra.stato = 'ADOTTABILE')                                AS adottabili,
+  COALESCE(SUM(st.capacita_max), 0)                           AS posti_totali,
+  COALESCE(SUM(st.postazioni_occupate), 0)                    AS posti_occupati,
+  COALESCE(ROUND(
+    SUM(st.postazioni_occupate) / NULLIF(SUM(st.capacita_max),0) * 100, 1
+  ), 0)                                                       AS occupazione_pct,
+  COALESCE((
+    SELECT SUM(f2.totale_fattura)
+    FROM fatture f2
+    WHERE f2.comune_key = c.key_name
+      AND f2.stato NOT IN ('PAGATA','ANNULLATA')
+  ), 0)                                                       AS credito_aperto_euro
+FROM comuni c
+LEFT JOIN segnalazioni        s  ON s.comune_key  = c.key_name
+LEFT JOIN registro_anagrafica ra ON ra.comune_key = c.key_name
+LEFT JOIN strutture           st ON st.comune_key = c.key_name
+GROUP BY c.key_name, c.name;
+
+CREATE OR REPLACE VIEW v_trend_segnalazioni_mensile AS
+SELECT
+  comune_key,
+  DATE_FORMAT(created_at, '%Y-%m')    AS mese,
+  COUNT(*)                            AS totale,
+  SUM(stato = 'RISOLTA')              AS risolte,
+  SUM(urgenza IN ('ALTA','CRITICA'))  AS urgenti,
+  SUM(specie = 'CANE')                AS cani,
+  SUM(specie = 'GATTO')               AS gatti
+FROM segnalazioni
+WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+GROUP BY comune_key, DATE_FORMAT(created_at, '%Y-%m')
+ORDER BY comune_key, mese;
+
+CREATE OR REPLACE VIEW v_trend_fatturazione_mensile AS
+SELECT
+  comune_key,
+  DATE_FORMAT(data_emissione, '%Y-%m')  AS mese,
+  COUNT(*)                              AS num_fatture,
+  SUM(totale_fattura)                   AS fatturato,
+  SUM(CASE WHEN stato = 'PAGATA'
+           THEN totale_fattura ELSE 0 END) AS incassato,
+  SUM(CASE WHEN stato NOT IN ('PAGATA','ANNULLATA')
+           THEN totale_fattura ELSE 0 END) AS credito_residuo
+FROM fatture
+WHERE data_emissione >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+GROUP BY comune_key, DATE_FORMAT(data_emissione, '%Y-%m')
+ORDER BY comune_key, mese;
