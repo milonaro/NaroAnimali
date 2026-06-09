@@ -207,6 +207,12 @@ export async function createMySQLTables() {
         interventi_eseguiti INT DEFAULT 0,
         adozioni_concluse INT DEFAULT 0,
         spese_giornaliere DECIMAL(10,2) DEFAULT 0
+    )`,
+    `CREATE TABLE IF NOT EXISTS user_otps (
+        email VARCHAR(150) PRIMARY KEY,
+        otp_code VARCHAR(6) NOT NULL,
+        expires_at DATETIME NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`
   ];
 

@@ -34,14 +34,14 @@ interface LogIntervento {
 }
 
 export default function Operatori() {
-  const [activeTab, setActiveTab] = useState<'statistiche' | 'modulo-b' | 'modulo-c' | 'modulo-adozioni'>('statistiche');
+  const [activeTab, setActiveTab] = useState<'statistiche' | 'modulo-b' | 'modulo-c' | 'modulo-adozioni'>('modulo-b');
   const [activeComune, setActiveComune] = useState(() => (localStorage.getItem('active_comune') || 'naro').toLowerCase());
   const [siteName, setSiteName] = useState("Comune di Naro");
   const [reports, setReports] = useState<Segnalazione[]>([]);
   const [selectedReport, setSelectedReport] = useState<Segnalazione | null>(null);
   const [registro, setRegistro] = useState<RegistroAnimale[]>([]);
   const [logs, setLogs] = useState<LogIntervento[]>([]);
-  const [currentUser, setCurrentUser] = useState<{ id: number; username: string; role: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ id: number; username: string; role: string; comune_key: string } | null>(null);
   const [logsOffset, setLogsOffset] = useState(0);
   const [hasMoreLogs, setHasMoreLogs] = useState(false);
   const [totalLogs, setTotalLogs] = useState(0);
@@ -690,14 +690,16 @@ export default function Operatori() {
           {/* Tab Navigation */}
           <div className="flex flex-col md:flex-row gap-4 mt-8 border-b border-white/10 items-stretch md:items-center">
             <div className="flex gap-4">
-              <button
-                onClick={() => setActiveTab('statistiche')}
-                className={`pb-4 px-2 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
-                  activeTab === 'statistiche' ? 'border-[#15803d] text-white' : 'border-transparent text-slate-400 hover:text-white'
-                }`}
-              >
-                Dashboard Statistiche
-              </button>
+              {(currentUser?.role === 'ADMIN' || currentUser?.role === 'Admin') && (
+                <button
+                  onClick={() => setActiveTab('statistiche')}
+                  className={`pb-4 px-2 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
+                    activeTab === 'statistiche' ? 'border-[#15803d] text-white' : 'border-transparent text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Dashboard Statistiche
+                </button>
+              )}
               <button
                 onClick={() => setActiveTab('modulo-b')}
                 className={`pb-4 px-2 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
@@ -723,7 +725,7 @@ export default function Operatori() {
                 Modulo Adozioni & Costi
               </button>
             </div>
-            {currentUser?.role === 'Admin' && (
+            {(currentUser?.role === 'ADMIN' || currentUser?.role === 'Admin') && (
               <a
                 href="/admin/config"
                 className="pb-4 px-2 font-bold text-sm uppercase tracking-wider transition-all border-b-2 border-transparent text-amber-400 hover:text-amber-300 flex items-center gap-1.5 md:ml-auto"
@@ -1811,71 +1813,73 @@ export default function Operatori() {
             </div>
 
             {/* SEZIONE 3: FATTURAZIONE & LIQUIDAZIONE VETERINARIA */}
-            <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-rose-100 text-rose-700 rounded-xl">
-                    <Briefcase className="h-6 w-6" />
+            {(currentUser?.role === 'ADMIN' || currentUser?.role === 'Admin') && (
+              <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-rose-100 text-rose-700 rounded-xl">
+                      <Briefcase className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-[#1e3a5f] uppercase tracking-wider">Bilancio Liquidazioni & Spese</h3>
+                      <p className="text-xs text-slate-500 font-bold">Disborsi per terapie veterinarie, acquisto microchip, cliniche e fornitori esterni convenzionati</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-xl font-black text-[#1e3a5f] uppercase tracking-wider">Bilancio Liquidazioni & Spese</h3>
-                    <p className="text-xs text-slate-500 font-bold">Disborsi per terapie veterinarie, acquisto microchip, cliniche e fornitori esterni convenzionati</p>
-                  </div>
+                  <button
+                    onClick={() => setShowNuovaFatturaModal(true)}
+                    className="bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs uppercase tracking-wider px-5 py-3.5 rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-rose-600/20 active:scale-95"
+                  >
+                    <Plus className="h-4 w-4" /> Registra Nuova Spesa
+                  </button>
                 </div>
-                <button
-                  onClick={() => setShowNuovaFatturaModal(true)}
-                  className="bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs uppercase tracking-wider px-5 py-3.5 rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-rose-600/20 active:scale-95"
-                >
-                  <Plus className="h-4 w-4" /> Registra Nuova Spesa
-                </button>
-              </div>
 
-              {fatture.length === 0 ? (
-                <div className="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                  <BadgeInfo className="h-8 w-8 text-slate-400 mx-auto mb-2" />
-                  <p className="text-sm font-semibold text-slate-500">Nessuna fattura inserita.</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto rounded-xl border border-slate-100 shadow-sm">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50 text-slate-400 text-[10px] uppercase font-black tracking-widest border-b border-slate-100">
-                        <th className="p-4">Fornitore / Clinica</th>
-                        <th className="p-4">N. Fattura / Protocollo</th>
-                        <th className="p-4">Data Emissione</th>
-                        <th className="p-4">Stato Pagamento</th>
-                        <th className="p-4 text-right">Importo Totale</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-sm font-semibold text-slate-700 bg-white">
-                      {fatture.map((fat) => (
-                        <tr key={fat.id} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="p-4">
-                            <p className="font-extrabold text-slate-800 leading-tight">{fat.fornitore}</p>
-                          </td>
-                          <td className="p-4">
-                            <p className="font-mono text-slate-500 uppercase">{fat.numero_fattura}</p>
-                          </td>
-                          <td className="p-4 text-xs font-bold text-slate-500">
-                            {fat.data_emissione ? new Date(fat.data_emissione).toLocaleDateString("it-IT") : "N.D."}
-                          </td>
-                          <td className="p-4">
-                            <span className={`inline-flex px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
-                              fat.stato === 'PAGATA' ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' : 'bg-rose-50 text-rose-800 border border-rose-100 font-black animate-pulse'
-                            }`}>
-                              {fat.stato}
-                            </span>
-                          </td>
-                          <td className="p-4 text-right font-black text-rose-650">
-                            € {(parseFloat(fat.importo_totale) || 0).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
-                          </td>
+                {fatture.length === 0 ? (
+                  <div className="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                    <BadgeInfo className="h-8 w-8 text-slate-400 mx-auto mb-2" />
+                    <p className="text-sm font-semibold text-slate-500">Nessuna fattura inserita.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-slate-100 shadow-sm">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 text-slate-400 text-[10px] uppercase font-black tracking-widest border-b border-slate-100">
+                          <th className="p-4">Fornitore / Clinica</th>
+                          <th className="p-4">N. Fattura / Protocollo</th>
+                          <th className="p-4">Data Emissione</th>
+                          <th className="p-4">Stato Pagamento</th>
+                          <th className="p-4 text-right">Importo Totale</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-sm font-semibold text-slate-700 bg-white">
+                        {fatture.map((fat) => (
+                          <tr key={fat.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="p-4">
+                              <p className="font-extrabold text-slate-800 leading-tight">{fat.fornitore}</p>
+                            </td>
+                            <td className="p-4">
+                              <p className="font-mono text-slate-500 uppercase">{fat.numero_fattura}</p>
+                            </td>
+                            <td className="p-4 text-xs font-bold text-slate-500">
+                              {fat.data_emissione ? new Date(fat.data_emissione).toLocaleDateString("it-IT") : "N.D."}
+                            </td>
+                            <td className="p-4">
+                              <span className={`inline-flex px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
+                                fat.stato === 'PAGATA' ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' : 'bg-rose-50 text-rose-800 border border-rose-100 font-black animate-pulse'
+                              }`}>
+                                {fat.stato}
+                              </span>
+                            </td>
+                            <td className="p-4 text-right font-black text-rose-650">
+                              € {(parseFloat(fat.importo_totale) || 0).toLocaleString("it-IT", { minimumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* MODAL 1: REGISTRAZIONE PRATICA ADOZIONE */}
             {showNuovaAdozioneModal && (

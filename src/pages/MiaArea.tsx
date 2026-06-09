@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Mail, ShieldCheck, Search, Clock, CheckCircle2, ChevronRight, ArrowLeft, Loader2, MapPin, Activity, HelpCircle, Info, Download, BarChart3, Maximize2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
@@ -31,44 +31,95 @@ export default function MiaArea() {
 
   const [reports, setReports] = useState<Report[]>([]);
 
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      const res = await fetch("/api/otp/me");
+      if (res.ok) {
+        const data = await res.json();
+        setEmail(data.user.email);
+        await loadReports(data.user.email);
+      }
+    } catch (e) {
+      // Not authenticated
+    }
+  };
+
+  const loadReports = async (userEmail: string) => {
+    try {
+      const res = await fetch(`/api/segnalazioni?email=${encodeURIComponent(userEmail)}`);
+      if (res.ok) {
+        const data = await res.json();
+        const mapped: Report[] = data.map((item: any) => ({
+          code: item.codice_tracking || item.codiceTracking || 'N/A',
+          status: item.stato as Report['status'],
+          date: new Date(item.created_at || item.createdAt).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }),
+          desc: item.descrizione,
+          location: item.indirizzo,
+          specie: item.specie,
+          image: item.foto_url || item.fotoUrl || undefined
+        }));
+        setReports(mapped);
+        setStep(3);
+      } else {
+        throw new Error("Impossibile caricare le segnalazioni.");
+      }
+    } catch (e: any) {
+      setError(e.message || "Errore di connessione o caricamento dei dati.");
+    }
+  };
+
   const handleSendOTP = async () => {
     setLoading(true);
     setError(null);
-    // Simulate API delay
-    await new Promise(r => setTimeout(r, 1000));
-    setStep(2);
-    setLoading(false);
+    try {
+      const res = await fetch("/api/otp/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Errore durante l'invio dell'OTP");
+      setStep(2);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleVerifyOTP = async () => {
     setLoading(true);
     setError(null);
     try {
-      // Simulate API verify
-      await new Promise(r => setTimeout(r, 1000));
+      const res = await fetch("/api/otp/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "OTP non valido");
       
-      const res = await fetch(`/api/segnalazioni?email=${encodeURIComponent(email)}`);
-      if (res.ok) {
-        const data = await res.json();
-        const mapped: Report[] = data.map((item: any) => ({
-          code: item.codiceTracking,
-          status: item.stato as Report['status'],
-          date: new Date(item.createdAt).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }),
-          desc: item.descrizione,
-          location: item.indirizzo,
-          specie: item.specie,
-          image: item.fotoUrl || undefined
-        }));
-        setReports(mapped);
-      } else {
-        throw new Error("Impossibile caricare le segnalazioni.");
-      }
-      setStep(3);
+      await loadReports(email);
     } catch (e: any) {
-      setError(e.message || "Errore di connessione o caricamento dei dati.");
+      setError(e.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/otp/logout", { method: "POST" });
+    } catch (e) {}
+    setStep(1);
+    setEmail('');
+    setOtp('');
+    setReports([]);
+    setSelectedReport(null);
   };
 
   const generatePDF = (report: Report) => {
@@ -265,7 +316,7 @@ export default function MiaArea() {
                             <p className="text-xs text-slate-500 font-semibold">Utenza attiva: <span className="text-[#101b3a] font-extrabold">{email}</span></p>
                           </div>
                         </div>
-                        <button onClick={() => window.location.reload()} className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 hover:text-red-600 transition-all py-2.5 px-5 bg-slate-50 border border-slate-200 hover:border-red-200 rounded-xl cursor-pointer">Esci Sessione</button>
+                        <button onClick={handleLogout} className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 hover:text-red-600 transition-all py-2.5 px-5 bg-slate-50 border border-slate-200 hover:border-red-200 rounded-xl cursor-pointer">Esci Sessione</button>
                       </div>
 
                       {/* Chart Section */}

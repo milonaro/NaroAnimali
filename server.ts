@@ -11,6 +11,7 @@ import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import mysqlPool, { getIsMysqlHealthy, setMysqlHealthy } from "./src/lib/mysql";
 import segnalazioniRouter from "./src/pages/api/segnalazioni";
+import otpRouter from "./src/pages/api/otp";
 import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
 import { createMySQLTables, addMySQLColumns } from "./src/lib/mysql_init";
@@ -38,6 +39,7 @@ app.use(express.json({ limit: "20mb" }));
 app.use(cookieParser());
 
 app.use("/api/segnalazioni", segnalazioniRouter);
+app.use("/api/otp", otpRouter);
 
 app.get("/api/admin/me", async (req, res) => {
   const token = req.cookies.admin_token;
