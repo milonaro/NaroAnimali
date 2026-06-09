@@ -34,7 +34,7 @@ interface LogIntervento {
 }
 
 export default function Operatori() {
-  const [activeTab, setActiveTab] = useState<'statistiche' | 'modulo-b' | 'modulo-c'>('statistiche');
+  const [activeTab, setActiveTab] = useState<'statistiche' | 'modulo-b' | 'modulo-c' | 'modulo-adozioni'>('statistiche');
   const [activeComune, setActiveComune] = useState(() => (localStorage.getItem('active_comune') || 'naro').toLowerCase());
   const [siteName, setSiteName] = useState("Comune di Naro");
   const [reports, setReports] = useState<Segnalazione[]>([]);
@@ -497,6 +497,14 @@ export default function Operatori() {
                 }`}
               >
                 Modulo C — Archivio Anagrafico Digitale
+              </button>
+              <button
+                onClick={() => setActiveTab('modulo-adozioni')}
+                className={`pb-4 px-2 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
+                  activeTab === 'modulo-adozioni' ? 'border-[#15803d] text-white' : 'border-transparent text-slate-400 hover:text-white'
+                }`}
+              >
+                Modulo Adozioni & Costi
               </button>
             </div>
             {currentUser?.role === 'Admin' && (
@@ -1318,6 +1326,51 @@ export default function Operatori() {
               </div>
             )}
 
+          </div>
+                ) : activeTab === 'modulo-adozioni' ? (
+          /* ================= MODULO ADOZIONI & COSTI ================= */
+          <div className="space-y-8 animate-fade-in">
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+              <div className="flex items-center gap-3 mb-6">
+                 <Building className="h-6 w-6 text-indigo-600" />
+                 <h2 className="text-xl font-black uppercase text-[#1e3a5f] tracking-widest">Gestione Pratiche Adozione & Finanze</h2>
+              </div>
+              <p className="text-sm text-slate-500 mb-6">Integrazione con le tabelle ANIMALHUB PA. Da questo pannello è possibile gestire le adozioni e visualizzare i costi.</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                <div className="border border-slate-100 p-6 rounded-xl bg-slate-50 relative overflow-hidden">
+                   <h3 className="font-bold text-slate-700 uppercase tracking-wider text-sm mb-4">Costi Mensili Convenzioni</h3>
+                   <div className="text-3xl font-black text-rose-600 mb-2">€ 1.450,00</div>
+                   <div className="text-xs text-slate-500 uppercase font-bold tracking-wider">Mese Corrente</div>
+                   
+                   <div className="mt-6 flex flex-col gap-2">
+                     <button className="bg-white border border-slate-200 text-xs font-bold uppercase p-3 rounded text-slate-600 hover:text-indigo-600 transition-colors text-left">
+                        Gestione Costi/Voci
+                     </button>
+                     <button className="bg-white border border-slate-200 text-xs font-bold uppercase p-3 rounded text-slate-600 hover:text-indigo-600 transition-colors text-left">
+                        Fatture Fornitori
+                     </button>
+                   </div>
+                </div>
+
+                <div className="border border-slate-100 p-6 rounded-xl bg-indigo-50 relative overflow-hidden">
+                   <h3 className="font-bold text-indigo-900 uppercase tracking-wider text-sm mb-4">Richieste Adozione / Affido</h3>
+                   <div className="text-3xl font-black text-indigo-600 mb-2">3 In Attesa</div>
+                   <div className="text-xs text-indigo-400 uppercase font-bold tracking-wider">Da Registro Anagrafe</div>
+                   
+                   <div className="mt-6 flex flex-col gap-2">
+                     <button className="bg-white border border-indigo-100 text-xs font-bold uppercase p-3 rounded text-indigo-700 hover:bg-indigo-600 hover:text-white transition-colors shadow-sm text-left">
+                        Approva Adozione
+                     </button>
+                     <button className="bg-white border border-indigo-100 text-xs font-bold uppercase p-3 rounded text-indigo-700 hover:bg-indigo-600 hover:text-white transition-colors shadow-sm text-left">
+                        Storico Affidi / Subentri
+                     </button>
+                   </div>
+                </div>
+
+              </div>
+            </div>
           </div>
         ) : null}
       </div>

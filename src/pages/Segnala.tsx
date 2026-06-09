@@ -3,8 +3,6 @@ import AppMap from '@/src/components/map/Map';
 import { PawPrint, MapPin, CheckCircle2, User, WifiOff, Dog, Cat, MoreHorizontal, ShieldCheck, Info, Heart, AlertTriangle, Users, Baby, Thermometer, ChevronRight, ArrowLeft, ArrowRight, Camera } from 'lucide-react';
 import { Segnalazione, AnimalSpecie } from '@/src/types';
 import { isInTerritorio } from '@/src/lib/geofence';
-import { storage } from '@/src/lib/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { motion, AnimatePresence } from 'motion/react';
 import { OfflineStore } from '@/src/lib/offline';
 import { Link } from 'react-router-dom';
@@ -219,9 +217,32 @@ export default function Segnala() {
       let fotoUrl = "";
       if (photo) {
         const compressedBlob = await compressImage(photo);
-        const storageRef = ref(storage, `segnalazioni/${Date.now()}_${photo.name.replace(/\.[^/.]+$/, "")}.jpg`);
-        const snapshot = await uploadBytes(storageRef, compressedBlob);
-        fotoUrl = await getDownloadURL(snapshot.ref);
+        
+        // Convert Blob to Base64
+        const base64Data = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(compressedBlob);
+        });
+
+        // Caricamento locale sul server
+        const uploadRes = await fetch('/api/segnalazioni/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: photo.name,
+            base64: base64Data
+          })
+        });
+
+        if (!uploadRes.ok) {
+          throw new Error("Impossibile caricare l'immagine sul server remoto.");
+        }
+
+        const uploadData = await uploadRes.json();
+        if (uploadData.error) throw new Error(uploadData.error);
+        fotoUrl = uploadData.url;
       }
 
       const res = await fetch('/api/segnalazioni', {
@@ -284,38 +305,36 @@ export default function Segnala() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col pt-20">
-      {/* Hero Section */}
-      <section className="bg-[#101b3a] py-20 lg:py-24 relative overflow-hidden">
-        <div className="absolute inset-0 z-0">
-          <img 
-            src="https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&q=80&w=2000" 
-            className="w-full h-full object-cover opacity-20"
-            alt="Animal rescue background"
-          />
-        </div>
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full border border-white/20 mb-6 backdrop-blur-md">
-              <ShieldCheck className="h-4 w-4 text-emerald-400" />
-              <span className="text-[10px] font-black text-white uppercase tracking-widest">Protocollo Digitale Sicuro</span>
+    <div className="bg-gray-50 flex flex-col pt-28 pb-16 min-h-screen">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex flex-col gap-6 flex-1">
+        
+        {/* Modern Header block */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-sm flex flex-col gap-5 transition-all">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15803d]">Protocollo Civico Digitale</span>
+              <h1 className="text-2xl sm:text-3xl font-black text-[#101b3a] tracking-tight mt-0.5">Nuova Segnalazione</h1>
+              <p className="text-xs text-slate-500 font-bold uppercase mt-1 tracking-wider text-left">
+                Modulo controllato A per la tutela di fauna e animali vaganti a <span className="text-[#101b3a] font-extrabold">Naro</span>.
+              </p>
             </div>
-            <h1 className="text-4xl lg:text-6xl font-bold text-white mb-6 tracking-tight">
-              Nuova Segnalazione
-            </h1>
-            <p className="text-white/60 text-lg max-w-2xl mx-auto leading-relaxed">
-              Il tuo contributo è fondamentale per la tutela degli animali di Naro.
-            </p>
-          </motion.div>
+            
+            {/* Quick stats / safety indicators */}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="px-3 border border-slate-200/60 rounded-xl flex items-center gap-2 h-9 bg-slate-50/50">
+                <span className="w-2 h-2 rounded-full bg-[#15803d]" />
+                <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Connessione SSL</span>
+              </div>
+              <div className="px-3 border border-amber-200/60 rounded-xl flex items-center gap-2 h-9 bg-amber-50/50">
+                <span className="w-2 h-2 rounded-full bg-amber-500" />
+                <span className="text-[10px] font-black uppercase text-amber-700 tracking-wider">Validità DPR 445/2000</span>
+              </div>
+            </div>
+          </div>
         </div>
-      </section>
 
-      <div className="max-w-7xl mx-auto py-16 px-4 flex-1 w-full">
         {/* Progress Stepper */}
-        <div className="flex flex-wrap justify-center items-center gap-4 mb-10 px-4">
+        <div className="flex flex-wrap justify-center items-center gap-4 mb-4 px-4 bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm w-full">
         {steps.map((s, i) => (
           <React.Fragment key={s.id}>
             <div className="flex items-center gap-3">
@@ -342,11 +361,11 @@ export default function Segnala() {
           initial={{ opacity: 0, x: 20 }} 
           animate={{ opacity: 1, x: 0 }} 
           exit={{ opacity: 0, x: -20 }}
-          className="bg-white border border-gray-100 rounded-lg shadow-2xl shadow-black/5 overflow-hidden min-h-[600px] flex flex-col"
+          className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden min-h-[600px] flex flex-col w-full"
         >
           {/* Visual Progress Bar and Percentage Tracker */}
-          <div className="bg-gray-50/50 border-b border-gray-100 p-6">
-            <div className="flex justify-between items-center mb-3 max-w-4xl mx-auto">
+          <div className="bg-slate-50/50 border-b border-gray-100 p-6">
+            <div className="flex justify-between items-center mb-3">
               <span className="text-[10px] font-black text-[#15803d] uppercase tracking-widest flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 Stato Compilazione
@@ -355,7 +374,7 @@ export default function Segnala() {
                 {Math.round((step / steps.length) * 100)}% Completato
               </span>
             </div>
-            <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden border border-gray-200/40 p-[1px] max-w-4xl mx-auto">
+            <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden border border-gray-200/40 p-[1px]">
               <motion.div
                 className="h-full bg-gradient-to-r from-emerald-500 to-[#15803d] rounded-full"
                 initial={{ width: 0 }}
@@ -368,7 +387,7 @@ export default function Segnala() {
             </p>
           </div>
 
-          <div className="p-10 md:p-16 flex-1">
+          <div className="p-6 md:p-10 flex-1">
             {step === 1 && (
               <div className="space-y-8 flex flex-col h-full">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

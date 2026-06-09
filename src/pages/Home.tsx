@@ -6,6 +6,7 @@ import { Joyride } from 'react-joyride';
 import { useState, useEffect, useMemo } from 'react';
 import { db } from '@/src/lib/firebase';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { COMUNI } from '@/src/lib/geofence';
 
 interface SegnalazioneDoc {
   id: string;
@@ -48,6 +49,10 @@ export default function Home() {
   const cityName = useMemo(() => {
     return siteName.replace("Comune di ", "");
   }, [siteName]);
+
+  const currentComuneInfo = useMemo(() => {
+    return COMUNI[activeComune] || COMUNI.naro;
+  }, [activeComune]);
 
   const [runTour, setRunTour] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -280,7 +285,11 @@ export default function Home() {
         }}
       />
       {/* Hero Section with Slider */}
-      <section id="hero-step" className="relative h-screen min-h-[600px] overflow-hidden">
+      <section id="hero-step" className="relative min-h-[90vh] lg:h-[800px] overflow-hidden bg-[#101b3a] flex items-center pt-32 pb-16 lg:py-0">
+        {/* Subtle geometric line design overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.012)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.012)_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none z-20 opacity-40" />
+        <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#101b3a] to-transparent pointer-events-none z-20" />
+
         <AnimatePresence mode="wait">
           {currentSlide === 0 ? (
             <motion.div
@@ -288,45 +297,18 @@ export default function Home() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 1 }}
-              className="absolute inset-0 bg-[#14532d]"
+              transition={{ duration: 0.8 }}
+              className="absolute inset-0"
             >
-              <div className="absolute inset-0 bg-black/40 z-10" />
+              <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-transparent z-10" />
               <motion.img
-                initial={{ scale: 1.1 }}
-                animate={{ scale: 1 }}
-                transition={{ duration: 10 }}
+                initial={{ scale: 1.12, filter: "blur(2px)" }}
+                animate={{ scale: 1, filter: "blur(0px)" }}
+                transition={{ duration: 8 }}
                 src="https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&q=80&w=2000"
                 alt="Tutela Animali"
-                className="absolute inset-0 w-full h-full object-cover opacity-60"
+                className="absolute inset-0 w-full h-full object-cover opacity-70"
               />
-              <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex flex-col justify-center pt-24">
-                <motion.div 
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5, duration: 0.8 }}
-                  className="max-w-3xl"
-                >
-                  <div className="flex items-center gap-3 mb-8">
-                    <PawPrint className="h-10 w-10 text-white fill-white/20" />
-                    <span className="text-white font-bold uppercase tracking-[0.3em] text-xs">{siteName}</span>
-                  </div>
-                  <h1 className="text-5xl lg:text-7xl font-bold text-white mb-8 tracking-tight leading-tight">
-                    Segnala un animale randagio a {cityName}
-                  </h1>
-                  <p className="text-white/80 text-xl mb-12 leading-relaxed max-w-xl font-medium">
-                    Aiutaci a tutelare gli animali del nostro territorio. Con una segnalazione puoi contribuire alla loro sicurezza.
-                  </p>
-                  <div className="flex flex-wrap gap-4">
-                    <Link id="segnala-step" to="/segnala" className="bg-[#15803d] text-white px-8 py-4 rounded-lg font-bold text-lg hover:bg-[#166534] transition-all flex items-center gap-3 shadow-2xl">
-                      <MapPin className="h-5 w-5" /> Fai una segnalazione
-                    </Link>
-                    <Link to="/mia-area" className="bg-white/10 text-white px-8 py-4 rounded-lg font-bold text-lg hover:bg-white/20 transition-all flex items-center gap-3 border border-white/20 backdrop-blur-md">
-                      <Search className="h-5 w-5" /> Monitora segnalazione
-                    </Link>
-                  </div>
-                </motion.div>
-              </div>
             </motion.div>
           ) : (
             <motion.div
@@ -334,60 +316,205 @@ export default function Home() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 1 }}
-              className="absolute inset-0 bg-[#101b3a]"
+              transition={{ duration: 0.8 }}
+              className="absolute inset-0"
             >
-              <div className="absolute inset-0 bg-black/40 z-10" />
+              <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-transparent z-10" />
               <motion.img
-                initial={{ scale: 1.1 }}
-                animate={{ scale: 1 }}
-                transition={{ duration: 10 }}
+                initial={{ scale: 1.12, filter: "blur(2px)" }}
+                animate={{ scale: 1, filter: "blur(0px)" }}
+                transition={{ duration: 8 }}
                 src="https://images.unsplash.com/photo-1543852786-1cf6624b9987?auto=format&fit=crop&q=80&w=2000"
                 alt="Monitoraggio Territorio"
-                className="absolute inset-0 w-full h-full object-cover opacity-60"
+                className="absolute inset-0 w-full h-full object-cover opacity-70"
               />
-              <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex flex-col justify-center pt-24">
-                <motion.div 
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5, duration: 0.8 }}
-                  className="max-w-3xl"
-                >
-                  <div className="flex items-center gap-3 mb-8">
-                    <ShieldCheck className="h-10 w-10 text-white fill-white/20" />
-                    <span className="text-white font-bold uppercase tracking-[0.3em] text-xs">Sicurezza e Tutela</span>
-                  </div>
-                  <h1 className="text-5xl lg:text-7xl font-bold text-white mb-8 tracking-tight leading-tight">
-                    Un impegno diretto per la biodiversità
-                  </h1>
-                  <p className="text-white/80 text-xl mb-12 leading-relaxed max-w-xl font-medium">
-                    Monitoriamo costantemente la fauna urbana per garantire una convivenza armoniosa tra cittadini e natura.
-                  </p>
-                  <div className="flex flex-wrap gap-4">
-                    <Link to="/segnala" className="bg-[#15803d] text-white px-8 py-4 rounded-lg font-bold text-lg hover:bg-[#166534] transition-all flex items-center gap-3 shadow-2xl">
-                      <MapPin className="h-5 w-5" /> Fai una segnalazione
-                    </Link>
-                    <Link to="/mia-area" className="bg-white/10 text-white px-8 py-4 rounded-lg font-bold text-lg hover:bg-white/20 transition-all flex items-center gap-3 border border-white/20 backdrop-blur-md">
-                      <Search className="h-5 w-5" /> Monitora segnalazione
-                    </Link>
-                  </div>
-                </motion.div>
-              </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Slider Navigation */}
-        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-30 flex gap-3">
-          {[0, 1].map((i) => (
-            <button
-              key={i}
-              onClick={() => setCurrentSlide(i)}
-              className={`h-1.5 rounded-full transition-all duration-500 ${
-                currentSlide === i ? 'w-12 bg-white' : 'w-3 bg-white/40'
-              }`}
-            />
-          ))}
+        <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-center">
+            {/* Left Col: Dynamic text content */}
+            <div className="lg:col-span-7 text-left">
+              <AnimatePresence mode="wait">
+                {currentSlide === 0 ? (
+                  <motion.div
+                    key="content1"
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -30 }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
+                    className="space-y-6"
+                  >
+                    <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 bg-emerald-500/15 border border-emerald-500/30 rounded-xl backdrop-blur-md">
+                      <PawPrint className="h-5 w-5 text-emerald-400 fill-emerald-400/20" />
+                      <span className="text-emerald-300 font-extrabold uppercase tracking-[0.25em] text-[10px]">{siteName}</span>
+                    </div>
+                    <h1 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold text-white tracking-tight leading-[1.05] drop-shadow-md">
+                      Proteggi e <br />
+                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-[#15803d]">segnala il randagismo</span>
+                    </h1>
+                    <p className="text-slate-300 text-base sm:text-lg leading-relaxed max-w-xl font-medium">
+                      Servizio istituzionale del Comune per la segnalazione geolocalizzata controllata. Ogni segnalazione attiva soccorso, tutela e adozione consapevole.
+                    </p>
+                    <div className="flex flex-wrap gap-4 pt-4">
+                      <Link 
+                        id="segnala-step" 
+                        to="/segnala" 
+                        className="bg-[#15803d] text-white px-8 py-4 rounded-xl font-extrabold text-base hover:bg-[#166534] transition-all flex items-center gap-3 shadow-xl hover:shadow-emerald-900/30 hover:-translate-y-0.5 cursor-pointer"
+                      >
+                        <MapPin className="h-5 w-5" /> Fai una Segnalazione
+                      </Link>
+                      <Link 
+                        to="/mia-area" 
+                        className="bg-white/10 hover:bg-white/15 text-white px-8 py-4 rounded-xl font-bold text-base transition-all flex items-center gap-3 border border-white/20 backdrop-blur-md hover:-translate-y-0.5 cursor-pointer"
+                      >
+                        <Search className="h-5 w-5 text-emerald-400" /> Verifica Pratica
+                      </Link>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="content2"
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -30 }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
+                    className="space-y-6"
+                  >
+                    <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 bg-amber-500/15 border border-amber-500/30 rounded-xl backdrop-blur-md">
+                      <ShieldCheck className="h-5 w-5 text-amber-400 fill-amber-400/20" />
+                      <span className="text-amber-300 font-extrabold uppercase tracking-[0.25em] text-[10px]">Polizia e Controllo Sanitario</span>
+                    </div>
+                    <h1 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold text-white tracking-tight leading-[1.05] drop-shadow-md">
+                      Salvaguardia della <br />
+                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-600">biodiversità urbana</span>
+                    </h1>
+                    <p className="text-slate-300 text-base sm:text-lg leading-relaxed max-w-xl font-medium">
+                      Strumenti innovativi integrati negli uffici comunali per la convivenza serena e coordinata tra cittadini, fauna locale e territori rurali.
+                    </p>
+                    <div className="flex flex-wrap gap-4 pt-4">
+                      <Link 
+                        to="/segnala" 
+                        className="bg-[#15803d] text-white px-8 py-4 rounded-xl font-extrabold text-base hover:bg-[#166534] transition-all flex items-center gap-3 shadow-xl hover:shadow-emerald-950/20 hover:-translate-y-0.5 cursor-pointer"
+                      >
+                        <MapPin className="h-5 w-5" /> Fai una Segnalazione
+                      </Link>
+                      <Link 
+                        to="/mia-area" 
+                        className="bg-white/10 hover:bg-white/15 text-white px-8 py-4 rounded-xl font-bold text-base transition-all flex items-center gap-3 border border-white/20 backdrop-blur-md hover:-translate-y-0.5 cursor-pointer"
+                      >
+                        <Search className="h-5 w-5 text-amber-400" /> Verifica Pratica
+                      </Link>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Right Col: High-fidelity Custom Tab/Indicator controls as sidebar info-cards */}
+            <div className="lg:col-span-5 flex flex-col sm:flex-row lg:flex-col gap-4 w-full pt-6 lg:pt-0">
+              {[
+                { id: 0, title: "Tutela & Soccorso", step: "Modulo A", desc: "Gestione randagismo, soccorso ordinario/urgente ed affidamenti digitali certificati.", highlight: "from-emerald-500/10 to-emerald-500/20", activeBg: 'bg-emerald-950/40 border-emerald-500/60 text-white shadow-xl shadow-emerald-950/40' },
+                { id: 1, title: "Sicurezza Urbana", step: "Modulo B", desc: "Monitoraggio biodiversità, presidi di controllo fitti e inquadramento catastale.", highlight: "from-amber-500/10 to-amber-500/20", activeBg: 'bg-amber-950/40 border-amber-500/60 text-white shadow-xl shadow-amber-950/40' }
+              ].map((tab) => {
+                const isActive = currentSlide === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setCurrentSlide(tab.id)}
+                    className={`flex-1 text-left p-6 rounded-2xl cursor-pointer border transition-all duration-300 relative group flex items-start gap-4 backdrop-blur-md overflow-hidden ${
+                      isActive 
+                        ? tab.activeBg
+                        : 'bg-[#101b3a]/40 hover:bg-[#101b3a]/65 border-white/10 text-slate-400 hover:text-white hover:border-white/20 hover:scale-[1.01]'
+                    }`}
+                  >
+                    {/* Background mini glowing gradient if active */}
+                    {isActive && (
+                      <div className={`absolute inset-0 bg-gradient-to-br ${tab.highlight} pointer-events-none opacity-40 z-0`} />
+                    )}
+                    
+                    {/* Side indicator marker */}
+                    <div className="relative z-10 flex flex-col items-center">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs transition-colors shrink-0 ${
+                        isActive 
+                          ? tab.id === 0 ? 'bg-[#15803d] text-white shadow-md' : 'bg-amber-500 text-slate-950 shadow-md'
+                          : 'bg-white/10 text-slate-300'
+                      }`}>
+                        {tab.id === 0 ? <PawPrint className="w-5 h-5 animate-pulse" /> : <ShieldCheck className="w-5 h-5 animate-pulse" />}
+                      </div>
+                      <span className="text-[9px] font-black uppercase tracking-wider block mt-2 text-center text-slate-400 leading-none shrink-0">{tab.step}</span>
+                    </div>
+
+                    <div className="relative z-10 space-y-1">
+                      <p className="text-sm font-black tracking-tight leading-none pt-1">{tab.title}</p>
+                      <p className="text-xs text-slate-300/80 leading-relaxed font-semibold">{tab.desc}</p>
+                      {isActive && (
+                        <div className="flex items-center gap-1.5 pt-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          <span className="text-[9px] uppercase font-black tracking-widest text-[#22c55e]">Modulo in evidenza</span>
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Sezione Dati Catastali Hub Comunale */}
+      <section className="py-12 bg-slate-50 border-y border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm transition-all hover:shadow-md">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 pb-6 border-b border-slate-100">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-emerald-100 text-emerald-800 rounded-xl">
+                  <ShieldCheck className="h-6 w-6" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15803d]">Inquadramento Catastale Istituzionale</span>
+                  <h3 className="text-xl sm:text-2xl font-black text-[#101b3a] tracking-tight mt-0.5">
+                    Hub Veterinario & Sede di Primo Soccorso - {cityName}
+                  </h3>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#15803d]/10 text-[#15803d]">
+                  Codice Belfiore: <strong className="font-extrabold">{currentComuneInfo?.codiceCatastale || 'N.D.'}</strong>
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 text-left">
+              <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-100">
+                <span className="text-[8px] sm:text-[10px] uppercase font-bold text-slate-400 block mb-0.5 sm:mb-1">Superficie</span>
+                <p className="text-xs sm:text-lg font-black text-slate-800">{currentComuneInfo?.superficieTotaleKm2 ? `${currentComuneInfo.superficieTotaleKm2} km²` : 'Non Specificata'}</p>
+              </div>
+              <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-100">
+                <span className="text-[8px] sm:text-[10px] uppercase font-bold text-slate-400 block mb-0.5 sm:mb-1">Foglio</span>
+                <p className="text-xs sm:text-lg font-black text-slate-800">{currentComuneInfo?.foglioCatastaleHub ? `Foglio ${currentComuneInfo.foglioCatastaleHub}` : 'Non Specificato'}</p>
+              </div>
+              <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-100">
+                <span className="text-[8px] sm:text-[10px] uppercase font-bold text-slate-400 block mb-0.5 sm:mb-1">Particella</span>
+                <p className="text-xs sm:text-lg font-black text-slate-800">{currentComuneInfo?.particellaCatastaleHub ? `Part. ${currentComuneInfo.particellaCatastaleHub}` : 'Non Specificata'}</p>
+              </div>
+              <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-100">
+                <span className="text-[8px] sm:text-[10px] uppercase font-bold text-slate-400 block mb-0.5 sm:mb-1">Estensione Hub</span>
+                <p className="text-xs sm:text-lg font-black text-slate-800">{currentComuneInfo?.estensioneEttariHub ? `${currentComuneInfo.estensioneEttariHub} ettari` : 'Non Specificata'}</p>
+              </div>
+            </div>
+
+            {currentComuneInfo?.datiCatastaliCompleti && (
+              <div className="mt-6 p-4 bg-emerald-50/50 rounded-xl border border-emerald-100/50 text-left">
+                <span className="text-[9px] uppercase font-black text-emerald-800 tracking-wider block mb-1.5">Note Integrative & Visura Certificata Hub</span>
+                <p className="text-xs sm:text-sm font-semibold text-slate-700 leading-relaxed">
+                  {currentComuneInfo.datiCatastaliCompleti}
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
@@ -401,34 +528,34 @@ export default function Home() {
              <p className="text-slate-700 font-semibold text-lg">Quattro semplici passaggi per garantire la protezione ai randagi.</p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8 lg:gap-12">
             {[
               { 
                 step: "01", 
                 title: "Identifica", 
                 desc: "Se vedi un cane o un gatto in difficoltà sul territorio di Naro.",
-                icon: <Search className="h-6 w-6 text-emerald-600" />,
-                img: "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&q=80&w=600"
+                icon: <Search className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-400" />,
+                img: "https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=600"
               },
               { 
                 step: "02", 
                 title: "Localizza", 
                 desc: "Usa la mappa interattiva per indicare il punto esatto del ritrovamento.",
-                icon: <MapPin className="h-6 w-6 text-blue-600" />,
-                img: "https://images.unsplash.com/photo-1513360309081-36f5e878fc11?auto=format&fit=crop&q=80&w=600"
+                icon: <MapPin className="h-4 w-4 sm:h-5 sm:w-5 text-blue-400" />,
+                img: "https://images.unsplash.com/photo-1569336415962-a4bd9f69cd83?auto=format&fit=crop&q=80&w=600"
               },
               { 
                 step: "03", 
                 title: "Protocolla", 
                 desc: "Aggiungi foto e dettagli. Il sistema genera un codice unico di tracking COF.",
-                icon: <Briefcase className="h-6 w-6 text-amber-600" />,
-                img: "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&q=80&w=600"
+                icon: <Briefcase className="h-4 w-4 sm:h-5 sm:w-5 text-amber-400" />,
+                img: "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&q=80&w=600"
               },
               { 
                 step: "04", 
                 title: "Monitora", 
                 desc: "Segui in tempo reale l'intervento e l'affidamento degli operatori comunali.",
-                icon: <CheckCircle className="h-6 w-6 text-emerald-600" />,
+                icon: <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-400" />,
                 img: "https://images.unsplash.com/photo-1544568100-847a948585b9?auto=format&fit=crop&q=80&w=600"
               }
             ].map((item, i) => (
@@ -438,20 +565,38 @@ export default function Home() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="relative group flex flex-col"
+                className="relative group flex flex-col rounded-2xl overflow-hidden aspect-[3/4] sm:aspect-[4/5] shadow-lg border border-slate-200/50 cursor-pointer bg-[#0c142b] text-left"
               >
-                <div className="mb-8 relative rounded-lg overflow-hidden aspect-[4/5] shadow-2xl group-hover:scale-[1.02] transition-transform duration-500">
-                  <img src={item.img} alt={item.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
-                  <div className="absolute bottom-6 left-6 right-6">
-                    <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-lg flex items-center justify-center mb-4">
+                {/* Background Image with blur, opacity, scale transitions */}
+                <div className="absolute inset-0 z-0">
+                  <img 
+                    src={item.img} 
+                    alt={item.title} 
+                    className="w-full h-full object-cover opacity-50 filter blur-[1px] brightness-75 group-hover:scale-105 group-hover:blur-0 transition-transform duration-1000" 
+                  />
+                  {/* Absolute gradient vignettes to ensure maximum legibility of the overlaid text */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/80 to-transparent"></div>
+                  <div className="absolute inset-0 bg-black/40 mix-blend-multiply"></div>
+                </div>
+
+                {/* Overlaid UI content */}
+                <div className="relative z-10 p-3 sm:p-6 flex flex-col justify-between h-full">
+                  {/* Top bar with Step number and Icon container */}
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-white/40 font-black text-xs sm:text-lg tracking-widest">{item.step}</span>
+                    <div className="w-8 h-8 sm:w-11 sm:h-11 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center shrink-0 border border-white/15 shadow-sm">
                       {item.icon}
                     </div>
-                    <span className="text-white/40 font-black text-4xl block mb-2">{item.step}</span>
-                    <h3 className="text-2xl font-black text-white">{item.title}</h3>
+                  </div>
+
+                  {/* Bottom details block */}
+                  <div className="space-y-1.5 sm:space-y-2">
+                    <h3 className="text-sm sm:text-xl font-black text-white tracking-tight">{item.title}</h3>
+                    <p className="text-[10px] sm:text-xs font-semibold text-slate-300 leading-relaxed sm:leading-relaxed">
+                      {item.desc}
+                    </p>
                   </div>
                 </div>
-                <p className="text-slate-800 font-semibold md:text-base text-sm md:text-left text-center md:px-0 px-4 leading-relaxed">{item.desc}</p>
               </motion.div>
             ))}
           </div>
@@ -535,7 +680,7 @@ export default function Home() {
           </div>
 
           {/* Animals Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-8">
             <AnimatePresence mode="popLayout">
               {filteredAnimals.map((animal) => (
                 <motion.div
@@ -544,41 +689,41 @@ export default function Home() {
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
-                  className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-2xl border border-gray-100 transition-all group flex flex-col h-full bg-slate-50 cursor-pointer"
+                  className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-2xl border border-gray-100 transition-all group flex flex-col h-full bg-slate-50 cursor-pointer"
                   onClick={() => navigate(`/mappa?id=${animal.id}`)}
                 >
-                  <div className="relative h-64 overflow-hidden">
+                  <div className="relative h-32 sm:h-48 lg:h-64 overflow-hidden">
                     <img src={animal.fotoUrl || 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&q=80&w=600'} alt={animal.specie} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
-                    <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest text-[#15803d]">
+                    <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-md px-2 py-0.5 rounded-full text-[7px] sm:text-[8px] font-black uppercase tracking-widest text-[#15803d]">
                       {animal.specie}
                     </div>
                   </div>
-                  <div className="p-8 flex flex-col flex-1">
-                    <div className="flex justify-between items-start mb-4">
-                      <h3 className="text-2xl font-black text-[#101b3a]">{animal.specie} {animal.colore}</h3>
-                      <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg ${
-                        animal.stato === 'CREATA' ? 'bg-blue-50 text-blue-600' :
+                  <div className="p-3 sm:p-6 lg:p-8 flex flex-col flex-1">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1.5 sm:gap-4 mb-2 sm:mb-4">
+                      <h3 className="text-xs sm:text-lg lg:text-2xl font-black text-[#101b3a] line-clamp-1">{animal.specie} {animal.colore}</h3>
+                      <div className={`flex items-center gap-1 px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg ${
+                        animal.stato === 'CREATA' ? 'bg-blue-550/10 text-blue-600' :
                         animal.stato === 'IN_CARICO' ? 'bg-amber-50 text-amber-600' :
                         animal.stato === 'INTERVENTO' ? 'bg-emerald-50 text-emerald-600' :
                         'bg-indigo-50 text-indigo-600'
                       }`}>
-                        {animal.stato === 'CREATA' && <Clock className="h-3 w-3" />}
-                        {animal.stato === 'IN_CARICO' && <AlertCircle className="h-3 w-3" />}
-                        {animal.stato === 'INTERVENTO' && <MousePointer2 className="h-3 w-3" />}
-                        {animal.stato === 'CHIUSA' && <CheckCircle2 className="h-3 w-3" />}
-                        <span className="text-[9px] font-black uppercase tracking-widest">{animal.stato}</span>
+                        {animal.stato === 'CREATA' && <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3" />}
+                        {animal.stato === 'IN_CARICO' && <AlertCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3" />}
+                        {animal.stato === 'INTERVENTO' && <MousePointer2 className="h-2.5 w-2.5 sm:h-3 sm:w-3" />}
+                        {animal.stato === 'CHIUSA' && <CheckCircle2 className="h-2.5 w-2.5 sm:h-3 sm:w-3" />}
+                        <span className="text-[7px] sm:text-[9px] font-black uppercase tracking-widest">{animal.stato}</span>
                       </div>
                     </div>
-                    <p className="text-slate-700 text-xs font-bold uppercase tracking-widest mb-6 flex items-center gap-2">
-                       {animal.specie === 'CANE' ? <Dog className="h-3 w-3 text-[#15803d]" /> : <Cat className="h-3 w-3 text-[#15803d]" />} {animal.taglia}
+                    <p className="text-slate-700 text-[8px] sm:text-xs font-bold uppercase tracking-widest mb-3 sm:mb-6 flex items-center gap-1 sm:gap-2">
+                       {animal.specie === 'CANE' ? <Dog className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5 text-[#15803d]" /> : <Cat className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5 text-[#15803d]" />} {animal.taglia}
                     </p>
-                    <div className="mt-auto pt-6 border-t border-gray-100 flex items-center justify-between">
-                       <div className="flex items-center gap-2">
-                          <MapPin className="h-3.5 w-3.5 text-[#15803d]" />
-                          <span className="text-[10px] font-bold text-slate-800 line-clamp-1">{animal.indirizzo || 'Naro'}</span>
+                    <div className="mt-auto pt-3 sm:pt-6 border-t border-gray-100 flex items-center justify-between">
+                       <div className="flex items-center gap-1 sm:gap-2 min-w-0">
+                          <MapPin className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[#15803d] shrink-0" />
+                          <span className="text-[8px] sm:text-[10px] font-bold text-slate-800 line-clamp-1">{animal.indirizzo || 'Naro'}</span>
                        </div>
-                       <div className="p-2 bg-emerald-50 text-[#15803d] rounded-lg group-hover:bg-[#15803d] group-hover:text-white transition-colors">
-                          <ArrowRight className="h-4 w-4" />
+                       <div className="p-1 sm:p-2 bg-emerald-50 text-[#15803d] rounded-lg group-hover:bg-[#15803d] group-hover:text-white transition-colors shrink-0">
+                          <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4" />
                        </div>
                     </div>
                   </div>

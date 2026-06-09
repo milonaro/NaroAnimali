@@ -135,118 +135,142 @@ export default function MiaArea() {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto pt-32 pb-20 px-4 min-h-[70vh] flex flex-col justify-center">
-      <AnimatePresence mode="wait">
-        {step === 1 && (
-          <motion.div 
-            key="step1" 
-            initial={{ opacity: 0, y: 20 }} 
-            animate={{ opacity: 1, y: 0 }} 
-            exit={{ opacity: 0, y: -20 }} 
-            transition={{ type: "spring", stiffness: 200, damping: 25 }}
-            className="max-w-md mx-auto w-full"
-          >
-            <div className="text-center mb-12">
-              <div className="bg-emerald-50 w-20 h-20 rounded-lg flex items-center justify-center mx-auto mb-6 shadow-xl shadow-emerald-500/10">
-                <Mail className="text-[#15803d] h-8 w-8" />
-              </div>
-              <h1 className="text-4xl font-bold text-[#1e3a5f]">Mia Area</h1>
-              <p className="text-gray-500 font-medium mt-3">Inserisci la tua email per visualizzare lo stato delle tue segnalazioni.</p>
+    <div className="bg-gray-50 flex flex-col pt-28 pb-16 min-h-screen">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex flex-col gap-6 flex-1">
+        
+        {/* Modern Header block */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-sm flex flex-col gap-5 transition-all">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15803d]">Fascicolo Elettronico del Cittadino</span>
+              <h1 className="text-2xl sm:text-3xl font-black text-[#101b3a] tracking-tight mt-0.5">Mia Area Riservata</h1>
+              <p className="text-xs text-slate-500 font-bold uppercase mt-1 tracking-wider text-left">
+                Verifica lo stato di avanzamento delle tue segnalazioni di soccorso a <span className="text-[#101b3a] font-extrabold">Naro</span>.
+              </p>
             </div>
             
-            <div className="bg-white p-10 rounded-lg border border-gray-100 shadow-2xl shadow-black/5 space-y-8">
-              <div className="space-y-3">
-                <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">Indirizzo Email</label>
-                <input
-                  type="email"
-                  className="w-full bg-gray-50 border border-gray-100 rounded-lg p-4 font-bold text-[#1e3a5f] focus:bg-white focus:border-[#15803d] outline-none transition-all placeholder:text-gray-300"
-                  placeholder="la.tua@email.it"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
+            {/* Quick stats / safety indicators */}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="px-3 border border-slate-200/60 rounded-xl flex items-center gap-2 h-9 bg-slate-50/50">
+                <span className="w-2 h-2 rounded-full bg-[#15803d]" />
+                <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Accesso Sicuro OTP</span>
               </div>
-              {error && <p className="text-red-500 text-xs font-bold">{error}</p>}
-              <button
-                disabled={!email || loading}
-                onClick={handleSendOTP}
-                className="w-full bg-[#15803d] text-white py-5 rounded-lg font-bold uppercase tracking-widest text-[11px] shadow-lg shadow-[#15803d]/20 hover:bg-[#166534] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Invia Codice Accesso <ChevronRight className="h-4 w-4" /></>}
-              </button>
             </div>
-            <p className="text-center text-[10px] font-bold uppercase tracking-widest text-gray-400 mt-10 flex items-center justify-center gap-2">
-              <ShieldCheck className="h-3 w-3" /> Connessione Protetta SSL/TLS
-            </p>
-          </motion.div>
-        )}
+          </div>
+        </div>
 
-        {step === 2 && (
-          <motion.div 
-            key="step2" 
-            initial={{ opacity: 0, x: 50 }} 
-            animate={{ opacity: 1, x: 0 }} 
-            exit={{ opacity: 0, x: -50 }} 
-            transition={{ type: "spring", stiffness: 200, damping: 25 }}
-            className="max-w-md mx-auto w-full"
-          >
-            <div className="text-center mb-12">
-              <div className="bg-emerald-50 w-20 h-20 rounded-lg flex items-center justify-center mx-auto mb-6 shadow-xl shadow-emerald-500/10">
-                <ShieldCheck className="text-[#15803d] h-8 w-8" />
-              </div>
-              <h1 className="text-4xl font-bold text-[#1e3a5f]">Verifica</h1>
-              <p className="text-gray-500 font-medium mt-3">Abbiamo inviato un codice di verifica a 6 cifre alla tua email.</p>
-            </div>
-            
-            <div className="bg-white p-10 rounded-lg border border-gray-100 shadow-2xl shadow-black/5 space-y-8">
-              <div className="space-y-3">
-                <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 text-center block">Codice Verifica</label>
-                <input
-                  type="text"
-                  maxLength={6}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-lg p-6 text-center text-4xl font-bold tracking-[0.4em] text-[#1e3a5f] focus:bg-white focus:border-[#15803d] outline-none transition-all placeholder:text-gray-200"
-                  placeholder="000000"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                />
-              </div>
-              <button
-                disabled={otp.length !== 6 || loading}
-                onClick={handleVerifyOTP}
-                className="w-full bg-[#15803d] text-white py-5 rounded-lg font-bold uppercase tracking-widest text-[11px] shadow-lg shadow-[#15803d]/20 hover:bg-[#166534] transition-all disabled:opacity-50"
+        <div className="w-full flex-1">
+          <AnimatePresence mode="wait">
+            {step === 1 && (
+              <motion.div 
+                key="step1" 
+                initial={{ opacity: 0, y: 20 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                exit={{ opacity: 0, y: -20 }} 
+                transition={{ type: "spring", stiffness: 200, damping: 25 }}
+                className="max-w-md mx-auto w-full pt-12"
               >
-                {loading ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : 'Verifica & Accedi'}
-              </button>
-              <button onClick={() => setStep(1)} className="w-full text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em] hover:text-[#1e3a5f] transition-colors">Modifica Email</button>
-            </div>
-          </motion.div>
-        )}
-
-        {step === 3 && (
-          <motion.div 
-            key="step3" 
-            initial={{ opacity: 0, y: 20 }} 
-            animate={{ opacity: 1, y: 0 }} 
-            transition={{ type: "spring", stiffness: 200, damping: 25 }}
-            className="space-y-12 w-full"
-          >
-            <AnimatePresence mode="wait">
-              {!selectedReport ? (
-                <motion.div key="list" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-12">
-                  <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8 bg-white p-10 rounded-lg border border-gray-100 shadow-sm">
-                    <div>
-                      <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#15803d] mb-4 block underline underline-offset-8 decoration-2">Dossier Digitale</span>
-                      <h1 className="text-4xl font-bold text-[#1e3a5f]">Le tue segnalazioni</h1>
-                      <div className="flex items-center gap-3 mt-4">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <p className="text-gray-500 text-sm font-medium">Sessione attiva: <span className="text-[#1e3a5f] font-bold">{email}</span></p>
-                      </div>
+                <div className="bg-white p-8 rounded-2xl border border-slate-200/80 shadow-sm space-y-8">
+                  <div className="text-center">
+                    <div className="bg-emerald-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+                      <Mail className="text-[#15803d] h-6 w-6" />
                     </div>
-                    <button onClick={() => window.location.reload()} className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 hover:text-red-500 transition-colors py-3 px-6 bg-gray-50 border border-gray-100 rounded-lg">Esci</button>
+                    <h2 className="text-xl font-black text-[#101b3a] tracking-tight">Verifica la tua Identità</h2>
+                    <p className="text-slate-500 text-xs font-bold mt-1.5 uppercase tracking-wide">Inserisci la tua email per accedere al tuo dossier.</p>
                   </div>
 
-                  {/* Chart Section */}
-                  <div className="bg-white p-10 rounded-lg border border-gray-100 shadow-sm">
-                    <div className="flex items-center gap-3 mb-8">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Indirizzo Email</label>
+                    <input
+                      type="email"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all placeholder:text-slate-300 text-sm"
+                      placeholder="la.tua@email.it"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                  {error && <p className="text-red-500 text-xs font-bold text-center">{error}</p>}
+                  <button
+                    disabled={!email || loading}
+                    onClick={handleSendOTP}
+                    className="w-full bg-[#15803d] text-white py-4 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-md shadow-[#15803d]/20 hover:bg-[#166534] transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Invia Codice Accesso &rarr;</>}
+                  </button>
+                </div>
+                <p className="text-center text-[9px] font-bold uppercase tracking-widest text-slate-400 mt-8 flex items-center justify-center gap-2">
+                  <ShieldCheck className="h-3 w-3 text-emerald-600" /> Servizio di Sicurezza Certificato SLL
+                </p>
+              </motion.div>
+            )}
+
+            {step === 2 && (
+              <motion.div 
+                key="step2" 
+                initial={{ opacity: 0, x: 50 }} 
+                animate={{ opacity: 1, x: 0 }} 
+                exit={{ opacity: 0, x: -50 }} 
+                transition={{ type: "spring", stiffness: 200, damping: 25 }}
+                className="max-w-md mx-auto w-full pt-12"
+              >
+                <div className="bg-white p-8 rounded-2xl border border-slate-200/80 shadow-sm space-y-8">
+                  <div className="text-center">
+                    <div className="bg-emerald-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+                      <ShieldCheck className="text-[#15803d] h-6 w-6" />
+                    </div>
+                    <h2 className="text-xl font-black text-[#101b3a] tracking-tight">Verifica OTP</h2>
+                    <p className="text-slate-500 text-xs font-bold mt-1.5 uppercase tracking-wide">Inserisci il codice temporaneo inviato alla tua casella mail.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-center block">Codice Monouso</label>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-center text-3xl font-black tracking-[0.4em] text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all placeholder:text-slate-200 text-sm"
+                      placeholder="000000"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value)}
+                    />
+                  </div>
+                  <button
+                    disabled={otp.length !== 6 || loading}
+                    onClick={handleVerifyOTP}
+                    className="w-full bg-[#15803d] text-white py-4 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-md shadow-[#15803d]/20 hover:bg-[#166534] transition-all disabled:opacity-50 cursor-pointer"
+                  >
+                    {loading ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : 'Accedi al mio Dossier'}
+                  </button>
+                  <button onClick={() => setStep(1)} className="w-full text-slate-400 text-[9px] font-black uppercase tracking-[0.2em] hover:text-[#101b3a] transition-colors cursor-pointer bg-transparent border-none outline-none">Modifica Email</button>
+                </div>
+              </motion.div>
+            )}
+
+            {step === 3 && (
+              <motion.div 
+                key="step3" 
+                initial={{ opacity: 0, y: 20 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                transition={{ type: "spring", stiffness: 200, damping: 25 }}
+                className="space-y-6 w-full"
+              >
+                <AnimatePresence mode="wait">
+                  {!selectedReport ? (
+                    <motion.div key="list" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+                      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-6 sm:p-8 rounded-2xl border border-slate-200/80 shadow-sm">
+                        <div>
+                          <span className="text-[10px] font-black uppercase tracking-[0.28em] text-[#15803d] mb-1.5 block">Identificativo Digitale</span>
+                          <h1 className="text-xl sm:text-2xl font-black text-[#101b3a] tracking-tight">Le tue segnalazioni di soccorso</h1>
+                          <div className="flex items-center gap-2 mt-2">
+                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                            <p className="text-xs text-slate-500 font-semibold">Utenza attiva: <span className="text-[#101b3a] font-extrabold">{email}</span></p>
+                          </div>
+                        </div>
+                        <button onClick={() => window.location.reload()} className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 hover:text-red-600 transition-all py-2.5 px-5 bg-slate-50 border border-slate-200 hover:border-red-200 rounded-xl cursor-pointer">Esci Sessione</button>
+                      </div>
+
+                      {/* Chart Section */}
+                      <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200/80 shadow-sm">
+                        <div className="flex items-center gap-3 mb-6">
                        <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
                           <BarChart3 className="h-6 w-6" />
                        </div>
@@ -307,37 +331,37 @@ export default function MiaArea() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-2 gap-4 sm:gap-8">
                     {reports.map((item, i) => (
                       <div 
                         key={i} 
                         onClick={() => setSelectedReport(item)}
-                        className="bg-white border-2 border-transparent p-10 rounded-lg shadow-xl hover:shadow-2xl hover:border-[#15803d]/20 transition-all cursor-pointer group relative overflow-hidden"
+                        className="bg-white border-2 border-transparent p-4 sm:p-10 rounded-xl shadow-md sm:shadow-xl hover:shadow-2xl hover:border-[#15803d]/20 transition-all cursor-pointer group relative overflow-hidden"
                       >
                          {/* Status Bar */}
-                        <div className={`absolute top-0 left-0 right-0 h-2 ${
+                        <div className={`absolute top-0 left-0 right-0 h-1.5 sm:h-2 ${
                           item.status === 'CHIUSA' ? 'bg-emerald-500' : 'bg-amber-500'
                         }`} />
 
-                        <div className="flex justify-between items-start mb-8">
-                          <span className="bg-gray-50 text-[#1e3a5f] px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest border border-gray-100">{item.code}</span>
-                          <span className={`px-4 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-widest ${
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1.5 sm:gap-4 mb-3 sm:mb-8">
+                          <span className="bg-gray-50 text-[#1e3a5f] px-1.5 py-0.5 sm:px-3 sm:py-1.5 rounded-md sm:rounded-lg text-[8px] sm:text-[10px] font-bold uppercase tracking-widest border border-gray-100">{item.code}</span>
+                          <span className={`px-1.5 py-0.5 sm:px-4 sm:py-1.5 rounded-md sm:rounded-full text-[7px] sm:text-[9px] font-bold uppercase tracking-widest ${
                             item.status === 'CHIUSA' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100'
                           }`}>
                             {item.status.replace('_', ' ')}
                           </span>
                         </div>
-                        <h3 className="text-2xl font-bold text-[#1e3a5f] mb-4 leading-tight group-hover:text-[#15803d] transition-colors">{item.desc}</h3>
-                        <div className="flex items-center gap-6">
-                           <div className="flex items-center gap-2 text-xs font-medium text-gray-400">
-                             <Clock className="h-4 w-4" /> {item.date}
+                        <h3 className="text-xs sm:text-2xl font-bold text-[#1e3a5f] mb-1 sm:mb-4 leading-tight group-hover:text-[#15803d] transition-colors line-clamp-2 sm:line-clamp-none">{item.desc}</h3>
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-6">
+                           <div className="flex items-center gap-1 sm:gap-2 text-[8px] sm:text-xs font-semibold text-gray-400">
+                             <Clock className="h-3 w-3 sm:h-4 sm:w-4" /> {item.date}
                            </div>
-                           <div className="flex items-center gap-2 text-xs font-medium text-gray-400">
-                             <MapPin className="h-4 w-4" /> {item.specie}
+                           <div className="flex items-center gap-1 sm:gap-2 text-[8px] sm:text-xs font-semibold text-gray-400">
+                             <MapPin className="h-3 w-3 sm:h-4 sm:w-4" /> {item.specie}
                            </div>
                         </div>
-                        <div className="mt-10 pt-8 border-t border-gray-50 flex justify-between items-center text-[10px] uppercase tracking-widest font-bold text-[#15803d] group-hover:translate-x-2 transition-transform">
-                          Gestione Pratica <ChevronRight className="h-4 w-4" />
+                        <div className="mt-3 sm:mt-10 pt-3 sm:pt-8 border-t border-gray-50 flex justify-between items-center text-[8px] sm:text-[10px] uppercase tracking-widest font-bold text-[#15803d] group-hover:translate-x-1 sm:group-hover:translate-x-2 transition-transform">
+                          <span>Gestione Pratica</span> <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
                         </div>
                       </div>
                     ))}
@@ -484,6 +508,8 @@ export default function MiaArea() {
           </motion.div>
         )}
       </AnimatePresence>
+        </div>
+      </div>
 
       <Lightbox 
         isOpen={lightbox.isOpen} 

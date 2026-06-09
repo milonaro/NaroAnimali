@@ -54,15 +54,57 @@ interface MapMarker {
   date?: string;
   code?: string;
   status?: 'CREATA' | 'IN_CARICO' | 'PULIZIA' | 'RISOLTA';
+  id?: string;
 }
 
 interface MapProps {
   onLocationSelect?: (lat: number, lng: number) => void;
+  onMarkerClick?: (id: string) => void;
   markers?: MapMarker[];
   interactive?: boolean;
   hideFilters?: boolean;
   center?: [number, number];
 }
+
+// Function to generate high-fidelity, beautifully animated custom Leaflet markers
+const createCustomMarker = (m: MapMarker) => {
+  const isHigh = m.urgenza === 'Alta';
+  const isMedium = m.urgenza === 'Normale';
+  
+  // Custom colors depending on urgency
+  const color = isHigh ? '#ef4444' : isMedium ? '#f59e0b' : '#10b981';
+  const ringColor = isHigh ? 'rgba(239,68,68,0.45)' : isMedium ? 'rgba(245,158,11,0.45)' : 'rgba(16,185,129,0.45)';
+  
+  // Custom animal emoji inside marker
+  const label = m.specie === 'Gatto' ? '🐱' : m.specie === 'Cane' ? '🐶' : '🐾';
+  const pingDuration = isHigh ? '1.5s' : '2.2s';
+  
+  const htmlContent = `
+    <div class="relative flex items-center justify-center cursor-pointer transform hover:scale-110 transition-transform duration-300" style="width: 44px; height: 44px;">
+      <!-- Active pulsing wave rings -->
+      <div class="absolute inset-1 rounded-full animate-ping opacity-75" style="background-color: ${ringColor}; animation-duration: ${pingDuration};"></div>
+      <div class="absolute inset-2 rounded-full animate-pulse opacity-40" style="background-color: ${ringColor}; animation-duration: 1.2s;"></div>
+      
+      <!-- Styled point pin -->
+      <div class="relative z-10 w-9 h-9 rounded-full flex items-center justify-center shadow-lg border-2 border-white text-base transition-all duration-300"
+           style="background: linear-gradient(135deg, ${color} 0%, #1e3a5f 100%);">
+        <span class="transform select-none" style="filter: drop-shadow(0px 1px 1.5px rgba(0,0,0,0.3)); font-size: 14px;">${label}</span>
+      </div>
+      
+      <!-- Indicator marker tail -->
+      <div class="absolute bottom-1 w-2.5 h-2.5 rotate-45 border-r border-b border-white shadow-sm z-0" 
+           style="background-color: #1e3a5f; bottom: 5px;"></div>
+    </div>
+  `;
+  
+  return L.divIcon({
+    html: htmlContent,
+    className: 'custom-animated-marker',
+    iconSize: [44, 44],
+    iconAnchor: [22, 38],
+    popupAnchor: [0, -32]
+  });
+};
 
 function LocationMarker({ onSelect }: { onSelect: (lat: number, lng: number) => void }) {
   const [position, setPosition] = useState<L.LatLng | null>(null);
@@ -80,7 +122,7 @@ function LocationMarker({ onSelect }: { onSelect: (lat: number, lng: number) => 
   );
 }
 
-export default function AppMap({ onLocationSelect, markers = [], interactive = false, hideFilters = false, center }: MapProps) {
+export default function AppMap({ onLocationSelect, onMarkerClick, markers = [], interactive = false, hideFilters = false, center }: MapProps) {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [pendingCount, setPendingCount] = useState(0);
   const [specieFilter, setSpecieFilter] = useState<string>('Tutte');
@@ -187,7 +229,18 @@ export default function AppMap({ onLocationSelect, markers = [], interactive = f
         
         <MarkerClusterGroup>
           {filteredMarkers.map((m, i) => (
-            <Marker key={i} position={[m.lat, m.lng]}>
+            <Marker 
+              key={i} 
+              position={[m.lat, m.lng]} 
+              icon={createCustomMarker(m)}
+              eventHandlers={{
+                click: () => {
+                  if (m.id && onMarkerClick) {
+                    onMarkerClick(m.id);
+                  }
+                }
+              }}
+            >
               <Popup>
                 <div className="flex flex-col group/popup">
                   {m.image ? (
@@ -239,13 +292,22 @@ export default function AppMap({ onLocationSelect, markers = [], interactive = f
                           }`} />
                           <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{m.status || 'Creata'}</span>
                        </div>
-                       <Link 
-                         to="/mia-area" 
-                         className="flex items-center gap-1.5 text-[#15803d] text-[9px] font-black uppercase tracking-widest hover:gap-2 focus:ring-2 focus:ring-[#15803d] focus:ring-offset-2 rounded px-1 transition-all"
-                         aria-label={`Visualizza dettagli completi per ${m.title}`}
-                       >
-                         Dettagli <ArrowRight className="h-3 w-3" />
-                       </Link>
+                       {onMarkerClick && m.id ? (
+                         <button
+                           onClick={() => onMarkerClick(m.id!)}
+                           className="flex items-center gap-1.5 text-[#15803d] text-[9px] font-black uppercase tracking-widest hover:gap-1.5 hover:text-[#101b3a] focus:ring-2 focus:ring-[#15803d] rounded px-1 transition-all cursor-pointer bg-transparent border-none appearance-none outline-none font-extrabold"
+                         >
+                           Dettagli <ArrowRight className="h-3 w-3" />
+                         </button>
+                       ) : (
+                         <Link 
+                           to="/mia-area" 
+                           className="flex items-center gap-1.5 text-[#15803d] text-[9px] font-black uppercase tracking-widest hover:gap-2 focus:ring-2 focus:ring-[#15803d] focus:ring-offset-2 rounded px-1 transition-all"
+                           aria-label={`Visualizza dettagli completi per ${m.title}`}
+                         >
+                           Dettagli <ArrowRight className="h-3 w-3" />
+                         </Link>
+                       )}
                     </div>
                   </div>
                 </div>

@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Building, MapPin, RefreshCw, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Building, MapPin, RefreshCw, CheckCircle2, AlertTriangle, ShieldCheck, HelpCircle } from 'lucide-react';
+import { COMUNI } from '@/src/lib/geofence';
 
 export default function Config() {
   const [siteLogo, setSiteLogo] = useState<string>("");
@@ -11,6 +12,10 @@ export default function Config() {
   const [demoSuccess, setDemoSuccess] = useState<string | null>(null);
   const [demoError, setDemoError] = useState<string | null>(null);
   const [activeComune, setActiveComune] = useState(() => (localStorage.getItem('active_comune') || 'naro').toLowerCase());
+
+  const selectedComuneInfo = useMemo(() => {
+    return COMUNI[activeComune] || COMUNI.naro;
+  }, [activeComune]);
 
   const triggerDemoSwitch = async (comuneKey: string, comuneLabel: string) => {
     if (demoLoading) return;
@@ -157,14 +162,64 @@ export default function Config() {
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Codice Comune Attivo (es. naro, palermo, roma)</label>
-                  <input 
-                    type="text" 
+                  <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Seleziona Comune Attivo sul Portale</label>
+                  <select 
                     value={activeComune}
-                    onChange={(e) => setActiveComune(e.target.value.toLowerCase())}
-                    className="w-full p-3 border border-slate-200 rounded text-sm text-[#1e3a5f] font-semibold outline-none focus:border-[#15803d]"
-                  />
+                    onChange={(e) => {
+                      const selectedVal = e.target.value.toLowerCase();
+                      setActiveComune(selectedVal);
+                      // Suggest name based on select
+                      const properName = COMUNI[selectedVal]?.name || selectedVal;
+                      setSiteName(`Comune di ${properName}`);
+                    }}
+                    className="w-full p-3 border border-slate-200 rounded text-sm text-[#1e3a5f] font-bold outline-none focus:border-[#15803d] bg-white"
+                  >
+                    {Object.keys(COMUNI).map((key) => (
+                      <option key={key} value={key}>
+                        {COMUNI[key].name} (Cod. {COMUNI[key].codiceCatastale})
+                      </option>
+                    ))}
+                  </select>
                 </div>
+              </div>
+
+              {/* Anteprima Real-Time Dati Catastali Hub Selezione */}
+              <div className="mt-4 p-5 bg-slate-50 rounded-xl border border-slate-200/60 relative">
+                <div className="absolute top-4 right-4 flex items-center gap-1.5 text-[9px] font-black uppercase text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+                  Dati Istituzionali Attivi
+                </div>
+                <h4 className="text-xs font-black uppercase text-[#1e3a5f] tracking-wider mb-4 flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-[#15803d]" />
+                  Scheda Catastale di Riferimento: {selectedComuneInfo?.name}
+                </h4>
+                
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
+                  <div>
+                    <span className="text-[9px] uppercase font-bold text-slate-400 block">Codice Catastale</span>
+                    <span className="text-sm font-black text-slate-800">{selectedComuneInfo?.codiceCatastale || 'Non disponibile'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] uppercase font-bold text-slate-400 block">Superficie Territorio</span>
+                    <span className="text-sm font-black text-slate-800">{selectedComuneInfo?.superficieTotaleKm2 ? `${selectedComuneInfo.superficieTotaleKm2} km²` : 'N.D.'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] uppercase font-bold text-slate-400 block">Identificativi Hub</span>
+                    <span className="text-sm font-black text-slate-800">
+                      {selectedComuneInfo?.foglioCatastaleHub ? `F. ${selectedComuneInfo.foglioCatastaleHub}, P. ${selectedComuneInfo.particellaCatastaleHub}` : 'Non Definiti'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] uppercase font-bold text-slate-400 block">Estensione Hub</span>
+                    <span className="text-sm font-black text-slate-800">{selectedComuneInfo?.estensioneEttariHub ? `${selectedComuneInfo.estensioneEttariHub} ha` : 'N.D.'}</span>
+                  </div>
+                </div>
+
+                {selectedComuneInfo?.datiCatastaliCompleti && (
+                  <div className="mt-4 pt-4 border-t border-slate-200/60 text-xs font-medium text-slate-600 leading-relaxed">
+                    {selectedComuneInfo.datiCatastaliCompleti}
+                  </div>
+                )}
               </div>
             </div>
 

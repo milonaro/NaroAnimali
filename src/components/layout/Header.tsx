@@ -42,7 +42,7 @@ export default function Header() {
     <header className={`fixed top-0 left-0 w-full z-[9999] transition-all duration-300 ${transparentHeader ? "bg-transparent border-none py-2" : "bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm py-0"}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-20 md:h-24 items-center">
-          <Link to="/" className="flex items-center gap-3">
+          <Link to="/" className="flex items-center gap-3 w-full md:w-auto justify-center md:justify-start">
             <div className={`hover:opacity-90 transition-opacity ${transparentHeader ? 'text-white' : 'text-[#101b3a]'}`}>
               <div className="flex items-center gap-2">
                 {siteLogo ? (

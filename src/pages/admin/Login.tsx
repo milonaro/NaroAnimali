@@ -28,51 +28,73 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center p-4">
-      <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-xl max-w-md w-full">
-        <div className="flex justify-center mb-6">
-          <div className="w-16 h-16 bg-[#101b3a] text-white rounded-full flex items-center justify-center">
-             <ShieldCheck className="w-8 h-8" />
+    <div className="bg-gray-50 flex flex-col pt-28 pb-16 min-h-screen justify-center items-center px-4">
+      <div className="max-w-7xl mx-auto w-full flex flex-col gap-6 justify-center items-center">
+        
+        {/* Modern Header block */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-sm flex flex-col gap-5 transition-all max-w-md w-full">
+          <div className="flex flex-col items-center justify-center text-center">
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15803d]">Ministero dell'Interno / Comune di Naro</span>
+            <h1 className="text-xl sm:text-2xl font-black text-[#101b3a] tracking-tight mt-1">Area Operatori & Admin</h1>
           </div>
         </div>
-        <h1 className="text-2xl font-black text-center text-[#101b3a] mb-2">Accesso Operatori</h1>
-        <p className="text-center text-slate-500 text-sm mb-8">Inserisci le tue credenziali per accedere al cruscotto di AnimalHub PA.</p>
-        
-        {error && (
-          <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-6 font-medium text-center">
-            {error}
-          </div>
-        )}
 
-        <form onSubmit={handleLogin} className="space-y-6">
-          <div>
-            <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Nome EUtente / Matricola</label>
-            <div className="relative">
-              <UserCircle className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <input 
-                type="text" 
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full pl-10 pr-3 py-3 border border-slate-200 rounded-lg text-sm font-semibold outline-none focus:border-[#15803d]"
-              />
+        <div className="bg-white p-8 rounded-2xl border border-slate-200/80 shadow-sm max-w-md w-full space-y-8">
+          <div className="text-center">
+            <div className="bg-[#101b3a]/5 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+              <ShieldCheck className="text-[#101b3a] h-6 w-6" />
             </div>
+            <h2 className="text-xl font-black text-[#101b3a] tracking-tight">Accedi alla Console</h2>
+            <p className="text-slate-500 text-xs font-bold mt-1.5 uppercase tracking-wide">Inserisci la tua matricola o codice autorizzato</p>
           </div>
-          <div>
-            <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Password</label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <input 
-                type="password" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-3 py-3 border border-slate-200 rounded-lg text-sm font-semibold outline-none focus:border-[#15803d]"
-              />
+          
+          {error && (
+            <div className="bg-red-50 border border-red-100 text-red-600 p-4 rounded-xl text-xs font-bold text-center">
+              {error}
             </div>
-          </div>
-          <button type="submit" className="w-full bg-[#15803d] hover:bg-[#166534] text-white font-bold py-3 rounded-lg shadow-lg shadow-[#15803d]/20 transition-all uppercase tracking-wider text-xs">
-            Accedi al Cruscotto
-          </button>
-        </form>
+          )}
+
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 block">Matricola / ID Utente</label>
+              <div className="relative">
+                <UserCircle className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input 
+                  type="text" 
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all placeholder:text-slate-300"
+                  placeholder="admin"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 block">Password di Servizio</label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input 
+                  type="password" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all placeholder:text-slate-300"
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+
+            <button 
+              type="submit" 
+              className="w-full bg-[#15803d] text-white py-4 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-md shadow-[#15803d]/20 hover:bg-[#166534] transition-all cursor-pointer"
+            >
+              Accedi al Cruscotto Amministrativo
+            </button>
+          </form>
+        </div>
+
+        <p className="text-center text-[9px] font-bold uppercase tracking-widest text-slate-400 mt-4 flex items-center justify-center gap-2">
+          <ShieldCheck className="h-3 w-3 text-[#15803d]" /> Accesso controllato dal Garante della Privacy
+        </p>
       </div>
     </div>
   );

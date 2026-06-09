@@ -79,78 +79,73 @@ export default function Guida() {
   };
 
   return (
-    <div className="min-h-screen bg-white pt-24">
-      {/* Hero */}
-      <section className="bg-[#101b3a] py-20 lg:py-32 relative overflow-hidden">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center"
-          >
-            <h1 className="text-4xl lg:text-6xl font-bold text-white mb-6 tracking-tight">
-              Guida al Portale
-            </h1>
-            <p className="text-white/60 text-lg mb-10 max-w-2xl mx-auto leading-relaxed">
-              Tutte le informazioni necessarie per utilizzare correttamente il servizio di segnalazione del Comune di Naro.
-            </p>
+    <div className="bg-gray-50 flex flex-col pt-28 pb-16 min-h-screen">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex flex-col gap-6 flex-1">
+        
+        {/* Modern Header block */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-sm flex flex-col gap-5 transition-all">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15803d]">Documentazione di Servizio</span>
+              <h1 className="text-2xl sm:text-3xl font-black text-[#101b3a] tracking-tight mt-0.5">Guida al Portale Civico</h1>
+              <p className="text-xs text-slate-500 font-bold uppercase mt-1 tracking-wider text-left">
+                Tutte le istruzioni per un corretto utilizzo del servizio di segnalazione del Comune di <span className="text-[#101b3a] font-extrabold">Naro</span>.
+              </p>
+            </div>
             
-            <div className="flex items-center justify-center gap-4">
+            {/* Quick stats / safety indicators */}
+            <div className="flex flex-wrap items-center gap-3">
               <button
                 onClick={handleSpeakAll}
                 disabled={isPlaying}
-                className="bg-[#15803d] text-white px-8 py-4 rounded-full font-bold text-sm tracking-widest uppercase hover:bg-[#166534] transition-all flex items-center gap-3 shadow-xl disabled:opacity-50"
+                className="h-9 px-4 bg-[#15803d] hover:bg-[#166534] text-white rounded-xl font-bold text-[10px] uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
               >
-                <Play className="h-4 w-4" /> Ascolta Tutto
+                <Play className="h-3.5 w-3.5 fill-white" /> Ascolta Guida
               </button>
               {isPlaying && (
                 <button
                   onClick={stop}
-                  className="bg-white/10 text-white px-8 py-4 rounded-full font-bold text-sm tracking-widest uppercase hover:bg-white/20 transition-all flex items-center gap-3 border border-white/20 backdrop-blur-sm"
+                  className="h-9 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-[10px] uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer border border-slate-200"
                 >
-                  <Square className="h-4 w-4" /> Ferma
+                  <Square className="h-3.5 w-3.5" /> Ferma
                 </button>
               )}
             </div>
-            
-            {settings.textToSpeech && (
-              <p className="text-emerald-400 text-[10px] uppercase font-bold tracking-widest mt-6 animate-pulse">
-                Sintesi vocale attiva: clicca sulle sezioni per ascoltarle
-              </p>
-            )}
-          </motion.div>
+          </div>
+          {settings.textToSpeech && (
+            <p className="text-emerald-600 text-[9px] uppercase font-bold tracking-widest animate-pulse border-t border-slate-100 pt-3">
+              Sintesi vocale attiva: clicca sulle sezioni sottostanti per riprodurre l'audio sintetizzato.
+            </p>
+          )}
         </div>
-        <div className="absolute left-0 bottom-0 top-0 w-1/3 bg-white/5 -skew-x-12 -translate-x-1/2"></div>
-      </section>
 
-      {/* Content */}
-      <section className="py-24">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="space-y-12">
+        {/* Content Section */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-sm flex flex-col gap-6">
+          <div className="space-y-6">
             {sections.map((section, index) => (
               <motion.div
                 key={section.id}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 15 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
-                className={`group cursor-pointer p-8 rounded-lg border border-gray-100 transition-all ${
-                  settings.textToSpeech ? 'hover:border-emerald-500 hover:bg-emerald-50/30' : 'hover:shadow-xl'
+                className={`group cursor-pointer p-6 rounded-xl border border-slate-200/80 transition-all ${
+                  settings.textToSpeech ? 'hover:border-emerald-500 hover:bg-emerald-50/15' : 'hover:border-slate-300 hover:bg-slate-50/20'
                 }`}
                 onClick={() => settings.textToSpeech && speak(`${section.title}. ${section.content}`)}
               >
-                <div className="flex flex-col md:flex-row gap-8">
-                  <div className={`w-16 h-16 rounded-lg flex items-center justify-center shrink-0 shadow-lg transition-transform group-hover:scale-110 ${
+                <div className="flex flex-col md:flex-row gap-6 items-start">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-transform group-hover:scale-105 ${
                     index % 2 === 0 ? 'bg-[#15803d] text-white' : 'bg-[#101b3a] text-white'
                   }`}>
-                    {section.icon}
+                    {React.cloneElement(section.icon, { className: "h-5 w-5" })}
                   </div>
-                  <div>
-                    <div className="flex items-center gap-3 mb-4">
-                      <h3 className="text-2xl font-bold text-[#101b3a] tracking-tight">{section.title}</h3>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-lg font-black text-[#101b3a] tracking-tight">{section.title}</h3>
                       {settings.textToSpeech && <Volume2 className="h-4 w-4 text-emerald-500" />}
                     </div>
-                    <p className="text-lg text-gray-500 leading-relaxed font-medium">
+                    <p className="text-sm text-slate-500 leading-relaxed font-semibold text-left">
                       {section.content}
                     </p>
                   </div>
@@ -159,23 +154,20 @@ export default function Guida() {
             ))}
           </div>
         </div>
-      </section>
 
-      {/* FAQ CTA */}
-      <section className="py-24 bg-gray-50 border-t border-gray-100">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-2xl font-bold text-[#101b3a] mb-6">Hai altre domande?</h2>
-          <p className="text-gray-500 mb-10">Il nostro assistente virtuale è sempre disponibile in basso a destra per rispondere ai tuoi dubbi.</p>
-          <div className="flex justify-center flex-wrap gap-4">
-            <button
-               onClick={() => speak("Puoi sempre chiedere aiuto al nostro assistente virtuale cliccando sull'icona in basso a destra.")}
-               className="text-[10px] font-black uppercase tracking-widest text-[#15803d] flex items-center gap-2"
-            >
-              <Volume2 className="h-4 w-4" /> Leggi suggerimento
-            </button>
-          </div>
+        {/* FAQ CTA */}
+        <div className="bg-slate-100/50 rounded-2xl border border-slate-200/80 p-8 text-center flex flex-col items-center justify-center gap-4">
+          <h2 className="text-xl font-black text-[#101b3a] tracking-tight">Hai altre domande o necessità operative?</h2>
+          <p className="text-xs text-slate-500 font-semibold max-w-xl">Il nostro assistente virtuale assistito dall'Intelligenza Artificiale è sempre disponibile in basso a destra per rispondere immediatamente in tempo reale.</p>
+          <button
+             onClick={() => speak("Puoi sempre chiedere aiuto al nostro assistente virtuale cliccando sull'icona in basso a destra.")}
+             className="text-[9px] font-black uppercase tracking-widest text-[#15803d] hover:text-[#166534] flex items-center gap-2 cursor-pointer transition-colors"
+          >
+            <Volume2 className="h-4 w-4" /> Leggi Suggerimento Vocale &rarr;
+          </button>
         </div>
-      </section>
+
+      </div>
     </div>
   );
 }

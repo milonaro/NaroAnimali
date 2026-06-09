@@ -14,7 +14,13 @@ CREATE TABLE IF NOT EXISTS comuni (
   lat_min DECIMAL(10, 8) NOT NULL,
   lat_max DECIMAL(10, 8) NOT NULL,
   lng_min DECIMAL(11, 8) NOT NULL,
-  lng_max DECIMAL(11, 8) NOT NULL
+  lng_max DECIMAL(11, 8) NOT NULL,
+  codice_catastale VARCHAR(10),
+  superficie_totale_km2 DECIMAL(10, 2),
+  foglio_catastale_hub VARCHAR(50),
+  particella_catastale_hub VARCHAR(50),
+  estensione_ettari_hub DECIMAL(10, 4),
+  dati_catastali_completi TEXT
 );
 
 -- 2. Tabella Configurazione Attiva e Preset
@@ -110,26 +116,22 @@ CREATE TABLE IF NOT EXISTS strutture (
 -- POPOLAMENTO PARAMETRI DI RIFERIMENTO & DATI DEMO PER ALL-COMUNI
 -- =====================================================================
 
--- Popolamento Comuni Convenzionati
-INSERT INTO comuni (key_name, name, lat, lng, radius_km, lat_min, lat_max, lng_min, lng_max) VALUES
-('naro', 'Naro', 37.2957, 13.7936, 8.0, 37.25, 37.35, 13.74, 13.85)
-ON DUPLICATE KEY UPDATE name=VALUES(name), lat=VALUES(lat), lng=VALUES(lng);
-
-INSERT INTO comuni (key_name, name, lat, lng, radius_km, lat_min, lat_max, lng_min, lng_max) VALUES
-('agrigento', 'Agrigento', 37.3111, 13.5765, 12.0, 37.20, 37.40, 13.45, 13.70)
-ON DUPLICATE KEY UPDATE name=VALUES(name), lat=VALUES(lat), lng=VALUES(lng);
-
-INSERT INTO comuni (key_name, name, lat, lng, radius_km, lat_min, lat_max, lng_min, lng_max) VALUES
-('canicatti', 'Canicattì', 37.3591, 13.8496, 10.0, 37.30, 37.42, 13.75, 13.95)
-ON DUPLICATE KEY UPDATE name=VALUES(name), lat=VALUES(lat), lng=VALUES(lng);
-
-INSERT INTO comuni (key_name, name, lat, lng, radius_km, lat_min, lat_max, lng_min, lng_max) VALUES
-('favara', 'Favara', 37.3151, 13.6628, 9.0, 37.26, 37.37, 13.60, 13.72)
-ON DUPLICATE KEY UPDATE name=VALUES(name), lat=VALUES(lat), lng=VALUES(lng);
-
-INSERT INTO comuni (key_name, name, lat, lng, radius_km, lat_min, lat_max, lng_min, lng_max) VALUES
-('palermo', 'Palermo', 38.1157, 13.3614, 15.0, 38.00, 38.25, 13.20, 13.50)
-ON DUPLICATE KEY UPDATE name=VALUES(name), lat=VALUES(lat), lng=VALUES(lng);
+-- Popolamento Comuni Convenzionati di Riferimento ed Hub Attivati
+INSERT INTO comuni (key_name, name, lat, lng, radius_km, lat_min, lat_max, lng_min, lng_max, codice_catastale, superficie_totale_km2, foglio_catastale_hub, particella_catastale_hub, estensione_ettari_hub, dati_catastali_completi) VALUES
+('naro', 'Naro', 37.2957, 13.7936, 8.0, 37.25, 37.35, 13.74, 13.85, 'F845', 162.24, '72', '145', 1.85, 'Ente Urbano destinato a Centro di Soccorso e Servizi Sanitari Zootecnici. Connessione integrata con canile municipale di contrada Zaffuti. Esente IMU usi pubblici.'),
+('agrigento', 'Agrigento', 37.3111, 13.5765, 12.0, 37.20, 37.40, 13.45, 13.70, 'A089', 245.43, '118', '239', 2.45, 'Hub di Soccorso Sanitario e Clinica della Valle dei Templi. Sezione Centralizzata Polizia Locale Agrigento.'),
+('canicatti', 'Canicattì', 37.3591, 13.8496, 10.0, 37.30, 37.42, 13.75, 13.95, 'B602', 92.06, '45', '512', 1.20, 'Oasi Felina di Canicattì, rifugi sanitari convenzionati. Monitoraggio in convenzione ASP Agrigento.'),
+('favara', 'Favara', 37.3151, 13.6628, 9.0, 37.26, 37.37, 13.60, 13.72, 'D514', 81.88, '31', '809', 0.95, 'Presidio Ambulatoriale e tutela benessere animale di Favara. Gestione microchip attiva.'),
+('palermo', 'Palermo', 38.1157, 13.3614, 15.0, 38.00, 38.25, 13.20, 13.50, 'G273', 160.59, '92', '1004', 4.50, 'Rifugio Sanitario Canile Favorita di Palermo. Centro d\'eccellenza veterinaria accreditato.'),
+('montallegro', 'Montallegro', 37.3915, 13.3512, 6.0, 37.35, 37.43, 13.28, 13.42, 'F514', 27.41, '12', '335', 0.78, 'Presidio ed Hub di Degenza Randagismo e Avifauna Torre Salsa. Sorveglianza convenzionata Ente Parco.'),
+('portoempedocle', 'Porto Empedocle', 37.2911, 13.5283, 7.0, 37.25, 37.33, 13.47, 13.58, 'G914', 25.11, '8', '202', 1.10, 'Hub costiero Soccorso Animali Marina di Porto Empedocle. Supporto veterinario transitorio Guardia Costiera.'),
+('sciacca', 'Sciacca', 37.5081, 13.0881, 11.0, 37.42, 37.58, 13.96, 13.20, 'I533', 191.01, '84', '402', 3.20, 'Santuario Felino e Canile Sanitario Sciacca Est. Sala operatoria per sterilizzazioni e primo soccorso animali randagi.')
+ON DUPLICATE KEY UPDATE 
+  name=VALUES(name), lat=VALUES(lat), lng=VALUES(lng), radius_km=VALUES(radius_km),
+  lat_min=VALUES(lat_min), lat_max=VALUES(lat_max), lng_min=VALUES(lng_min), lng_max=VALUES(lng_max),
+  codice_catastale=VALUES(codice_catastale), superficie_totale_km2=VALUES(superficie_totale_km2),
+  foglio_catastale_hub=VALUES(foglio_catastale_hub), particella_catastale_hub=VALUES(particella_catastale_hub),
+  estensione_ettari_hub=VALUES(estensione_ettari_hub), dati_catastali_completi=VALUES(dati_catastali_completi);
 
 
 -- Popolamento Configurazione Iniziale Preset attiva
