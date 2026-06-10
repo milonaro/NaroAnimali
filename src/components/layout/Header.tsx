@@ -4,7 +4,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 
 const FlagIT = () => (
-  <svg className="w-4.5 h-3.5 rounded-sm shrink-0 inline shadow-xs border border-slate-300" viewBox="0 0 3 2">
+  <svg className="w-5 h-4 rounded-sm shrink-0 inline shadow-xs border border-slate-300" viewBox="0 0 3 2">
     <rect width="1" height="2" fill="#009246"/>
     <rect x="1" width="1" height="2" fill="#F1F2F1"/>
     <rect x="2" width="1" height="2" fill="#C11B17"/>
@@ -12,7 +12,7 @@ const FlagIT = () => (
 );
 
 const FlagEN = () => (
-  <svg className="w-4.5 h-3.5 rounded-sm shrink-0 inline shadow-xs border border-slate-300" viewBox="0 0 50 30">
+  <svg className="w-5 h-4 rounded-sm shrink-0 inline shadow-xs border border-slate-300" viewBox="0 0 50 30">
     <rect width="50" height="30" fill="#012169" />
     <path d="M0 0 L50 30 M50 0 L0 30" stroke="#fff" strokeWidth="6" />
     <path d="M0 0 L50 30 M50 0 L0 30" stroke="#C8102E" strokeWidth="3" />
