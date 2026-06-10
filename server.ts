@@ -446,9 +446,13 @@ async function bootServer() {
     app.get("*", (_, res) => res.sendFile(path.join(process.cwd(), "dist", "index.html")));
   }
   
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on port ${PORT}`);
-  });
+  if (!process.env.VERCEL) {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  }
 }
 
 bootServer();
+
+export default app;
