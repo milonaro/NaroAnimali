@@ -84,15 +84,55 @@ app.post("/api/admin/login", async (req, res) => {
     const [rows]: any = await mysqlPool.execute("SELECT * FROM admin_users WHERE username = ?", [username]);
     const user = rows[0];
     if (user && await bcrypt.compare(password, user.password_hash)) {
-      const token = jwt.sign({ username: user.username, role: user.role, comune_key: user.comune_key }, "animal-hub-secret");
-      res.cookie("admin_token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production" });
-      res.json({ success: true, token });
+      if (user.email) {
+        // Generate and store OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+        await mysqlPool.execute(
+          "INSERT INTO user_otps (email, otp_code, expires_at) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE otp_code = ?, expires_at = ?",
+          [user.email, otp, expiresAt, otp, expiresAt]
+        );
+        console.log(`[OTP ADMIN] Email: ${user.email} - Codice: ${otp} (Simulato)`);
+        res.json({ success: true, requireOtp: true, email: user.email });
+      } else {
+        // Fallback if no email is set
+        const token = jwt.sign({ username: user.username, role: user.role, comune_key: user.comune_key }, "animal-hub-secret");
+        res.cookie("admin_token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production" });
+        res.json({ success: true, token });
+      }
     } else {
       res.status(401).json({ error: "Credenziali non valide" });
     }
   } catch (err) {
     console.error("DB error in login:", err);
     res.status(500).json({ error: "DB Error Logging in" });
+  }
+});
+
+app.post("/api/admin/login/verify-otp", async (req, res) => {
+  const { username, otp } = req.body;
+  if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
+  try {
+    const [userRows]: any = await mysqlPool.execute("SELECT * FROM admin_users WHERE username = ?", [username]);
+    const user = userRows[0];
+    if (!user || !user.email) return res.status(401).json({ error: "Utente non trovato o email mancante" });
+
+    const [otpRows]: any = await mysqlPool.execute(
+      "SELECT * FROM user_otps WHERE email = ? AND otp_code = ? AND expires_at > NOW()",
+      [user.email, otp]
+    );
+
+    if (otpRows.length > 0) {
+      await mysqlPool.execute("DELETE FROM user_otps WHERE email = ?", [user.email]);
+      const token = jwt.sign({ username: user.username, role: user.role, comune_key: user.comune_key }, "animal-hub-secret");
+      res.cookie("admin_token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production" });
+      res.json({ success: true, token });
+    } else {
+      res.status(401).json({ error: "Codice OTP non valido o scaduto" });
+    }
+  } catch (err) {
+    console.error("DB error in login verify otp:", err);
+    res.status(500).json({ error: "DB error verifying OTP" });
   }
 });
 
@@ -128,7 +168,7 @@ function requireAuth(allowedRoles?: string[]) {
 app.get("/api/admin/users", requireAuth(["ADMIN"]), async (req, res) => {
   if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
   try {
-    const [rows] = await mysqlPool.execute("SELECT id, username, role, comune_key, visible_modules FROM admin_users ORDER BY id ASC");
+    const [rows] = await mysqlPool.execute("SELECT id, username, role, comune_key, visible_modules, email FROM admin_users ORDER BY id ASC");
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: "Errore nel caricamento degli operatori." });
@@ -136,7 +176,7 @@ app.get("/api/admin/users", requireAuth(["ADMIN"]), async (req, res) => {
 });
 
 app.post("/api/admin/users", requireAuth(["ADMIN"]), async (req, res) => {
-  const { username, password, role, comune_key, visible_modules } = req.body;
+  const { username, password, role, comune_key, visible_modules, email } = req.body;
   if (!username || !password || !role) {
     return res.status(400).json({ error: "Username, password e ruolo sono obbligatori." });
   }
@@ -145,8 +185,8 @@ app.post("/api/admin/users", requireAuth(["ADMIN"]), async (req, res) => {
     const hash = await bcrypt.hash(password, 10);
     const modulesStr = visible_modules ? JSON.stringify(visible_modules) : null;
     await mysqlPool.execute(
-      "INSERT INTO admin_users (username, password_hash, role, comune_key, visible_modules) VALUES (?, ?, ?, ?, ?)",
-      [username, hash, role, comune_key || "naro", modulesStr]
+      "INSERT INTO admin_users (username, password_hash, role, comune_key, visible_modules, email) VALUES (?, ?, ?, ?, ?, ?)",
+      [username, hash, role, comune_key || "naro", modulesStr, email || null]
     );
     res.json({ success: true });
   } catch (err: any) {
@@ -159,20 +199,20 @@ app.post("/api/admin/users", requireAuth(["ADMIN"]), async (req, res) => {
 
 app.put("/api/admin/users/:id", requireAuth(["ADMIN"]), async (req, res) => {
   const { id } = req.params;
-  const { username, password, role, comune_key, visible_modules } = req.body;
+  const { username, password, role, comune_key, visible_modules, email } = req.body;
   if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
   try {
     const modulesStr = visible_modules ? JSON.stringify(visible_modules) : null;
     if (password) {
       const hash = await bcrypt.hash(password, 10);
       await mysqlPool.execute(
-        "UPDATE admin_users SET username = ?, password_hash = ?, role = ?, comune_key = ?, visible_modules = ? WHERE id = ?",
-        [username, hash, role, comune_key || "naro", modulesStr, id]
+        "UPDATE admin_users SET username = ?, password_hash = ?, role = ?, comune_key = ?, visible_modules = ?, email = ? WHERE id = ?",
+        [username, hash, role, comune_key || "naro", modulesStr, email || null, id]
       );
     } else {
       await mysqlPool.execute(
-        "UPDATE admin_users SET username = ?, role = ?, comune_key = ?, visible_modules = ? WHERE id = ?",
-        [username, role, comune_key || "naro", modulesStr, id]
+        "UPDATE admin_users SET username = ?, role = ?, comune_key = ?, visible_modules = ?, email = ? WHERE id = ?",
+        [username, role, comune_key || "naro", modulesStr, email || null, id]
       );
     }
     res.json({ success: true });
