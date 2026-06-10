@@ -1,6 +1,5 @@
 import express from "express";
 import path from "path";
-import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import { Resend } from "resend";
 import bcrypt from "bcryptjs";
@@ -18,8 +17,13 @@ import { createMySQLTables, addMySQLColumns } from "./src/lib/mysql_init";
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+let currentDir = '';
+try {
+  const currentFilename = fileURLToPath(import.meta.url);
+  currentDir = path.dirname(currentFilename);
+} catch (e) {
+  currentDir = process.cwd();
+}
 
 let genAIInstance: GoogleGenAI | null = null;
 function getGenAI() {
@@ -479,22 +483,28 @@ async function seedAdminUsers() {
       const kennelModules = JSON.stringify(['modulo-b', 'modulo-c', 'modulo-adozioni']);
       const volunteerModules = JSON.stringify(['modulo-b']);
 
-      await mysqlPool.execute(
-        "INSERT INTO admin_users (username, password_hash, role, comune_key, visible_modules) VALUES (?, ?, ?, ?, ?)",
-        ["admin", adminHash, "ADMIN", "naro", allModules]
-      );
-      await mysqlPool.execute(
-        "INSERT INTO admin_users (username, password_hash, role, comune_key, visible_modules) VALUES (?, ?, ?, ?, ?)",
-        ["polizia", poliziaHash, "POLIZIA_LOCALE", "naro", policeModules]
-      );
-      await mysqlPool.execute(
-        "INSERT INTO admin_users (username, password_hash, role, comune_key, visible_modules) VALUES (?, ?, ?, ?, ?)",
-        ["canile", canileHash, "CANILE_SANITARIO", "naro", kennelModules]
-      );
-      await mysqlPool.execute(
-        "INSERT INTO admin_users (username, password_hash, role, comune_key, visible_modules) VALUES (?, ?, ?, ?, ?)",
-        ["volontario", volontarioHash, "VOLONTARIO", "naro", volunteerModules]
-      );
+      const tryInsert = async (username: string, hash: string, role: string, modules: string, email: string) => {
+        try {
+          // Try with email and visible_modules
+          await mysqlPool!.execute(
+            "INSERT INTO admin_users (username, password_hash, role, comune_key, visible_modules, email) VALUES (?, ?, ?, ?, ?, ?)",
+            [username, hash, role, "naro", modules, email]
+          );
+        } catch (e: any) {
+          // Fallback if schema isn't fully migrated
+          if (e.message.includes("Unknown column")) {
+            await mysqlPool!.execute(
+              "INSERT INTO admin_users (username, password_hash, role, comune_key) VALUES (?, ?, ?, ?)",
+              [username, hash, role, "naro"]
+            );
+          }
+        }
+      };
+
+      await tryInsert("admin", adminHash, "ADMIN", allModules, "admin@animalhub.it");
+      await tryInsert("polizia", poliziaHash, "POLIZIA_LOCALE", policeModules, "polizia@animalhub.it");
+      await tryInsert("canile", canileHash, "CANILE_SANITARIO", kennelModules, "canile@animalhub.it");
+      await tryInsert("volontario", volontarioHash, "VOLONTARIO", volunteerModules, "volontari@animalhub.it");
       console.log("Succesfully seeded 4 default admin operator accounts.");
     }
   } catch (err) {
@@ -517,8 +527,13 @@ async function bootServer() {
   await seedAdminUsers();
   
   if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
-    app.use(vite.middlewares);
+    try {
+      const { createServer: createViteServer } = await import("vite");
+      const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
+      app.use(vite.middlewares);
+    } catch (e) {
+      console.warn("Vite non disponibile. Ignoro setup development.", e);
+    }
   } else {
     app.use(express.static(path.join(process.cwd(), "dist")));
     app.get("*", (_, res) => res.sendFile(path.join(process.cwd(), "dist", "index.html")));
