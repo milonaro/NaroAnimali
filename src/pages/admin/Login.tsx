@@ -3,8 +3,8 @@ import { UserCircle, Lock, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function AdminLogin() {
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin2026');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
@@ -90,6 +90,20 @@ export default function AdminLogin() {
               Accedi al Cruscotto Amministrativo
             </button>
           </form>
+        </div>
+
+        {/* Info box for testing multiple access levels */}
+        <div className="bg-emerald-50/50 border border-emerald-100 p-5 rounded-2xl max-w-md w-full text-left space-y-2">
+          <h3 className="text-emerald-800 text-[10px] font-black uppercase tracking-[0.1em]">Account Operativi di Test</h3>
+          <p className="text-[11px] text-emerald-700/80 leading-relaxed font-semibold">
+            Il sistema è stato configurato con livelli di accesso differenziati per testare le autorizzazioni:
+          </p>
+          <ul className="text-[11px] text-emerald-800 space-y-1 font-mono">
+            <li>• <strong className="font-sans">Admin (Completo + Gestione):</strong> admin / <span className="font-semibold select-all">admin2026</span></li>
+            <li>• <strong className="font-sans">Polizia (B, C):</strong> polizia / <span className="font-semibold select-all">polizia2026</span></li>
+            <li>• <strong className="font-sans">Canile (B, C, Adozioni):</strong> canile / <span className="font-semibold select-all">canile2026</span></li>
+            <li>• <strong className="font-sans">Volontari (Solo B, sola lettura):</strong> volontario / <span className="font-semibold select-all">volontario2026</span></li>
+          </ul>
         </div>
 
         <p className="text-center text-[9px] font-bold uppercase tracking-widest text-slate-400 mt-4 flex items-center justify-center gap-2">

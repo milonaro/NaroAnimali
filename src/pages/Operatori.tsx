@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import AppMap from '@/src/components/map/Map';
 import { AnimalSpecie, SegnalazioneStato, Segnalazione } from '../types';
+import GestioneOperatoriTab from '@/src/components/GestioneOperatoriTab';
 
 // Removed mock data variables
 interface RegistroAnimale {
@@ -34,14 +35,14 @@ interface LogIntervento {
 }
 
 export default function Operatori() {
-  const [activeTab, setActiveTab] = useState<'statistiche' | 'modulo-b' | 'modulo-c' | 'modulo-adozioni'>('modulo-b');
+  const [activeTab, setActiveTab] = useState<'statistiche' | 'modulo-b' | 'modulo-c' | 'modulo-adozioni' | 'gestione-operatori'>('modulo-b');
   const [activeComune, setActiveComune] = useState(() => (localStorage.getItem('active_comune') || 'naro').toLowerCase());
   const [siteName, setSiteName] = useState("Comune di Naro");
   const [reports, setReports] = useState<Segnalazione[]>([]);
   const [selectedReport, setSelectedReport] = useState<Segnalazione | null>(null);
   const [registro, setRegistro] = useState<RegistroAnimale[]>([]);
   const [logs, setLogs] = useState<LogIntervento[]>([]);
-  const [currentUser, setCurrentUser] = useState<{ id: number; username: string; role: string; comune_key: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ id: number; username: string; role: string; comune_key: string; visible_modules?: ('statistiche' | 'modulo-b' | 'modulo-c' | 'modulo-adozioni')[] | null } | null>(null);
   const [logsOffset, setLogsOffset] = useState(0);
   const [hasMoreLogs, setHasMoreLogs] = useState(false);
   const [totalLogs, setTotalLogs] = useState(0);
@@ -287,6 +288,19 @@ export default function Operatori() {
           const data = await res.json();
           if (data && data.user) {
             setCurrentUser(data.user);
+            const user = data.user;
+            
+            // Auto-select the first visible module tab
+            let allowed: string[] = ['modulo-b', 'modulo-c'];
+            if (user.role === 'ADMIN' || user.role === 'Admin') {
+              allowed = ['statistiche', 'modulo-b', 'modulo-c', 'modulo-adozioni', 'gestione-operatori'];
+            } else if (user.visible_modules) {
+              allowed = user.visible_modules;
+            }
+
+            if (allowed.length > 0 && !allowed.includes('modulo-b')) {
+              setActiveTab(allowed[0] as any);
+            }
           }
         }
       } catch (e) {
@@ -655,6 +669,14 @@ export default function Operatori() {
            item.colore.toLowerCase().includes(searchMicrochip.toLowerCase());
   });
 
+  const allowedTabs = [
+    { id: 'statistiche', name: 'Dashboard Statistiche', allowed: currentUser?.role === 'ADMIN' || currentUser?.role === 'Admin' || currentUser?.visible_modules?.includes('statistiche') },
+    { id: 'modulo-b', name: 'Modulo B — Operativa Uffici', allowed: !currentUser?.visible_modules || currentUser.visible_modules.includes('modulo-b') },
+    { id: 'modulo-c', name: 'Modulo C — Archivio Digitale', allowed: !currentUser?.visible_modules || currentUser.visible_modules.includes('modulo-c') },
+    { id: 'modulo-adozioni', name: 'Modulo Adozioni & Costi', allowed: !currentUser?.visible_modules || currentUser.visible_modules.includes('modulo-adozioni') },
+    { id: 'gestione-operatori', name: 'Gestione Operatori 👥', allowed: currentUser?.role === 'ADMIN' || currentUser?.role === 'Admin' }
+  ];
+
   return (
     <div className="min-h-screen bg-slate-50/70 pb-32 pt-24">
       {/* Page Header */}
@@ -689,41 +711,18 @@ export default function Operatori() {
 
           {/* Tab Navigation */}
           <div className="flex flex-col md:flex-row gap-4 mt-8 border-b border-white/10 items-stretch md:items-center">
-            <div className="flex gap-4">
-              {(currentUser?.role === 'ADMIN' || currentUser?.role === 'Admin') && (
+            <div className="flex flex-wrap gap-4">
+              {allowedTabs.filter(t => t.allowed).map((tab) => (
                 <button
-                  onClick={() => setActiveTab('statistiche')}
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
                   className={`pb-4 px-2 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
-                    activeTab === 'statistiche' ? 'border-[#15803d] text-white' : 'border-transparent text-slate-400 hover:text-white'
+                    activeTab === tab.id ? 'border-[#15803d] text-white' : 'border-transparent text-slate-400 hover:text-white'
                   }`}
                 >
-                  Dashboard Statistiche
+                  {tab.name}
                 </button>
-              )}
-              <button
-                onClick={() => setActiveTab('modulo-b')}
-                className={`pb-4 px-2 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
-                  activeTab === 'modulo-b' ? 'border-[#15803d] text-white' : 'border-transparent text-slate-400 hover:text-white'
-                }`}
-              >
-                Modulo B — Dashboard Operativa Uffici
-              </button>
-              <button
-                onClick={() => setActiveTab('modulo-c')}
-                className={`pb-4 px-2 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
-                  activeTab === 'modulo-c' ? 'border-[#15803d] text-white' : 'border-transparent text-slate-400 hover:text-white'
-                }`}
-              >
-                Modulo C — Archivio Anagrafico Digitale
-              </button>
-              <button
-                onClick={() => setActiveTab('modulo-adozioni')}
-                className={`pb-4 px-2 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
-                  activeTab === 'modulo-adozioni' ? 'border-[#15803d] text-white' : 'border-transparent text-slate-400 hover:text-white'
-                }`}
-              >
-                Modulo Adozioni & Costi
-              </button>
+              ))}
             </div>
             {(currentUser?.role === 'ADMIN' || currentUser?.role === 'Admin') && (
               <a
@@ -2280,6 +2279,8 @@ export default function Operatori() {
             )}
 
           </div>
+        ) : activeTab === 'gestione-operatori' ? (
+          <GestioneOperatoriTab currentUser={currentUser} />
         ) : null}
       </div>
     </div>

@@ -1,12 +1,12 @@
 import { ChevronRight, ShieldCheck, MapPin, Search, PawPrint, HelpCircle, Briefcase, CheckCircle, Info, Clock, UserCheck, Map as MapIcon, Filter, Dog, Cat, SlidersHorizontal, ArrowRight, Heart, CheckCircle2, AlertCircle, MousePointer2, ArrowUp } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import AppMap from '@/src/components/map/Map';
 import { motion, AnimatePresence } from 'motion/react';
 import { Joyride } from 'react-joyride';
 import { useState, useEffect, useMemo } from 'react';
 import { db } from '@/src/lib/firebase';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { COMUNI } from '@/src/lib/geofence';
+import { useLanguage } from '@/src/contexts/LanguageContext';
 
 interface SegnalazioneDoc {
   id: string;
@@ -25,6 +25,7 @@ interface SegnalazioneDoc {
 }
 
 export default function Home() {
+  const { language, t } = useLanguage();
   const [siteName, setSiteName] = useState("Comune di Naro");
   const [activeComune, setActiveComune] = useState(() => (localStorage.getItem('active_comune') || 'naro').toLowerCase());
 
@@ -50,10 +51,6 @@ export default function Home() {
     return siteName.replace("Comune di ", "");
   }, [siteName]);
 
-  const currentComuneInfo = useMemo(() => {
-    return COMUNI[activeComune] || COMUNI.naro;
-  }, [activeComune]);
-
   const [runTour, setRunTour] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -62,15 +59,15 @@ export default function Home() {
   const [segnalazioni, setSegnalazioni] = useState<SegnalazioneDoc[]>([]);
   
   const formatReportDate = (createdAt: any) => {
-    if (!createdAt) return 'Non specificato';
+    if (!createdAt) return language === 'it' ? 'Non specificato' : 'Not specified';
     if (typeof createdAt.toDate === 'function') {
-      return createdAt.toDate().toLocaleDateString('it-IT');
+      return createdAt.toDate().toLocaleDateString(language === 'it' ? 'it-IT' : 'en-US');
     }
     if (createdAt.seconds) {
-      return new Date(createdAt.seconds * 1000).toLocaleDateString('it-IT');
+      return new Date(createdAt.seconds * 1000).toLocaleDateString(language === 'it' ? 'it-IT' : 'en-US');
     }
     const d = new Date(createdAt);
-    return isNaN(d.getTime()) ? 'Non specificato' : d.toLocaleDateString('it-IT');
+    return isNaN(d.getTime()) ? (language === 'it' ? 'Non specificato' : 'Not specified') : d.toLocaleDateString(language === 'it' ? 'it-IT' : 'en-US');
   };
   
   useEffect(() => {
@@ -115,8 +112,8 @@ export default function Home() {
 
   const uniqueLocations = useMemo(() => {
     const locs = comuneSegnalazioni.map(a => a.indirizzo).filter(Boolean) as string[];
-    return ['Tutte', ...new Set(locs)];
-  }, [comuneSegnalazioni]);
+    return [language === 'it' ? 'Tutte' : 'All', ...new Set(locs)];
+  }, [comuneSegnalazioni, language]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -142,7 +139,6 @@ export default function Home() {
     const params = new URLSearchParams(window.location.search);
     if (params.get('tour') === 'true') {
       setRunTour(true);
-      // Clean up URL without refresh
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
@@ -157,48 +153,29 @@ export default function Home() {
   const steps: any[] = [
     {
       target: '#hero-step',
-      title: '🌟 Benvenuto su AnimalHub PA',
-      content: `Il portale civico ufficiale ed esclusivo del ${siteName} per la tutela, segnalazione e salvaguardia dei nostri amici a quattro zampe.`,
+      title: language === 'it' ? '🌟 Benvenuto su AnimalHub PA' : '🌟 Welcome to AnimalHub PA',
+      content: language === 'it' 
+        ? `Il portale civico ufficiale ed esclusivo del ${siteName} per la tutela, segnalazione e salvaguardia dei nostri amici a quattro zampe.`
+        : `The official and exclusive civic portal of ${siteName} for the protection and welfare of our four-legged friends.`,
       placement: 'center',
     },
     {
       target: '#segnala-step',
-      title: '📍 Invia Segnalazione (Modulo A)',
-      content: `Da qui puoi avviare la segnalazione controllata e geolocalizzata di un cane o gatto randagio in difficoltà sul territorio di ${cityName}.`,
+      title: language === 'it' ? '📍 Invia Segnalazione (Modulo A)' : '📍 Submit Report (Module A)',
+      content: language === 'it'
+        ? `Da qui puoi avviare la segnalazione controllata e geolocalizzata di un cane o gatto randagio in difficoltà sul territorio di ${cityName}.`
+        : `From here you can start a controlled and geo-located report of a stray dog or cat in difficulty on the territory of ${cityName}.`,
       placement: 'bottom',
     },
     {
       target: '#how-it-works-step',
-      title: '🔄 Il Ciclo di Gestione',
-      content: 'Segui il processo in 4 semplici passaggi: dall\'identificazione all\'intervento, fino alla firma digitale COF di affido.',
+      title: language === 'it' ? '🔄 Il Ciclo di Gestione' : '🔄 Management Cycle',
+      content: language === 'it'
+        ? "Segui il processo in 4 semplici passaggi: dall'identificazione all'intervento, fino alla firma digitale COF di affido."
+        : "Follow the process in 4 simple steps: from identification to intervention, up to the digital COF foster signature.",
       placement: 'center',
     },
-    {
-      target: '#map-step',
-      title: '🗺️ Mappa Interattiva Real-Time',
-      content: 'Monitora in tempo reale la presenza e la cura degli animali registrati nel territorio con geolocalizzazione ufficiale.',
-      placement: 'top',
-    },
-    {
-      target: '#numbers-step',
-      title: '📊 Trasparenza e Statistiche',
-      content: 'Controlla l\'efficacia sul campo degli operatori e l\'andamento delle vaccinazioni e adozioni sul nostro territorio.',
-      placement: 'top',
-    },
   ];
-
-  const animalMarkers = useMemo(() => {
-    return comuneSegnalazioni.map(a => ({
-      lat: a.latitudine || 37.2925,
-      lng: a.longitudine || 13.7925,
-      title: `${a.specie} - ${a.colore || 'Non specificato'}`,
-      specie: a.specie === 'CANE' ? 'Cane' : a.specie === 'GATTO' ? 'Gatto' : 'Altro',
-      urgenza: (a.urgenza === 'ALTA' || a.urgenza === 'CRITICA' ? 'Alta' : a.urgenza === 'BASSA' ? 'Bassa' : 'Normale') as 'Alta' | 'Normale' | 'Bassa',
-      image: a.fotoUrl || 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&q=80&w=600',
-      date: formatReportDate(a.createdAt),
-      status: a.stato as 'CREATA' | 'IN_CARICO' | 'PULIZIA' | 'RISOLTA'
-    }));
-  }, [comuneSegnalazioni]);
 
   const JoyrideAny = Joyride as any;
 
@@ -213,11 +190,11 @@ export default function Home() {
   }: any) => (
     <div {...tooltipProps} className="bg-white rounded-2xl md:rounded-[24px] shadow-2xl p-5 md:p-8 w-[95vw] sm:w-[400px] md:w-[600px] border border-gray-100 relative z-[10000] flex flex-col justify-between mx-auto overflow-hidden">
       {step.title && (
-        <h3 className="text-xl md:text-2xl font-black text-[#101b3a] mb-3 leading-tight tracking-tight">
+        <h3 className="text-xl md:text-2xl font-black text-[#101b3a] mb-3 leading-tight tracking-tight text-left">
           {step.title}
         </h3>
       )}
-      <div className="text-slate-600 font-medium mb-8 leading-relaxed text-base">
+      <div className="text-slate-600 font-medium mb-8 leading-relaxed text-base text-left">
         {step.content}
       </div>
       <div className="flex items-center justify-between">
@@ -225,7 +202,7 @@ export default function Home() {
           {...closeProps}
           className="text-red-400 font-bold text-[11px] uppercase tracking-widest hover:text-red-600 transition-colors cursor-pointer p-2 -ml-2"
         >
-          Salta
+          {language === 'it' ? 'Salta' : 'Skip'}
         </button>
         <div className="flex items-center gap-2">
           {index > 0 && (
@@ -233,14 +210,14 @@ export default function Home() {
               {...backProps}
               className="text-slate-400 font-bold text-xs uppercase tracking-widest hover:text-[#101b3a] transition-colors cursor-pointer px-4 py-3"
             >
-              Indietro
+              {language === 'it' ? 'Indietro' : 'Back'}
             </button>
           )}
           <button
             {...primaryProps}
             className="bg-[#101b3a] text-white px-6 py-3.5 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-[#15803d] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#15803d]/30 transition-all cursor-pointer"
           >
-            {isLastStep ? 'Ho capito' : 'Avanti'}
+            {isLastStep ? (language === 'it' ? 'Ho capito' : 'Done') : (language === 'it' ? 'Avanti' : 'Next')}
           </button>
         </div>
       </div>
@@ -248,7 +225,7 @@ export default function Home() {
   );
 
   return (
-    <div className="flex flex-col min-h-screen bg-white" style={{ borderWidth: '0px', paddingTop: '110px' }}>
+    <div className="flex flex-col min-h-screen bg-white" style={{ borderWidth: '0px', paddingTop: '0px' }}>
       <JoyrideAny
         steps={steps}
         run={runTour}
@@ -284,9 +261,9 @@ export default function Home() {
           }
         }}
       />
-      {/* Hero Section with Slider */}
-      <section id="hero-step" className="relative min-h-[90vh] lg:h-[800px] overflow-hidden bg-[#101b3a] flex items-center pt-32 pb-16 lg:py-0">
-        {/* Subtle geometric line design overlay */}
+
+      {/* 1. HERO SLIDER */}
+      <section id="hero-step" className="relative h-[93vh] lg:h-[750px] overflow-hidden bg-[#101b3a] flex items-center pt-24">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.012)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.012)_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none z-20 opacity-40" />
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#101b3a] to-transparent pointer-events-none z-20" />
 
@@ -334,6 +311,7 @@ export default function Home() {
 
         <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-center">
+            
             {/* Left Col: Dynamic text content */}
             <div className="lg:col-span-7 text-left">
               <AnimatePresence mode="wait">
@@ -348,14 +326,13 @@ export default function Home() {
                   >
                     <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 bg-emerald-500/15 border border-emerald-500/30 rounded-xl backdrop-blur-md">
                       <PawPrint className="h-5 w-5 text-emerald-400 fill-emerald-400/20" />
-                      <span className="text-emerald-300 font-extrabold uppercase tracking-[0.25em] text-[10px]">{siteName}</span>
+                      <span className="text-emerald-300 font-extrabold uppercase tracking-[0.25em] text-[10px]">{t('home.hero_badge')}</span>
                     </div>
                     <h1 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold text-white tracking-tight leading-[1.05] drop-shadow-md">
-                      Proteggi e <br />
-                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-[#15803d]">segnala il randagismo</span>
+                      {language === 'it' ? <>Proteggi e <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-[#15803d]">segnala il randagismo</span></> : <>Protect and <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-[#15803d]">report stray animals</span></>}
                     </h1>
                     <p className="text-slate-300 text-base sm:text-lg leading-relaxed max-w-xl font-medium">
-                      Servizio istituzionale del Comune per la segnalazione geolocalizzata controllata. Ogni segnalazione attiva soccorso, tutela e adozione consapevole.
+                      {t('home.hero_desc')}
                     </p>
                     <div className="flex flex-wrap gap-4 pt-4">
                       <Link 
@@ -363,13 +340,13 @@ export default function Home() {
                         to="/segnala" 
                         className="bg-[#15803d] text-white px-8 py-4 rounded-xl font-extrabold text-base hover:bg-[#166534] transition-all flex items-center gap-3 shadow-xl hover:shadow-emerald-900/30 hover:-translate-y-0.5 cursor-pointer"
                       >
-                        <MapPin className="h-5 w-5" /> Fai una Segnalazione
+                        <MapPin className="h-5 w-5" /> {t('home.btn_report')}
                       </Link>
                       <Link 
                         to="/mia-area" 
                         className="bg-white/10 hover:bg-white/15 text-white px-8 py-4 rounded-xl font-bold text-base transition-all flex items-center gap-3 border border-white/20 backdrop-blur-md hover:-translate-y-0.5 cursor-pointer"
                       >
-                        <Search className="h-5 w-5 text-emerald-400" /> Verifica Pratica
+                        <Search className="h-5 w-5 text-emerald-400" /> {t('home.btn_check')}
                       </Link>
                     </div>
                   </motion.div>
@@ -384,27 +361,30 @@ export default function Home() {
                   >
                     <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 bg-amber-500/15 border border-amber-500/30 rounded-xl backdrop-blur-md">
                       <ShieldCheck className="h-5 w-5 text-amber-400 fill-amber-400/20" />
-                      <span className="text-amber-300 font-extrabold uppercase tracking-[0.25em] text-[10px]">Polizia e Controllo Sanitario</span>
+                      <span className="text-amber-300 font-extrabold uppercase tracking-[0.25em] text-[10px]">
+                        {language === 'it' ? 'Polizia e Controllo Sanitario' : 'Police & Health Control'}
+                      </span>
                     </div>
                     <h1 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold text-white tracking-tight leading-[1.05] drop-shadow-md">
-                      Salvaguardia della <br />
-                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-600">biodiversità urbana</span>
+                      {language === 'it' ? <>Salvaguardia della <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-600">biodiversità urbana</span></> : <>Safeguard of <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-600">urban biodiversity</span></>}
                     </h1>
                     <p className="text-slate-300 text-base sm:text-lg leading-relaxed max-w-xl font-medium">
-                      Strumenti innovativi integrati negli uffici comunali per la convivenza serena e coordinata tra cittadini, fauna locale e territori rurali.
+                      {language === 'it' 
+                        ? 'Strumenti innovativi integrati negli uffici comunali per la convivenza serena e coordinata tra cittadini, fauna locale e territori rurali.'
+                        : 'Innovative tools integrated into municipal safety offices for serene and coordinated coexistence between citizens, fauna, and rural fields.'}
                     </p>
                     <div className="flex flex-wrap gap-4 pt-4">
                       <Link 
                         to="/segnala" 
                         className="bg-[#15803d] text-white px-8 py-4 rounded-xl font-extrabold text-base hover:bg-[#166534] transition-all flex items-center gap-3 shadow-xl hover:shadow-emerald-950/20 hover:-translate-y-0.5 cursor-pointer"
                       >
-                        <MapPin className="h-5 w-5" /> Fai una Segnalazione
+                        <MapPin className="h-5 w-5" /> {t('home.btn_report')}
                       </Link>
                       <Link 
                         to="/mia-area" 
                         className="bg-white/10 hover:bg-white/15 text-white px-8 py-4 rounded-xl font-bold text-base transition-all flex items-center gap-3 border border-white/20 backdrop-blur-md hover:-translate-y-0.5 cursor-pointer"
                       >
-                        <Search className="h-5 w-5 text-amber-400" /> Verifica Pratica
+                        <Search className="h-5 w-5 text-amber-400" /> {t('home.btn_check')}
                       </Link>
                     </div>
                   </motion.div>
@@ -412,11 +392,11 @@ export default function Home() {
               </AnimatePresence>
             </div>
 
-            {/* Right Col: High-fidelity Custom Tab/Indicator controls as sidebar info-cards */}
+            {/* Right Col: High-fidelity Custom Tab controls */}
             <div className="lg:col-span-5 flex flex-col sm:flex-row lg:flex-col gap-4 w-full pt-6 lg:pt-0">
               {[
-                { id: 0, title: "Tutela & Soccorso", step: "Modulo A", desc: "Gestione randagismo, soccorso ordinario/urgente ed affidamenti digitali certificati.", highlight: "from-emerald-500/10 to-emerald-500/20", activeBg: 'bg-emerald-950/40 border-emerald-500/60 text-white shadow-xl shadow-emerald-950/40' },
-                { id: 1, title: "Sicurezza Urbana", step: "Modulo B", desc: "Monitoraggio biodiversità, presidi di controllo fitti e inquadramento catastale.", highlight: "from-amber-500/10 to-amber-500/20", activeBg: 'bg-amber-950/40 border-amber-500/60 text-white shadow-xl shadow-amber-950/40' }
+                { id: 0, title: language === 'it' ? "Tutela & Soccorso" : "Care & Assistance", step: "Modulo A", desc: language === 'it' ? "Gestione randagismo, soccorso ordinario/urgente ed affidamenti digitali." : "Stray animal management, urgent/ordinary rescue, and digital custody tracking.", highlight: "from-emerald-500/10 to-emerald-500/20", activeBg: 'bg-emerald-950/40 border-emerald-500/60 text-white shadow-xl shadow-emerald-950/40' },
+                { id: 1, title: language === 'it' ? "Sicurezza Urbana" : "Urban Security", step: "Modulo B", desc: language === 'it' ? "Monitoraggio biodiversità, presidi di controllo fitti e pianificazioni." : "Urban biodiversity monitoring, dense checkpoints, and tactical safety planning.", highlight: "from-amber-500/10 to-amber-500/20", activeBg: 'bg-amber-950/40 border-amber-500/60 text-white shadow-xl shadow-amber-950/40' }
               ].map((tab) => {
                 const isActive = currentSlide === tab.id;
                 return (
@@ -429,16 +409,14 @@ export default function Home() {
                         : 'bg-[#101b3a]/40 hover:bg-[#101b3a]/65 border-white/10 text-slate-400 hover:text-white hover:border-white/20 hover:scale-[1.01]'
                     }`}
                   >
-                    {/* Background mini glowing gradient if active */}
                     {isActive && (
                       <div className={`absolute inset-0 bg-gradient-to-br ${tab.highlight} pointer-events-none opacity-40 z-0`} />
                     )}
                     
-                    {/* Side indicator marker */}
                     <div className="relative z-10 flex flex-col items-center">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs transition-colors shrink-0 ${
                         isActive 
-                          ? tab.id === 0 ? 'bg-[#15803d] text-white shadow-md' : 'bg-amber-500 text-slate-950 shadow-md'
+                          ? tab.id === 0 ? 'bg-[#15803d] text-white shadow-md' : 'bg-amber-50 text-slate-950 shadow-md'
                           : 'bg-white/10 text-slate-300'
                       }`}>
                         {tab.id === 0 ? <PawPrint className="w-5 h-5 animate-pulse" /> : <ShieldCheck className="w-5 h-5 animate-pulse" />}
@@ -452,7 +430,9 @@ export default function Home() {
                       {isActive && (
                         <div className="flex items-center gap-1.5 pt-1">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                          <span className="text-[9px] uppercase font-black tracking-widest text-[#22c55e]">Modulo in evidenza</span>
+                          <span className="text-[9px] uppercase font-black tracking-widest text-[#22c55e]">
+                            {language === 'it' ? 'Modulo in evidenza' : 'Active Module'}
+                          </span>
                         </div>
                       )}
                     </div>
@@ -460,101 +440,50 @@ export default function Home() {
                 );
               })}
             </div>
+
           </div>
         </div>
       </section>
 
-      {/* Sezione Dati Catastali Hub Comunale */}
-      <section className="py-12 bg-slate-50 border-y border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm transition-all hover:shadow-md">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 pb-6 border-b border-slate-100">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-emerald-100 text-emerald-800 rounded-xl">
-                  <ShieldCheck className="h-6 w-6" />
-                </div>
-                <div>
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15803d]">Inquadramento Catastale Istituzionale</span>
-                  <h3 className="text-xl sm:text-2xl font-black text-[#101b3a] tracking-tight mt-0.5">
-                    Hub Veterinario & Sede di Primo Soccorso - {cityName}
-                  </h3>
-                </div>
-              </div>
-              <div className="text-right">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#15803d]/10 text-[#15803d]">
-                  Codice Belfiore: <strong className="font-extrabold">{currentComuneInfo?.codiceCatastale || 'N.D.'}</strong>
-                </span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 text-left">
-              <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-100">
-                <span className="text-[8px] sm:text-[10px] uppercase font-bold text-slate-400 block mb-0.5 sm:mb-1">Superficie</span>
-                <p className="text-xs sm:text-lg font-black text-slate-800">{currentComuneInfo?.superficieTotaleKm2 ? `${currentComuneInfo.superficieTotaleKm2} km²` : 'Non Specificata'}</p>
-              </div>
-              <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-100">
-                <span className="text-[8px] sm:text-[10px] uppercase font-bold text-slate-400 block mb-0.5 sm:mb-1">Foglio</span>
-                <p className="text-xs sm:text-lg font-black text-slate-800">{currentComuneInfo?.foglioCatastaleHub ? `Foglio ${currentComuneInfo.foglioCatastaleHub}` : 'Non Specificato'}</p>
-              </div>
-              <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-100">
-                <span className="text-[8px] sm:text-[10px] uppercase font-bold text-slate-400 block mb-0.5 sm:mb-1">Particella</span>
-                <p className="text-xs sm:text-lg font-black text-slate-800">{currentComuneInfo?.particellaCatastaleHub ? `Part. ${currentComuneInfo.particellaCatastaleHub}` : 'Non Specificata'}</p>
-              </div>
-              <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-100">
-                <span className="text-[8px] sm:text-[10px] uppercase font-bold text-slate-400 block mb-0.5 sm:mb-1">Estensione Hub</span>
-                <p className="text-xs sm:text-lg font-black text-slate-800">{currentComuneInfo?.estensioneEttariHub ? `${currentComuneInfo.estensioneEttariHub} ettari` : 'Non Specificata'}</p>
-              </div>
-            </div>
-
-            {currentComuneInfo?.datiCatastaliCompleti && (
-              <div className="mt-6 p-4 bg-emerald-50/50 rounded-xl border border-emerald-100/50 text-left">
-                <span className="text-[9px] uppercase font-black text-emerald-800 tracking-wider block mb-1.5">Note Integrative & Visura Certificata Hub</span>
-                <p className="text-xs sm:text-sm font-semibold text-slate-700 leading-relaxed">
-                  {currentComuneInfo.datiCatastaliCompleti}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Come Funziona Section */}
+      {/* 2. COME FUNZIONA IL PORTALE */}
       <section id="how-it-works-step" className="py-32 bg-white relative overflow-hidden">
         <div className="absolute top-0 right-0 w-1/3 h-full bg-gray-50/50 -skew-x-12 translate-x-1/2"></div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center mb-24">
-             <div className="inline-block px-4 py-1.5 bg-emerald-50 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-[#15803d] mb-6">Processo Step-by-Step</div>
-             <h2 className="text-5xl font-black text-[#101b3a] tracking-tight mb-4">Come funziona il portale</h2>
-             <p className="text-slate-700 font-semibold text-lg">Quattro semplici passaggi per garantire la protezione ai randagi.</p>
+          <div className="text-center mb-20">
+             <div className="inline-block px-4 py-1.5 bg-emerald-50 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-[#15803d] mb-6">
+               {language === 'it' ? 'Processo Autoguidato' : 'Self-Guided Process'}
+             </div>
+             <h2 className="text-5xl font-black text-[#101b3a] tracking-tight mb-4">{t('home.sec_how')}</h2>
+             <p className="text-slate-700 font-semibold text-lg">{t('home.sec_how_desc')}</p>
           </div>
           
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8 lg:gap-12">
             {[
               { 
                 step: "01", 
-                title: "Identifica", 
-                desc: "Se vedi un cane o un gatto in difficoltà sul territorio di Naro.",
+                title: language === 'it' ? "Identifica" : "Identify", 
+                desc: language === 'it' ? "Se vedi un cane o un gatto in difficoltà sul territorio di Naro." : "Spot a stray dog or cat in distress on municipal fields.",
                 icon: <Search className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-400" />,
                 img: "https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=600"
               },
               { 
                 step: "02", 
-                title: "Localizza", 
-                desc: "Usa la mappa interattiva per indicare il punto esatto del ritrovamento.",
+                title: language === 'it' ? "Localizza" : "Map & Pin", 
+                desc: language === 'it' ? "Usa la mappa interattiva per indicare il punto esatto del ritrovamento." : "Use the interactive map to precisely pin where you spotted them.",
                 icon: <MapPin className="h-4 w-4 sm:h-5 sm:w-5 text-blue-400" />,
                 img: "https://images.unsplash.com/photo-1569336415962-a4bd9f69cd83?auto=format&fit=crop&q=80&w=600"
               },
               { 
                 step: "03", 
                 title: "Protocolla", 
-                desc: "Aggiungi foto e dettagli. Il sistema genera un codice unico di tracking COF.",
+                desc: language === 'it' ? "Aggiungi foto e dettagli. Il sistema genera un codice unico di tracking COF." : "Upload photos and state details. The system generates a tracking code.",
                 icon: <Briefcase className="h-4 w-4 sm:h-5 sm:w-5 text-amber-400" />,
                 img: "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&q=80&w=600"
               },
               { 
                 step: "04", 
-                title: "Monitora", 
-                desc: "Segui in tempo reale l'intervento e l'affidamento degli operatori comunali.",
+                title: language === 'it' ? "Monitora" : "Monitor", 
+                desc: language === 'it' ? "Segui in tempo reale l'intervento e l'affidamento degli operatori comunali." : "Watch live updates as municipal responders intervene and resolve the report.",
                 icon: <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-400" />,
                 img: "https://images.unsplash.com/photo-1544568100-847a948585b9?auto=format&fit=crop&q=80&w=600"
               }
@@ -567,21 +496,17 @@ export default function Home() {
                 transition={{ delay: i * 0.1 }}
                 className="relative group flex flex-col rounded-2xl overflow-hidden aspect-[3/4] sm:aspect-[4/5] shadow-lg border border-slate-200/50 cursor-pointer bg-[#0c142b] text-left"
               >
-                {/* Background Image with blur, opacity, scale transitions */}
                 <div className="absolute inset-0 z-0">
                   <img 
                     src={item.img} 
                     alt={item.title} 
                     className="w-full h-full object-cover opacity-50 filter blur-[1px] brightness-75 group-hover:scale-105 group-hover:blur-0 transition-transform duration-1000" 
                   />
-                  {/* Absolute gradient vignettes to ensure maximum legibility of the overlaid text */}
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/80 to-transparent"></div>
                   <div className="absolute inset-0 bg-black/40 mix-blend-multiply"></div>
                 </div>
 
-                {/* Overlaid UI content */}
                 <div className="relative z-10 p-3 sm:p-6 flex flex-col justify-between h-full">
-                  {/* Top bar with Step number and Icon container */}
                   <div className="flex items-center justify-between w-full">
                     <span className="text-white/40 font-black text-xs sm:text-lg tracking-widest">{item.step}</span>
                     <div className="w-8 h-8 sm:w-11 sm:h-11 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center shrink-0 border border-white/15 shadow-sm">
@@ -589,7 +514,6 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* Bottom details block */}
                   <div className="space-y-1.5 sm:space-y-2">
                     <h3 className="text-sm sm:text-xl font-black text-white tracking-tight">{item.title}</h3>
                     <p className="text-[10px] sm:text-xs font-semibold text-slate-300 leading-relaxed sm:leading-relaxed">
@@ -603,20 +527,22 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Animal Exploration Section */}
+      {/* 3. DATABASE ANIMALI ENTRANCE */}
       <section id="explore-step" className="py-32 bg-gray-50/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-end gap-8 mb-16">
-            <div className="max-w-2xl">
-               <div className="inline-block px-4 py-1.5 bg-[#15803d]/10 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-[#15803d] mb-6">Database Animali</div>
-               <h2 className="text-5xl font-black text-[#101b3a] tracking-tight mb-4">Esplora gli animali del territorio</h2>
-               <p className="text-slate-800 font-semibold text-lg">Cerca per razza, specie o zona di ritrovamento per rimanere aggiornato sulla fauna locale.</p>
+            <div className="max-w-2xl text-left">
+               <div className="inline-block px-4 py-1.5 bg-[#15803d]/10 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-[#15803d] mb-6">
+                 {language === 'it' ? 'Database Animali' : 'Animal Catalog'}
+               </div>
+               <h2 className="text-5xl font-black text-[#101b3a] tracking-tight mb-4">{t('home.sec_explore')}</h2>
+               <p className="text-slate-800 font-semibold text-lg">{t('home.sec_explore_desc')}</p>
             </div>
             <div className="flex bg-white p-2 rounded-lg shadow-xl border border-gray-100 items-center gap-2 group focus-within:ring-2 focus-within:ring-[#15803d]/20 transition-all">
               <Search className="h-5 w-5 text-slate-400 ml-4 group-focus-within:text-[#15803d] transition-colors" />
               <input 
                 type="text" 
-                placeholder="Cerca Luna, Pastore, Naro..."
+                placeholder={language === 'it' ? "Cerca Luna, Pastore, Naro..." : "Search Luna, Shepherd, Naro..."}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="bg-transparent border-none outline-none py-3 pr-6 text-sm font-bold text-[#101b3a] placeholder:text-slate-400 w-[280px]"
@@ -632,11 +558,11 @@ export default function Home() {
                     <button
                       key={s}
                       onClick={() => setSpeciesFilter(s)}
-                      className={`px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                      className={`px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${
                         speciesFilter === s ? 'bg-[#15803d] text-white shadow-lg' : 'text-slate-600 hover:text-[#101b3a]'
                       }`}
                     >
-                      {s}
+                      {language === 'it' ? s : s === 'Tutti' ? 'All' : s === 'Cane' ? 'Dog' : 'Cat'}
                     </button>
                   ))}
                </div>
@@ -658,12 +584,14 @@ export default function Home() {
             <div className="flex flex-wrap items-center gap-4">
                {/* Legend for Status */}
                <div className="flex items-center gap-4 bg-white px-6 py-3 rounded-xl shadow-sm border border-gray-100">
-                  <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mr-2 hidden sm:inline">Stato:</span>
+                  <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mr-2 hidden sm:inline">
+                    {language === 'it' ? 'Stato:' : 'Status:'}
+                  </span>
                   {[
-                    { label: 'Creata', color: 'bg-blue-500' },
-                    { label: 'In Carico', color: 'bg-amber-500' },
-                    { label: 'Pulizia', color: 'bg-emerald-500' },
-                    { label: 'Risolta', color: 'bg-indigo-600' }
+                    { label: t('home.report_status_creata'), color: 'bg-blue-500' },
+                    { label: t('home.report_status_incarico'), color: 'bg-amber-500' },
+                    { label: t('home.report_status_pulizia'), color: 'bg-emerald-500' },
+                    { label: t('home.report_status_risolta'), color: 'bg-indigo-600' }
                   ].map((item) => (
                     <div key={item.label} className="flex items-center gap-2">
                       <div className={`w-2 h-2 rounded-full ${item.color}`} />
@@ -674,7 +602,7 @@ export default function Home() {
 
                <div className="flex items-center gap-2 text-slate-700 font-extrabold bg-white px-4 py-3 rounded-xl shadow-sm border border-gray-100">
                   <SlidersHorizontal className="h-4 w-4 text-[#15803d]" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest">{filteredAnimals.length} Risultati</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest">{filteredAnimals.length} {t('home.results')}</span>
                </div>
             </div>
           </div>
@@ -689,7 +617,7 @@ export default function Home() {
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
-                  className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-2xl border border-gray-100 transition-all group flex flex-col h-full bg-slate-50 cursor-pointer"
+                  className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-2xl border border-gray-100 transition-all group flex flex-col h-full bg-slate-50 cursor-pointer text-left"
                   onClick={() => navigate(`/mappa?id=${animal.id}`)}
                 >
                   <div className="relative h-32 sm:h-48 lg:h-64 overflow-hidden">
@@ -700,9 +628,9 @@ export default function Home() {
                   </div>
                   <div className="p-3 sm:p-6 lg:p-8 flex flex-col flex-1">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1.5 sm:gap-4 mb-2 sm:mb-4">
-                      <h3 className="text-xs sm:text-lg lg:text-2xl font-black text-[#101b3a] line-clamp-1">{animal.specie} {animal.colore}</h3>
+                      <h3 className="text-xs sm:text-lg lg:text-md font-black text-[#101b3a] line-clamp-1">{animal.specie} {animal.colore}</h3>
                       <div className={`flex items-center gap-1 px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg ${
-                        animal.stato === 'CREATA' ? 'bg-blue-550/10 text-blue-600' :
+                        animal.stato === 'CREATA' ? 'bg-blue-50 text-blue-600' :
                         animal.stato === 'IN_CARICO' ? 'bg-amber-50 text-amber-600' :
                         animal.stato === 'INTERVENTO' ? 'bg-emerald-50 text-emerald-600' :
                         'bg-indigo-50 text-indigo-600'
@@ -711,11 +639,16 @@ export default function Home() {
                         {animal.stato === 'IN_CARICO' && <AlertCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3" />}
                         {animal.stato === 'INTERVENTO' && <MousePointer2 className="h-2.5 w-2.5 sm:h-3 sm:w-3" />}
                         {animal.stato === 'CHIUSA' && <CheckCircle2 className="h-2.5 w-2.5 sm:h-3 sm:w-3" />}
-                        <span className="text-[7px] sm:text-[9px] font-black uppercase tracking-widest">{animal.stato}</span>
+                        <span className="text-[7px] sm:text-[9px] font-black uppercase tracking-widest leading-none">
+                          {animal.stato === 'CREATA' ? t('home.report_status_creata') :
+                           animal.stato === 'IN_CARICO' ? t('home.report_status_incarico') :
+                           animal.stato === 'INTERVENTO' ? t('home.report_status_pulizia') :
+                           t('home.report_status_risolta')}
+                        </span>
                       </div>
                     </div>
-                    <p className="text-slate-700 text-[8px] sm:text-xs font-bold uppercase tracking-widest mb-3 sm:mb-6 flex items-center gap-1 sm:gap-2">
-                       {animal.specie === 'CANE' ? <Dog className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5 text-[#15803d]" /> : <Cat className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5 text-[#15803d]" />} {animal.taglia}
+                    <p className="text-slate-500 text-[8px] sm:text-xs font-bold uppercase tracking-widest mb-3 sm:mb-6 flex items-center gap-1 sm:gap-2">
+                       {animal.specie === 'CANE' ? <Dog className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5 text-[#15803d]" /> : <Cat className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5 text-[#15803d]" />} {animal.taglia || 'Normale'}
                     </p>
                     <div className="mt-auto pt-3 sm:pt-6 border-t border-gray-100 flex items-center justify-between">
                        <div className="flex items-center gap-1 sm:gap-2 min-w-0">
@@ -741,53 +674,36 @@ export default function Home() {
               <div className="w-20 h-20 bg-gray-50 rounded-lg flex items-center justify-center mx-auto mb-8">
                  <Search className="h-8 w-8 text-[#15803d]/40" />
               </div>
-              <h3 className="text-2xl font-bold text-[#101b3a]">Nessun risultato trovato</h3>
-              <p className="text-slate-700 font-bold">Prova a cambiare i filtri o la query di ricerca.</p>
+              <h3 className="text-2xl font-bold text-[#101b3a]">{language === 'it' ? 'Nessun risultato trovato' : 'No results found'}</h3>
+              <p className="text-slate-500 font-bold">{language === 'it' ? 'Prova a cambiare i filtri o la query di ricerca.' : 'Try changing parameters of your search queries.'}</p>
               <button 
                 onClick={() => { setSearchQuery(''); setSpeciesFilter('Tutti'); setLocationFilter('Tutte'); }}
-                className="mt-8 text-[#15803d] font-black text-[10px] uppercase tracking-widest hover:underline"
+                className="mt-8 text-[#15803d] font-black text-[10px] uppercase tracking-widest hover:underline cursor-pointer"
               >
-                Resetta Filtri
+                {language === 'it' ? 'Resetta Filtri' : 'Reset Filters'}
               </button>
             </motion.div>
           )}
         </div>
       </section>
 
-      {/* Territorio Map Section */}
-      <section id="map-step" className="py-12 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-2xl font-bold text-[#101b3a] flex items-center gap-2">
-              <MapPin className="h-6 w-6 text-[#15803d]" /> Segnalazioni sul territorio
-            </h2>
-            <Link to="/mappa" className="text-[#15803d] font-bold flex items-center gap-1 hover:underline">
-              Mappa completa <ChevronRight className="h-4 w-4" />
-            </Link>
-          </div>
-          <div className="h-[500px] w-full rounded-lg overflow-hidden shadow-2xl border-8 border-white relative">
-             <AppMap markers={animalMarkers} />
-          </div>
-        </div>
-      </section>
-
-      {/* Ultime Segnalazioni Section */}
+      {/* 4. FEED REAL-TIME / ULTIME SEGNALAZIONI */}
       <section className="py-24 bg-white border-t border-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-end mb-16">
-            <div className="max-w-2xl">
-              <div className="inline-block px-4 py-1.5 bg-emerald-50 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-[#15803d] mb-6">Feed Real-Time</div>
-              <h2 className="text-4xl font-black text-[#101b3a] tracking-tight mb-4">Ultime segnalazioni</h2>
-              <p className="text-slate-700 font-semibold">Monitoraggio costante gestito dagli amministratori e operatori del {siteName}.</p>
+            <div className="max-w-2xl text-left">
+              <div className="inline-block px-4 py-1.5 bg-emerald-50 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-[#15803d] mb-6">{t('home.sec_feed_badge')}</div>
+              <h2 className="text-4xl font-black text-[#101b3a] tracking-tight mb-4">{t('home.sec_feed')}</h2>
+              <p className="text-slate-700 font-semibold">{t('home.sec_feed_desc')} {siteName}.</p>
             </div>
             <Link to="/mia-area" className="bg-gray-50 hover:bg-gray-100 text-[#101b3a] px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 border border-gray-100">
-               Tutte le attività <ArrowRight className="h-4 w-4" />
+               {t('home.all_activities')} <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {comuneSegnalazioni.slice(0, 4).map((report) => (
-              <div key={report.id} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all flex items-center gap-6 group cursor-pointer" onClick={() => navigate(`/mappa?id=${report.id}`)}>
+              <div key={report.id} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all flex items-center gap-6 group cursor-pointer text-left" onClick={() => navigate(`/mappa?id=${report.id}`)}>
                 <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110 ${
                   report.stato === 'RISOLTA' || report.stato === 'CHIUSA' ? 'bg-indigo-50 text-indigo-600' : 
                   report.stato === 'IN_CARICO' ? 'bg-amber-50 text-amber-600' : 
@@ -819,85 +735,61 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Numeri Section */}
-      <section id="numbers-step" className="py-24 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl font-bold text-[#101b3a] mb-16">Numeri del territorio</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-gray-50 p-12 rounded-lg border border-gray-100 flex flex-col items-center">
-              <Info className="h-5 w-5 text-slate-500 mb-4" />
-              <div className="text-6xl font-bold text-[#101b3a] mb-2">{comuneSegnalazioni.length}</div>
-              <div className="text-slate-800 font-bold uppercase tracking-widest text-xs">Segnalazioni totali</div>
-            </div>
-            <div className="bg-[#15803d]/5 p-12 rounded-lg border border-[#15803d]/10 flex flex-col items-center">
-              <CheckCircle className="h-5 w-5 text-[#15803d]/40 mb-4" />
-              <div className="text-6xl font-bold text-[#15803d] mb-2">{comuneSegnalazioni.filter(s => s.stato === 'CHIUSA' || s.stato === 'RISOLTA').length}</div>
-              <div className="text-[#15803d]/60 font-bold uppercase tracking-widest text-xs">Segnalazioni risolte</div>
-            </div>
-            <div className="bg-[#15803d]/5 p-12 rounded-lg border border-[#15803d]/10 flex flex-col items-center">
-              <PawPrint className="h-5 w-5 text-[#15803d]/40 mb-4" />
-              <div className="text-6xl font-bold text-[#15803d] mb-2">{comuneSegnalazioni.length * 3 + 12}</div>
-              <div className="text-[#15803d]/60 font-bold uppercase tracking-widest text-xs">Animali censiti</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Tech & Innovation Section */}
+      {/* 5. TECH & INNOVATION */}
       <section className="py-24 bg-gray-50 border-y border-gray-100 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-[#101b3a] mb-4">Innovazione per il Territorio</h2>
-            <p className="text-slate-700 font-semibold text-lg">Come usiamo le migliori tecnologie per rendere semplice, veloce e sicura la tutela degli animali a Naro.</p>
+            <h2 className="text-4xl font-black text-[#101b3a] tracking-tight mb-4">{t('home.sec_innovation')}</h2>
+            <p className="text-slate-700 font-semibold text-lg">{t('home.sec_innovation_desc')}</p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               {
-                tag: "Foto Intelligente (IA)",
+                tag: language === 'it' ? "Foto Intelligente (IA)" : "Intelligent Photo (AI)",
                 tagColor: "text-emerald-700 bg-emerald-50",
-                title: "Riconoscimento col Telefono",
-                desc: "Usa la fotocamera per scattare una foto. Il nostro sistema riconosce subito se è un cane o un gatto, aiutando i soccorritori ad agire in modo mirato.",
+                title: language === 'it' ? "Riconoscimento col Telefono" : "Phone Detection Assist",
+                desc: language === 'it' ? "Usa la fotocamera per scattare una foto. Il nostro sistema riconosce subito se è un cane o un gatto, aiutando i soccorritori." : "Point the camera at the pet. Our platform instantly assists with classification parameters to help responders.",
                 bgImage: "https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=800",
                 icon: <PawPrint className="h-5 w-5" />
               },
               {
-                tag: "Geolocalizzazione GPS",
+                tag: language === 'it' ? "Geolocalizzazione GPS" : "GPS Geolocalisation",
                 tagColor: "text-blue-700 bg-blue-50",
-                title: "Mappa e Posizione Esatta",
-                desc: "Premi un pulsante e la tua posizione GPS viene segnata sulla mappa di Naro. Così gli operatori sanno subito dove andare senza perdite di tempo.",
+                title: language === 'it' ? "Mappa e Posizione Esatta" : "Precise Map Coordinates",
+                desc: language === 'it' ? "Premi un pulsante e la tua posizione GPS viene segnata sulla mappa di Naro. Così gli operatori arrivano senza ritardi." : "Tap a button and capture GPS coordinates on the official map. Responders arrive accurately with no wasted time.",
                 bgImage: "https://images.unsplash.com/photo-1569336415962-a4bd9f69cd83?auto=format&fit=crop&q=80&w=800",
                 icon: <MapPin className="h-5 w-5" />
               },
               {
-                tag: "Notifiche SMS ed Email",
+                tag: language === 'it' ? "Notifiche Real-Time" : "Real-time updates",
                 tagColor: "text-amber-700 bg-amber-50",
-                title: "Aggiornamenti in Tempo Reale",
-                desc: "Rimani informato sullo stato della tua pratica: ricevi un avviso automatico quando un operatore o veterinario si reca sul posto o prende in affido l'animale.",
+                title: language === 'it' ? "Aggiornamenti in Tempo Reale" : "Instant SMS/Mail Alerts",
+                desc: language === 'it' ? "Rimani informato sullo stato della tua pratica: ricevi un avviso automatico quando un operatore prende in carico l'animale." : "Receive automatic tracking milestones as responders deploy or doctors intervene on your logged stray report.",
                 bgImage: "https://images.unsplash.com/photo-1557200134-90327ee9fafa?auto=format&fit=crop&q=80&w=800",
                 icon: <Clock className="h-5 w-5" />
               },
               {
                 tag: "Privacy al 100%",
                 tagColor: "text-red-700 bg-red-50",
-                title: "I Tuoi Dati Protetti e Sicuri",
-                desc: "Il portale è conforme alle leggi sulla privacy. Nome ed email rimangono crittografati e protetti, visibili solo al personale autorizzato del Comune.",
+                title: language === 'it' ? "I Tuoi Dati Protetti e Sicuri" : "Fully Encrypted Identity",
+                desc: language === 'it' ? "Il portale è conforme alle leggi sulla privacy. Nome ed email rimangono crittografati e protetti, visibili solo al personale." : "Fully compliant with strict GDPR mandates. Your contact data remains hidden and encrypted from open visual feeds.",
                 bgImage: "https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&q=80&w=800",
                 icon: <ShieldCheck className="h-5 w-5" />
               },
               {
-                tag: "Adozione Facile",
-                tagColor: "text-indigo-700 bg-indigo-50",
-                title: "Regala una Nuova Casa",
-                desc: "Accedi all'elenco degli animali pronti per essere adottati. Ti mettiamo in contatto diretto con canili e rifugi autorizzati per trovare un nuovo amico.",
+                tag: language === 'it' ? "Adozione Facile" : "Easy foster files",
+                tagColor: "text-indigo-700 bg-[#eef2ff]",
+                title: language === 'it' ? "Regala una Nuova Casa" : "Promote Happy Adoptions",
+                desc: language === 'it' ? "Accedi all'elenco degli animali pronti per essere adottati. Ti mettiamo in contatto con canili e rifugi autorizzati." : "Easily browse pets ready for foster care and sign digital COF procedures safely, linked with local shelters.",
                 bgImage: "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&q=80&w=800",
                 icon: <Heart className="h-5 w-5" />
               },
               {
-                tag: "Veterinari Locali",
-                tagColor: "text-purple-700 bg-purple-50",
-                title: "Pronto Intervento e Cure",
-                desc: "I medici veterinari e le associazioni di Naro sono collegati alla piattaforma e ricevono all'istante le notifiche per soccorrere gli animali feriti.",
+                tag: language === 'it' ? "Veterinari Locali" : "Local Vet Network",
+                tagColor: "text-purple-700 bg-[#faf5ff]",
+                title: language === 'it' ? "Pronto Intervento e Cure" : "Coordinated Health Teams",
+                desc: language === 'it' ? "I medici veterinari e le associazioni di Naro sono collegati alla piattaforma e ricevono all'istante segnalazioni urgenti." : "Local clinicians and active volunteers are direct participants within the platform for immediate clinical rescue.",
                 bgImage: "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?auto=format&fit=crop&q=80&w=800",
                 icon: <Briefcase className="h-5 w-5" />
               }
@@ -908,15 +800,12 @@ export default function Home() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="group relative bg-white p-8 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between overflow-hidden hover:shadow-2xl hover:-translate-y-1.5 transition-all duration-300 min-h-[280px]"
+                className="group relative bg-white p-8 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between overflow-hidden hover:shadow-2xl hover:-translate-y-1.5 transition-all duration-300 min-h-[280px] text-left"
               >
-                {/* Background images: subtle initially, strengthens on hover */}
                 <div 
                   className="absolute inset-0 bg-cover bg-center opacity-5 group-hover:opacity-30 scale-100 group-hover:scale-110 transition-all duration-700 pointer-events-none"
                   style={{ backgroundImage: `url(${item.bgImage})` }}
                 />
-                
-                {/* Tech glow gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/0 via-transparent to-slate-900/0 group-hover:from-emerald-500/5 group-hover:to-slate-900/5 transition-all duration-500 pointer-events-none" />
 
                 <div className="relative z-10 flex flex-col h-full">
@@ -925,7 +814,7 @@ export default function Home() {
                     <span className={`text-[10px] font-black uppercase tracking-widest ${item.tagColor.split(' ')[0]}`}>{item.tag}</span>
                   </div>
                   <h3 className="text-xl font-bold text-[#101b3a] group-hover:text-[#15803d] transition-colors duration-300 mb-4">{item.title}</h3>
-                  <p className="text-slate-700 leading-relaxed text-sm font-semibold">{item.desc}</p>
+                  <p className="text-slate-600 leading-relaxed text-sm font-semibold">{item.desc}</p>
                 </div>
               </motion.div>
             ))}
@@ -933,25 +822,25 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Motivations Section */}
+      {/* 6. PERCHÈ USARE ANIMALHUB PA */}
       <section className="py-24 bg-white border-t border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl font-bold text-[#101b3a] mb-16">Perché usare AnimalHub PA</h2>
+          <h2 className="text-4xl font-black text-[#101b3a] tracking-tight mb-16">{t('home.sec_why')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12 text-left">
             {[
               { 
-                title: "Aggiornamenti in tempo reale", 
-                desc: "Ricevi notifiche istantanee via email quando la tua segnalazione sul territorio comunale viene presa in carico, controllata o risolta.",
+                title: language === 'it' ? "Aggiornamenti in tempo reale" : "Real-time updates", 
+                desc: language === 'it' ? "Ricevi notifiche istantanee via email quando la tua segnalazione sul territorio comunale viene presa in carico." : "Get instant email updates when your stray animal report is updated, validated or successfully closed.",
                 bgImage: "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&q=80&w=800"
               },
               { 
-                title: "I tuoi dati sono sicuri", 
-                desc: "Sistema totalmente sicuro e conforme alle norme europee sulla privacy (GDPR). Nome ed email rimangono protetti e criptati.",
+                title: language === 'it' ? "I tuoi dati sono sicuri" : "Encrypted privacy rules", 
+                desc: language === 'it' ? "Sistema totalmente sicuro e conforme alle norme europee sulla privacy (GDPR). Nome ed email rimangono protetti." : "Strict compliance with European GDPR laws. Your personal details are protected and accessible only to verified officials.",
                 bgImage: "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&q=80&w=800"
               },
               { 
-                title: "Segnalazione semplice", 
-                desc: "Bastano pochissimi tocchi dallo smartphone: selezioni il tipo di animale, marchi la posizione GPS e carichi una foto scattata sul posto.",
+                title: language === 'it' ? "Segnalazione semplice" : "Simple 3-click reporting", 
+                desc: language === 'it' ? "Bastano pochissimi tocchi dallo smartphone: selezioni il tipo di animale, marchi la posizione e carichi una foto." : "Highly optimized mobile-friendly interface. Map GPS spots instantly, state details and submit with direct photos.",
                 bgImage: "https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?auto=format&fit=crop&q=80&w=800"
               }
             ].map((item, i) => (
@@ -959,13 +848,10 @@ export default function Home() {
                 key={i} 
                 className="group relative overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1.5 p-8 rounded-2xl bg-white border border-gray-100 min-h-[300px] flex flex-col justify-between"
               >
-                {/* Background images: subtle initially, strengthens on hover */}
                 <div 
                   className="absolute inset-0 bg-cover bg-center opacity-5 group-hover:opacity-30 scale-100 group-hover:scale-110 transition-all duration-700 pointer-events-none"
                   style={{ backgroundImage: `url(${item.bgImage})` }}
                 />
-                
-                {/* Hover gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/0 via-transparent to-slate-900/0 group-hover:from-emerald-500/5 group-hover:to-slate-900/10 transition-all duration-500 pointer-events-none" />
 
                 <div className="relative z-10 flex flex-col h-full">
@@ -973,7 +859,7 @@ export default function Home() {
                      {i === 0 ? <Clock className="h-7 w-7 text-[#15803d]" /> : i === 1 ? <ShieldCheck className="h-7 w-7 text-[#15803d]" /> : <UserCheck className="h-7 w-7 text-[#15803d]" />}
                   </div>
                   <h3 className="text-2xl font-black text-[#101b3a] group-hover:text-[#15803d] transition-colors duration-300 mb-4">{item.title}</h3>
-                  <p className="text-slate-700 leading-relaxed text-base font-semibold">{item.desc}</p>
+                  <p className="text-slate-600 leading-relaxed text-base font-semibold">{item.desc}</p>
                 </div>
               </div>
             ))}
@@ -981,11 +867,11 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Compliance / Quality badges */}
+      {/* COMPLIANCE FOOTER BADGES */}
       <section className="py-12 border-t border-gray-100 flex justify-center gap-12 grayscale opacity-40">
-         <div className="flex items-center gap-2 font-bold text-xs"><ShieldCheck className="h-4 w-4" /> Conforme GDPR</div>
+         <div className="flex items-center gap-2 font-bold text-xs"><ShieldCheck className="h-4 w-4" /> {language === 'it' ? 'Conforme GDPR' : 'GDPR Compliant'}</div>
          <div className="flex items-center gap-2 font-bold text-xs"><CheckCircle className="h-4 w-4" /> WCAG 2.1 AA</div>
-         <div className="flex items-center gap-2 font-bold text-xs"><Info className="h-4 w-4" /> Portale Civico Comune di Naro</div>
+         <div className="flex items-center gap-2 font-bold text-xs"><Info className="h-4 w-4" /> {language === 'it' ? `Portale Civico ${siteName}` : `Civic Portal ${cityName}`}</div>
       </section>
 
       {/* Floating Tutorial Button */}

@@ -36,6 +36,15 @@ export async function addMySQLColumns() {
         }
       }
     }
+
+    try {
+      await pool.execute("ALTER TABLE admin_users ADD COLUMN visible_modules TEXT DEFAULT NULL");
+      console.log("MySQL: aggiunta colonna visible_modules a admin_users");
+    } catch (e: any) {
+      if (!e.message.includes("Duplicate column") && !e.message.includes("already exists")) {
+        console.warn("Info migrazione MySQL colonna visible_modules:", e.message);
+      }
+    }
   }
 }
 
@@ -52,7 +61,8 @@ export async function createMySQLTables() {
         username VARCHAR(100) UNIQUE NOT NULL,
         password_hash VARCHAR(255) NOT NULL,
         role VARCHAR(50) DEFAULT 'OPERATORE',
-        comune_key VARCHAR(50) DEFAULT 'naro'
+        comune_key VARCHAR(50) DEFAULT 'naro',
+        visible_modules TEXT DEFAULT NULL
     )`,
     `CREATE TABLE IF NOT EXISTS registro_anagrafica (
         id INT AUTO_INCREMENT PRIMARY KEY,

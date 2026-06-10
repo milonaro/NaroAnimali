@@ -45,7 +45,28 @@ app.get("/api/admin/me", async (req, res) => {
   const token = req.cookies.admin_token;
   if (!token) return res.status(401).json({ error: "Non autenticato" });
   try {
-    const decoded = jwt.verify(token, "animal-hub-secret");
+    const decoded = jwt.verify(token, "animal-hub-secret") as any;
+    if (mysqlPool && getIsMysqlHealthy()) {
+      const [rows]: any = await mysqlPool.execute("SELECT id, username, role, comune_key, visible_modules FROM admin_users WHERE username = ?", [decoded.username]);
+      const user = rows[0];
+      if (user) {
+        let parsedModules = null;
+        if (user.visible_modules) {
+          try {
+            parsedModules = JSON.parse(user.visible_modules);
+          } catch(e) {}
+        }
+        return res.json({ 
+          user: { 
+            id: user.id, 
+            username: user.username, 
+            role: user.role, 
+            comune_key: user.comune_key,
+            visible_modules: parsedModules
+          } 
+        });
+      }
+    }
     res.json({ user: decoded });
   } catch (err) {
     res.status(401).json({ error: "Token non valido" });
@@ -69,6 +90,101 @@ app.post("/api/admin/login", async (req, res) => {
 app.post("/api/admin/logout", (req, res) => {
   res.clearCookie("admin_token");
   res.json({ success: true });
+});
+
+// Authentication and authorization helper middleware
+function requireAuth(allowedRoles?: string[]) {
+  return (req: any, res: any, next: any) => {
+    const token = req.cookies.admin_token;
+    if (!token) return res.status(401).json({ error: "Accesso negato. Autenticazione richiesta." });
+    try {
+      const decoded = jwt.verify(token, "animal-hub-secret") as any;
+      req.user = decoded;
+      
+      if (allowedRoles && allowedRoles.length > 0) {
+        const userRole = (decoded.role || "").toUpperCase();
+        const hasRole = allowedRoles.map(r => r.toUpperCase()).includes(userRole);
+        if (!hasRole) {
+          return res.status(403).json({ error: "Privilegi insufficienti per questa operazione." });
+        }
+      }
+      next();
+    } catch (err) {
+      return res.status(401).json({ error: "Sessione non valida o scaduta." });
+    }
+  };
+}
+
+// User-Management APIs (Admin Only)
+app.get("/api/admin/users", requireAuth(["ADMIN"]), async (req, res) => {
+  if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
+  try {
+    const [rows] = await mysqlPool.execute("SELECT id, username, role, comune_key, visible_modules FROM admin_users ORDER BY id ASC");
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: "Errore nel caricamento degli operatori." });
+  }
+});
+
+app.post("/api/admin/users", requireAuth(["ADMIN"]), async (req, res) => {
+  const { username, password, role, comune_key, visible_modules } = req.body;
+  if (!username || !password || !role) {
+    return res.status(400).json({ error: "Username, password e ruolo sono obbligatori." });
+  }
+  if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
+  try {
+    const hash = await bcrypt.hash(password, 10);
+    const modulesStr = visible_modules ? JSON.stringify(visible_modules) : null;
+    await mysqlPool.execute(
+      "INSERT INTO admin_users (username, password_hash, role, comune_key, visible_modules) VALUES (?, ?, ?, ?, ?)",
+      [username, hash, role, comune_key || "naro", modulesStr]
+    );
+    res.json({ success: true });
+  } catch (err: any) {
+    if (err.code === "ER_DUP_ENTRY") {
+      return res.status(400).json({ error: "Questo nome utente è già registrato." });
+    }
+    res.status(500).json({ error: "Errore durante la creazione dell'operatore." });
+  }
+});
+
+app.put("/api/admin/users/:id", requireAuth(["ADMIN"]), async (req, res) => {
+  const { id } = req.params;
+  const { username, password, role, comune_key, visible_modules } = req.body;
+  if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
+  try {
+    const modulesStr = visible_modules ? JSON.stringify(visible_modules) : null;
+    if (password) {
+      const hash = await bcrypt.hash(password, 10);
+      await mysqlPool.execute(
+        "UPDATE admin_users SET username = ?, password_hash = ?, role = ?, comune_key = ?, visible_modules = ? WHERE id = ?",
+        [username, hash, role, comune_key || "naro", modulesStr, id]
+      );
+    } else {
+      await mysqlPool.execute(
+        "UPDATE admin_users SET username = ?, role = ?, comune_key = ?, visible_modules = ? WHERE id = ?",
+        [username, role, comune_key || "naro", modulesStr, id]
+      );
+    }
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: "Errore durante l'aggiornamento dell'operatore." });
+  }
+});
+
+app.delete("/api/admin/users/:id", requireAuth(["ADMIN"]), async (req, res) => {
+  const { id } = req.params;
+  if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
+  try {
+    const [userRows]: any = await mysqlPool.execute("SELECT username FROM admin_users WHERE id = ?", [id]);
+    if (userRows && userRows[0]?.username === "admin") {
+      return res.status(400).json({ error: "Non è possibile rimuovere l'amministratore principale di sistema." });
+    }
+    await mysqlPool.execute("DELETE FROM admin_users WHERE id = ?", [id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: "Errore durante l'eliminazione dell'operatore." });
+  }
 });
 
 app.get("/api/admin/config", async (req, res) => {
@@ -99,7 +215,7 @@ app.get("/api/comuni", async (req, res) => {
   res.json(rows);
 });
 
-app.get("/api/interventi_logs", async (req, res) => {
+app.get("/api/interventi_logs", requireAuth(["ADMIN", "POLIZIA_LOCALE", "CANILE_SANITARIO", "VOLONTARIO"]), async (req, res) => {
   if (!mysqlPool || !getIsMysqlHealthy()) return res.json([]);
   const [activeRow]: any = await mysqlPool.execute("SELECT value_data FROM admin_config WHERE key_name = 'activeComune'");
   const comune = activeRow[0]?.value_data || 'naro';
@@ -110,13 +226,13 @@ app.get("/api/interventi_logs", async (req, res) => {
   res.json({ data: rows, nextOffset: offset + limit });
 });
 
-app.get("/api/registro", async (req, res) => {
+app.get("/api/registro", requireAuth(["ADMIN", "POLIZIA_LOCALE", "CANILE_SANITARIO", "VOLONTARIO"]), async (req, res) => {
   if (!mysqlPool || !getIsMysqlHealthy()) return res.json([]);
   const [rows] = await mysqlPool.execute("SELECT * FROM registro_anagrafica");
   res.json(rows);
 });
 
-app.post("/api/registro", async (req, res) => {
+app.post("/api/registro", requireAuth(["ADMIN", "POLIZIA_LOCALE", "CANILE_SANITARIO"]), async (req, res) => {
   const data = req.body;
   if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
   const [activeRow]: any = await mysqlPool.execute("SELECT value_data FROM admin_config WHERE key_name = 'activeComune'");
@@ -128,7 +244,7 @@ app.post("/api/registro", async (req, res) => {
   res.json({ success: true });
 });
 
-app.put("/api/registro/:id", async (req, res) => {
+app.put("/api/registro/:id", requireAuth(["ADMIN", "POLIZIA_LOCALE", "CANILE_SANITARIO"]), async (req, res) => {
   const { id } = req.params;
   const data = req.body;
   if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
@@ -170,7 +286,7 @@ app.post("/api/adozioni", async (req, res) => {
   res.json({ success: true });
 });
 
-app.put("/api/adozioni/:id/stato", async (req, res) => {
+app.put("/api/adozioni/:id/stato", requireAuth(["ADMIN", "CANILE_SANITARIO", "POLIZIA_LOCALE"]), async (req, res) => {
   const { id } = req.params;
   const { stato, esito, note } = req.body;
   if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
@@ -277,9 +393,50 @@ app.post("/api/chat", async (req, res) => {
   res.json({ message: "Chat AI is temporarily under maintenance while SQLite dependencies are strictly removed." });
 });
 
+async function seedAdminUsers() {
+  if (!mysqlPool || !getIsMysqlHealthy()) return;
+  try {
+    const [rows]: any = await mysqlPool.execute("SELECT COUNT(*) as count FROM admin_users");
+    const count = rows[0]?.count || 0;
+    if (count === 0) {
+      console.log("Seeding default administrative operators...");
+      const adminHash = await bcrypt.hash("admin2026", 10);
+      const poliziaHash = await bcrypt.hash("polizia2026", 10);
+      const canileHash = await bcrypt.hash("canile2026", 10);
+      const volontarioHash = await bcrypt.hash("volontario2026", 10);
+
+      const allModules = JSON.stringify(['statistiche', 'modulo-b', 'modulo-c', 'modulo-adozioni']);
+      const policeModules = JSON.stringify(['modulo-b', 'modulo-c']);
+      const kennelModules = JSON.stringify(['modulo-b', 'modulo-c', 'modulo-adozioni']);
+      const volunteerModules = JSON.stringify(['modulo-b']);
+
+      await mysqlPool.execute(
+        "INSERT INTO admin_users (username, password_hash, role, comune_key, visible_modules) VALUES (?, ?, ?, ?, ?)",
+        ["admin", adminHash, "ADMIN", "naro", allModules]
+      );
+      await mysqlPool.execute(
+        "INSERT INTO admin_users (username, password_hash, role, comune_key, visible_modules) VALUES (?, ?, ?, ?, ?)",
+        ["polizia", poliziaHash, "POLIZIA_LOCALE", "naro", policeModules]
+      );
+      await mysqlPool.execute(
+        "INSERT INTO admin_users (username, password_hash, role, comune_key, visible_modules) VALUES (?, ?, ?, ?, ?)",
+        ["canile", canileHash, "CANILE_SANITARIO", "naro", kennelModules]
+      );
+      await mysqlPool.execute(
+        "INSERT INTO admin_users (username, password_hash, role, comune_key, visible_modules) VALUES (?, ?, ?, ?, ?)",
+        ["volontario", volontarioHash, "VOLONTARIO", "naro", volunteerModules]
+      );
+      console.log("Succesfully seeded 4 default admin operator accounts.");
+    }
+  } catch (err) {
+    console.error("Error seeding default admin users:", err);
+  }
+}
+
 async function bootServer() {
   await createMySQLTables();
   await addMySQLColumns();
+  await seedAdminUsers();
   
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
