@@ -20,6 +20,7 @@ export default function GestioneOperatoriTab({ currentUser }: { currentUser: any
   const [id, setId] = useState<number | null>(null);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
   const [role, setRole] = useState('POLIZIA_LOCALE');
   const [comuneKey, setComuneKey] = useState('naro');
   const [selectedModules, setSelectedModules] = useState<string[]>(['modulo-b']);
@@ -64,6 +65,7 @@ export default function GestioneOperatoriTab({ currentUser }: { currentUser: any
     setId(null);
     setUsername('');
     setPassword('');
+    setEmail('');
     setRole('POLIZIA_LOCALE');
     setComuneKey('naro');
     setSelectedModules(['modulo-b']);
@@ -71,12 +73,13 @@ export default function GestioneOperatoriTab({ currentUser }: { currentUser: any
     setSuccess('');
   };
 
-  const handleEditClick = (op: Operator) => {
+  const handleEditClick = (op: any) => {
     setError('');
     setSuccess('');
     setId(op.id);
     setUsername(op.username);
     setPassword(''); // lasciata vuota per non interferire con l'hash esistente
+    setEmail(op.email || '');
     setRole(op.role);
     setComuneKey(op.comune_key || 'naro');
     
@@ -107,6 +110,7 @@ export default function GestioneOperatoriTab({ currentUser }: { currentUser: any
     const payload = {
       username,
       password: password || undefined,
+      email: email || undefined,
       role,
       comune_key: comuneKey,
       visible_modules: selectedModules
@@ -217,6 +221,17 @@ export default function GestioneOperatoriTab({ currentUser }: { currentUser: any
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="es. m.rossi"
+                className="w-full p-2.5 border border-slate-200 bg-slate-50/50 focus:bg-white rounded-lg text-xs font-bold outline-none focus:border-[#15803d] transition-all"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-500 block">Indirizzo Email (Per Token 2FA)</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="es. operatore@comune.it"
                 className="w-full p-2.5 border border-slate-200 bg-slate-50/50 focus:bg-white rounded-lg text-xs font-bold outline-none focus:border-[#15803d] transition-all"
               />
             </div>
