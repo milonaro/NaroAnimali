@@ -47,24 +47,28 @@ app.get("/api/admin/me", async (req, res) => {
   try {
     const decoded = jwt.verify(token, "animal-hub-secret") as any;
     if (mysqlPool && getIsMysqlHealthy()) {
-      const [rows]: any = await mysqlPool.execute("SELECT id, username, role, comune_key, visible_modules FROM admin_users WHERE username = ?", [decoded.username]);
-      const user = rows[0];
-      if (user) {
-        let parsedModules = null;
-        if (user.visible_modules) {
-          try {
-            parsedModules = JSON.parse(user.visible_modules);
-          } catch(e) {}
+      try {
+        const [rows]: any = await mysqlPool.execute("SELECT id, username, role, comune_key, visible_modules FROM admin_users WHERE username = ?", [decoded.username]);
+        const user = rows[0];
+        if (user) {
+          let parsedModules = null;
+          if (user.visible_modules) {
+            try {
+              parsedModules = JSON.parse(user.visible_modules);
+            } catch(e) {}
+          }
+          return res.json({ 
+            user: { 
+              id: user.id, 
+              username: user.username, 
+              role: user.role, 
+              comune_key: user.comune_key,
+              visible_modules: parsedModules
+            } 
+          });
         }
-        return res.json({ 
-          user: { 
-            id: user.id, 
-            username: user.username, 
-            role: user.role, 
-            comune_key: user.comune_key,
-            visible_modules: parsedModules
-          } 
-        });
+      } catch (dbErr) {
+        console.error("DB error in /api/admin/me", dbErr);
       }
     }
     res.json({ user: decoded });
@@ -76,14 +80,19 @@ app.get("/api/admin/me", async (req, res) => {
 app.post("/api/admin/login", async (req, res) => {
   const { username, password } = req.body;
   if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
-  const [rows]: any = await mysqlPool.execute("SELECT * FROM admin_users WHERE username = ?", [username]);
-  const user = rows[0];
-  if (user && await bcrypt.compare(password, user.password_hash)) {
-    const token = jwt.sign({ username: user.username, role: user.role, comune_key: user.comune_key }, "animal-hub-secret");
-    res.cookie("admin_token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production" });
-    res.json({ success: true, token });
-  } else {
-    res.status(401).json({ error: "Credenziali non valide" });
+  try {
+    const [rows]: any = await mysqlPool.execute("SELECT * FROM admin_users WHERE username = ?", [username]);
+    const user = rows[0];
+    if (user && await bcrypt.compare(password, user.password_hash)) {
+      const token = jwt.sign({ username: user.username, role: user.role, comune_key: user.comune_key }, "animal-hub-secret");
+      res.cookie("admin_token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production" });
+      res.json({ success: true, token });
+    } else {
+      res.status(401).json({ error: "Credenziali non valide" });
+    }
+  } catch (err) {
+    console.error("DB error in login:", err);
+    res.status(500).json({ error: "DB Error Logging in" });
   }
 });
 
@@ -189,30 +198,50 @@ app.delete("/api/admin/users/:id", requireAuth(["ADMIN"]), async (req, res) => {
 
 app.get("/api/admin/config", async (req, res) => {
   if (!mysqlPool || !getIsMysqlHealthy()) return res.json({});
-  const [rows]: any = await mysqlPool.execute("SELECT * FROM admin_config");
-  const config = rows.reduce((acc: any, row: any) => ({ ...acc, [row.key_name]: row.value_data }), {});
-  res.json(config);
+  try {
+    const [rows]: any = await mysqlPool.execute("SELECT * FROM admin_config");
+    const config = rows.reduce((acc: any, row: any) => ({ ...acc, [row.key_name]: row.value_data }), {});
+    res.json(config);
+  } catch (err) {
+    console.error("DB error in config:", err);
+    res.json({});
+  }
 });
 
 app.post("/api/admin/config", async (req, res) => {
   if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
-  for (const [key, value] of Object.entries(req.body)) {
-    await mysqlPool.execute("INSERT INTO admin_config (key_name, value_data) VALUES (?, ?) ON DUPLICATE KEY UPDATE value_data = ?", [key, String(value), String(value)]);
+  try {
+    for (const [key, value] of Object.entries(req.body)) {
+      await mysqlPool.execute("INSERT INTO admin_config (key_name, value_data) VALUES (?, ?) ON DUPLICATE KEY UPDATE value_data = ?", [key, String(value), String(value)]);
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error("DB error in config post:", err);
+    res.status(500).json({ error: "DB Error" });
   }
-  res.json({ success: true });
 });
 
 app.post("/api/admin/demo-switch", async (req, res) => {
   const { key } = req.body;
   if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
-  await mysqlPool.execute("UPDATE admin_config SET value_data = ? WHERE key_name = 'activeComune'", [key]);
-  res.json({ success: true });
+  try {
+    await mysqlPool.execute("UPDATE admin_config SET value_data = ? WHERE key_name = 'activeComune'", [key]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("DB error in demo switch:", err);
+    res.status(500).json({ error: "DB Error" });
+  }
 });
 
 app.get("/api/comuni", async (req, res) => {
   if (!mysqlPool || !getIsMysqlHealthy()) return res.json([]);
-  const [rows] = await mysqlPool.execute("SELECT * FROM comuni");
-  res.json(rows);
+  try {
+    const [rows] = await mysqlPool.execute("SELECT * FROM comuni");
+    res.json(rows);
+  } catch (err) {
+    console.error("DB error in comuni:", err);
+    res.json([]);
+  }
 });
 
 app.get("/api/interventi_logs", requireAuth(["ADMIN", "POLIZIA_LOCALE", "CANILE_SANITARIO", "VOLONTARIO"]), async (req, res) => {
@@ -434,6 +463,15 @@ async function seedAdminUsers() {
 }
 
 async function bootServer() {
+  if (mysqlPool && getIsMysqlHealthy()) {
+    try {
+      await mysqlPool.query("SELECT 1");
+    } catch (err) {
+      console.warn("MySQL Ping Failed on boot. Disabling MySQL features to prevent timeout.");
+      setMysqlHealthy(false);
+    }
+  }
+
   await createMySQLTables();
   await addMySQLColumns();
   await seedAdminUsers();
