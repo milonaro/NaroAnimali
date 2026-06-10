@@ -45,6 +45,17 @@ export async function addMySQLColumns() {
         console.warn("Info migrazione MySQL colonna visible_modules:", e.message);
       }
     }
+
+    try {
+      await pool.execute("ALTER TABLE admin_users ADD COLUMN email VARCHAR(150) DEFAULT NULL");
+      // Seed un'email di default per gli utenti di test per far funzionare l'OTP
+      await pool.execute("UPDATE admin_users SET email = CONCAT(username, '@animalhub.it') WHERE email IS NULL");
+      console.log("MySQL: aggiunta colonna email a admin_users");
+    } catch (e: any) {
+      if (!e.message.includes("Duplicate column") && !e.message.includes("already exists")) {
+        console.warn("Info migrazione MySQL colonna email:", e.message);
+      }
+    }
   }
 }
 
@@ -62,7 +73,8 @@ export async function createMySQLTables() {
         password_hash VARCHAR(255) NOT NULL,
         role VARCHAR(50) DEFAULT 'OPERATORE',
         comune_key VARCHAR(50) DEFAULT 'naro',
-        visible_modules TEXT DEFAULT NULL
+        visible_modules TEXT DEFAULT NULL,
+        email VARCHAR(150) DEFAULT NULL
     )`,
     `CREATE TABLE IF NOT EXISTS registro_anagrafica (
         id INT AUTO_INCREMENT PRIMARY KEY,
