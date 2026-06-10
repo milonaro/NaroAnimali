@@ -152,7 +152,7 @@ export default function Mappa() {
   };
 
   return (
-    <div className="bg-gray-50 flex flex-col pt-28 pb-16 min-h-screen">
+    <div className="bg-gray-50 flex flex-col pt-28 pb-16 min-h-screen" style={{ borderWidth: '0px', paddingTop: '110px' }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex flex-col gap-6 flex-1">
         
         {/* Modern Header block with integrated filters */}
