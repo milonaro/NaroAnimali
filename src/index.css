@@ -27,12 +27,12 @@
 }
 
 .leaflet-marker-icon {
-  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+  z-index: 500 !important;
 }
 
-.leaflet-marker-icon:hover {
-  transform: scale(1.2) translateY(-10px) !important;
-  z-index: 1000 !important;
+.leaflet-container img.leaflet-marker-icon,
+.leaflet-container img.leaflet-marker-shadow {
+  max-width: none !important;
 }
 
 .leaflet-popup-content-wrapper {
