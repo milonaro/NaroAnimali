@@ -87,6 +87,9 @@ app.post("/api/admin/login", async (req, res) => {
   try {
     const [rows]: any = await mysqlPool.execute("SELECT * FROM admin_users WHERE username = ?", [username]);
     const user = rows[0];
+    const ip = req.ip || (req.headers['x-forwarded-for'] as string) || '';
+    const userAgent = req.headers['user-agent'] || '';
+
     if (user && await bcrypt.compare(password, user.password_hash)) {
       if (user.email) {
         // Generate and store OTP
@@ -97,14 +100,34 @@ app.post("/api/admin/login", async (req, res) => {
           [user.email, otp, expiresAt, otp, expiresAt]
         );
         console.log(`[OTP ADMIN] Email: ${user.email} - Codice: ${otp} (Simulato)`);
+
+        // Log access request
+        await mysqlPool.execute(
+          "INSERT INTO admin_access_logs (username, comune_key, ip_address, user_agent, accesso_riuscito, note) VALUES (?, ?, ?, ?, ?, ?)",
+          [username, user.comune_key || "naro", ip, userAgent, 1, "Password valida - Richiesto OTP"]
+        );
+
         res.json({ success: true, requireOtp: true, email: user.email });
       } else {
         // Fallback if no email is set
         const token = jwt.sign({ username: user.username, role: user.role, comune_key: user.comune_key }, "animal-hub-secret");
         res.cookie("admin_token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production" });
+
+        // Log successful access directly
+        await mysqlPool.execute(
+          "INSERT INTO admin_access_logs (username, comune_key, ip_address, user_agent, accesso_riuscito, note) VALUES (?, ?, ?, ?, ?, ?)",
+          [username, user.comune_key || "naro", ip, userAgent, 1, "Accesso eseguito (senza OTP)"]
+        );
+
         res.json({ success: true, token });
       }
     } else {
+      // Log failed login
+      await mysqlPool.execute(
+        "INSERT INTO admin_access_logs (username, comune_key, ip_address, user_agent, accesso_riuscito, note) VALUES (?, ?, ?, ?, ?, ?)",
+        [username || "sconosciuto", "naro", ip, userAgent, 0, "Credenziali non valide"]
+      );
+
       res.status(401).json({ error: "Credenziali non valide" });
     }
   } catch (err) {
@@ -119,7 +142,12 @@ app.post("/api/admin/login/verify-otp", async (req, res) => {
   try {
     const [userRows]: any = await mysqlPool.execute("SELECT * FROM admin_users WHERE username = ?", [username]);
     const user = userRows[0];
-    if (!user || !user.email) return res.status(401).json({ error: "Utente non trovato o email mancante" });
+    const ip = req.ip || (req.headers['x-forwarded-for'] as string) || '';
+    const userAgent = req.headers['user-agent'] || '';
+
+    if (!user || !user.email) {
+      return res.status(401).json({ error: "Utente non trovato o email mancante" });
+    }
 
     const [otpRows]: any = await mysqlPool.execute(
       "SELECT * FROM user_otps WHERE email = ? AND otp_code = ? AND expires_at > NOW()",
@@ -130,8 +158,21 @@ app.post("/api/admin/login/verify-otp", async (req, res) => {
       await mysqlPool.execute("DELETE FROM user_otps WHERE email = ?", [user.email]);
       const token = jwt.sign({ username: user.username, role: user.role, comune_key: user.comune_key }, "animal-hub-secret");
       res.cookie("admin_token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production" });
+
+      // Log successful OTP verify
+      await mysqlPool.execute(
+        "INSERT INTO admin_access_logs (username, comune_key, ip_address, user_agent, accesso_riuscito, note) VALUES (?, ?, ?, ?, ?, ?)",
+        [username, user.comune_key || "naro", ip, userAgent, 1, "OTP verificato con successo"]
+      );
+
       res.json({ success: true, token });
     } else {
+      // Log failed OTP verify
+      await mysqlPool.execute(
+        "INSERT INTO admin_access_logs (username, comune_key, ip_address, user_agent, accesso_riuscito, note) VALUES (?, ?, ?, ?, ?, ?)",
+        [username, user.comune_key || "naro", ip, userAgent, 0, "Codice OTP non valido o scaduto"]
+      );
+
       res.status(401).json({ error: "Codice OTP non valido o scaduto" });
     }
   } catch (err) {
@@ -280,11 +321,57 @@ app.post("/api/admin/demo-switch", async (req, res) => {
 app.get("/api/comuni", async (req, res) => {
   if (!mysqlPool || !getIsMysqlHealthy()) return res.json([]);
   try {
+    // Registra IP e User-Agent in visitor_tracking_logs
+    const ip = req.ip || (req.headers['x-forwarded-for'] as string) || '';
+    const userAgent = req.headers['user-agent'] || '';
+    const pageVisited = (req.query.page as string) || 'Home / Elenco Comuni';
+    const comuneSel = (req.query.comune as string) || '';
+    const referrer = (req.headers['referrer'] as string) || (req.headers['referer'] as string) || '';
+    const sessId = (req.cookies && req.cookies.visitor_session) || 'SESS_' + Math.random().toString(36).substring(2, 10);
+    
+    if (!req.cookies || !req.cookies.visitor_session) {
+      res.cookie("visitor_session", sessId, { maxAge: 1000 * 60 * 60 * 24 * 30, httpOnly: true }); 
+    }
+
+    await mysqlPool.execute(
+      "INSERT INTO visitor_tracking_logs (session_id, ip_address, user_agent, page_visited, referrer, comune_selezionato) VALUES (?, ?, ?, ?, ?, ?)",
+      [sessId, ip, userAgent, pageVisited, referrer, comuneSel]
+    );
+
     const [rows] = await mysqlPool.execute("SELECT * FROM comuni");
     res.json(rows);
   } catch (err) {
     console.error("DB error in comuni:", err);
-    res.json([]);
+    try {
+      const [rows] = await mysqlPool!.execute("SELECT * FROM comuni");
+      res.json(rows);
+    } catch (_) {
+      res.json([]);
+    }
+  }
+});
+
+app.post("/api/track-visit", async (req, res) => {
+  if (!mysqlPool || !getIsMysqlHealthy()) return res.json({ success: false });
+  try {
+    const { page, comuneSel } = req.body;
+    const ip = req.ip || (req.headers['x-forwarded-for'] as string) || '';
+    const userAgent = req.headers['user-agent'] || '';
+    const referrer = (req.headers['referrer'] as string) || (req.headers['referer'] as string) || '';
+    const sessId = (req.cookies && req.cookies.visitor_session) || 'SESS_' + Math.random().toString(36).substring(2, 10);
+    
+    if (!req.cookies || !req.cookies.visitor_session) {
+      res.cookie("visitor_session", sessId, { maxAge: 1000 * 60 * 60 * 24 * 30, httpOnly: true });
+    }
+
+    await mysqlPool.execute(
+      "INSERT INTO visitor_tracking_logs (session_id, ip_address, user_agent, page_visited, referrer, comune_selezionato) VALUES (?, ?, ?, ?, ?, ?)",
+      [sessId, ip, userAgent, page || 'Sconosciuta', referrer, comuneSel || '']
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Error in visitor tracking:", err);
+    res.json({ success: false });
   }
 });
 

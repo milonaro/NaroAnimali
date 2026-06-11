@@ -119,6 +119,14 @@ router.post("/", async (req, res) => {
           lat, lng, indirizzo, "CREATA", urgenza, emailSegnalante, 1, fullName
         ]);
         sqlId = result.insertId;
+
+        // Log report submission
+        const ip = req.ip || (req.headers['x-forwarded-for'] as string) || '';
+        const userAgent = req.headers['user-agent'] || '';
+        await pool.execute(
+          "INSERT INTO citizen_access_logs (email, ip_address, user_agent, azione) VALUES (?, ?, ?, ?)",
+          [emailSegnalante, ip, userAgent, 'INOLTRO_SEGNALAZIONE']
+        );
     }
     
     let firestoreId = sqlId.toString();

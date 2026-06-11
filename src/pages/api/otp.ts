@@ -29,13 +29,20 @@ router.post("/request", async (req, res) => {
       [email, otp, expiresAt, otp, expiresAt]
     );
 
+    const ip = req.ip || (req.headers['x-forwarded-for'] as string) || '';
+    const userAgent = req.headers['user-agent'] || '';
+    await mysqlPool.execute(
+      "INSERT INTO citizen_access_logs (email, ip_address, user_agent, azione) VALUES (?, ?, ?, ?)",
+      [email, ip, userAgent, 'RICHIESTA_OTP']
+    );
+
     if (process.env.RESEND_API_KEY) {
       const resend = new Resend(process.env.RESEND_API_KEY);
       await resend.emails.send({
         from: "AnimalHub PA <onboarding@resend.dev>",
         to: email,
         subject: "Il tuo codice di accesso OTP - AnimalHub PA",
-        html: `
+         html: `
           <div style="font-family: sans-serif; padding: 20px;">
             <h2 style="color: #15803d;">Codice di Accesso Monouso</h2>
             <p>Usa il seguente codice per accedere al Fascicolo Elettronico (La Mia Area):</p>
@@ -67,6 +74,9 @@ router.post("/verify", async (req, res) => {
   }
 
   try {
+    const ip = req.ip || (req.headers['x-forwarded-for'] as string) || '';
+    const userAgent = req.headers['user-agent'] || '';
+
     const [rows]: any = await mysqlPool.execute(
       "SELECT * FROM user_otps WHERE email = ? AND otp_code = ?",
       [email, otp]
@@ -75,10 +85,18 @@ router.post("/verify", async (req, res) => {
     const record = rows[0];
 
     if (!record) {
+      await mysqlPool.execute(
+        "INSERT INTO citizen_access_logs (email, ip_address, user_agent, azione) VALUES (?, ?, ?, ?)",
+        [email, ip, userAgent, 'VERIFICA_OTP_FALLITA_ERRATO']
+      );
       return res.status(401).json({ error: "Codice OTP non valido o errato" });
     }
 
     if (new Date() > new Date(record.expires_at)) {
+      await mysqlPool.execute(
+        "INSERT INTO citizen_access_logs (email, ip_address, user_agent, azione) VALUES (?, ?, ?, ?)",
+        [email, ip, userAgent, 'VERIFICA_OTP_FALLITA_SCADUTO']
+      );
       return res.status(401).json({ error: "Codice OTP scaduto" });
     }
 
@@ -90,6 +108,11 @@ router.post("/verify", async (req, res) => {
 
     // Set cookie
     res.cookie("citizen_token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production" });
+
+    await mysqlPool.execute(
+      "INSERT INTO citizen_access_logs (email, ip_address, user_agent, azione) VALUES (?, ?, ?, ?)",
+      [email, ip, userAgent, 'VERIFICA_OTP_SUCCESSO']
+    );
 
     res.json({ success: true, token });
   } catch (err: any) {
