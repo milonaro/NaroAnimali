@@ -235,6 +235,35 @@ export async function createMySQLTables() {
         otp_code VARCHAR(6) NOT NULL,
         expires_at DATETIME NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS admin_access_logs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        username VARCHAR(100) NOT NULL,
+        comune_key VARCHAR(50),
+        ip_address VARCHAR(45),
+        user_agent TEXT,
+        accesso_riuscito TINYINT(1) DEFAULT 1,
+        note VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS citizen_access_logs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        email VARCHAR(150),
+        codice_fiscale VARCHAR(16),
+        ip_address VARCHAR(45),
+        user_agent TEXT,
+        azione VARCHAR(100) DEFAULT 'LOGIN_OTP',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS visitor_tracking_logs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        session_id VARCHAR(100),
+        ip_address VARCHAR(45),
+        user_agent TEXT,
+        page_visited VARCHAR(255),
+        referrer VARCHAR(255),
+        comune_selezionato VARCHAR(50),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`
   ];
 

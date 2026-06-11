@@ -501,10 +501,10 @@ async function seedAdminUsers() {
         }
       };
 
-      await tryInsert("admin", adminHash, "ADMIN", allModules, "admin@animalhub.it");
-      await tryInsert("polizia", poliziaHash, "POLIZIA_LOCALE", policeModules, "polizia@animalhub.it");
-      await tryInsert("canile", canileHash, "CANILE_SANITARIO", kennelModules, "canile@animalhub.it");
-      await tryInsert("volontario", volontarioHash, "VOLONTARIO", volunteerModules, "volontari@animalhub.it");
+      await tryInsert("admin", adminHash, "ADMIN", allModules, "admin@animalhubpa.it");
+      await tryInsert("polizia", poliziaHash, "POLIZIA_LOCALE", policeModules, "polizia@animalhubpa.it");
+      await tryInsert("canile", canileHash, "CANILE_SANITARIO", kennelModules, "canile@animalhubpa.it");
+      await tryInsert("volontario", volontarioHash, "VOLONTARIO", volunteerModules, "volontari@animalhubpa.it");
       console.log("Succesfully seeded 4 default admin operator accounts.");
     }
   } catch (err) {
@@ -522,9 +522,14 @@ async function bootServer() {
     }
   }
 
-  await createMySQLTables();
-  await addMySQLColumns();
-  await seedAdminUsers();
+  if (!process.env.VERCEL) {
+    await createMySQLTables();
+    await addMySQLColumns();
+    await seedAdminUsers();
+  } else {
+    // Solo verifica DB base su Vercel per evitare saturazione connessioni Aruba
+    console.log("[VERCEL] Skipping auto-migrations on cold start.");
+  }
   
   if (process.env.NODE_ENV !== "production") {
     try {

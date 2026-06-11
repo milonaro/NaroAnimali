@@ -60,11 +60,49 @@ CREATE TABLE admin_users (
     username VARCHAR(100) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(50) DEFAULT 'OPERATORE', -- es. 'ADMIN', 'POLIZIA_LOCALE', 'CANILE_SANITARIO', 'VOLONTARIO'
-    comune_key VARCHAR(50) DEFAULT 'naro'
+    comune_key VARCHAR(50) DEFAULT 'naro',
+    visible_modules TEXT DEFAULT NULL,
+    email VARCHAR(150) DEFAULT NULL
 );
 ```
 
-### 1.6 Tabella Core Segnalazioni (`segnalazioni`)
+### 1.6 Logs di Accesso e Tracciamento
+Queste tabelle sono state introdotte per monitorare gli accessi ai portali amministrativi e pubblici.
+```sql
+CREATE TABLE admin_access_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(100) NOT NULL,
+    comune_key VARCHAR(50),
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    accesso_riuscito TINYINT(1) DEFAULT 1,
+    note VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE citizen_access_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(150),
+    codice_fiscale VARCHAR(16),
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    azione VARCHAR(100) DEFAULT 'LOGIN_OTP',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE visitor_tracking_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    session_id VARCHAR(100),
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    page_visited VARCHAR(255),
+    referrer VARCHAR(255),
+    comune_selezionato VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### 1.7 Tabella Core Segnalazioni (`segnalazioni`)
 Stato del randagismo sul territorio.
 ```sql
 CREATE TABLE segnalazioni (
@@ -88,7 +126,7 @@ CREATE TABLE segnalazioni (
 );
 ```
 
-### 1.7 Tabella Storico Interventi (`interventi_logs`)
+### 1.8 Tabella Storico Interventi (`interventi_logs`)
 ```sql
 CREATE TABLE interventi_logs (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -101,7 +139,7 @@ CREATE TABLE interventi_logs (
 );
 ```
 
-### 1.8 Tabella Registro Anagrafico Canino/Feline (`registro_anagrafica`)
+### 1.9 Tabella Registro Anagrafico Canino/Feline (`registro_anagrafica`)
 ```sql
 CREATE TABLE registro_anagrafica (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -119,7 +157,7 @@ CREATE TABLE registro_anagrafica (
 );
 ```
 
-### 1.9 Tabella Strutture Convenzionate (`strutture`)
+### 1.10 Tabella Strutture Convenzionate (`strutture`)
 ```sql
 CREATE TABLE strutture (
     id INT AUTO_INCREMENT PRIMARY KEY,
