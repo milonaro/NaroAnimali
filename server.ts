@@ -17,13 +17,7 @@ import { createMySQLTables, addMySQLColumns } from "./src/lib/mysql_init";
 
 dotenv.config();
 
-let currentDir = '';
-try {
-  const currentFilename = fileURLToPath(import.meta.url);
-  currentDir = path.dirname(currentFilename);
-} catch (e) {
-  currentDir = process.cwd();
-}
+let currentDir = process.cwd();
 
 let genAIInstance: GoogleGenAI | null = null;
 function getGenAI() {

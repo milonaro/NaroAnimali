@@ -121,8 +121,9 @@ router.post("/", async (req, res) => {
         sqlId = result.insertId;
 
         // Log report submission
-        const ip = req.ip || (req.headers['x-forwarded-for'] as string) || '';
-        const userAgent = req.headers['user-agent'] || '';
+        const ipHeader = req.ip || (req.headers['x-forwarded-for'] as string) || '';
+        const ip = ipHeader.substring(0, 45);
+        const userAgent = (req.headers['user-agent'] || '').substring(0, 255);
         await pool.execute(
           "INSERT INTO citizen_access_logs (email, ip_address, user_agent, azione) VALUES (?, ?, ?, ?)",
           [emailSegnalante, ip, userAgent, 'INOLTRO_SEGNALAZIONE']

@@ -29,8 +29,9 @@ router.post("/request", async (req, res) => {
       [email, otp, expiresAt, otp, expiresAt]
     );
 
-    const ip = req.ip || (req.headers['x-forwarded-for'] as string) || '';
-    const userAgent = req.headers['user-agent'] || '';
+    const ipHeader = req.ip || (req.headers['x-forwarded-for'] as string) || '';
+    const ip = ipHeader.substring(0, 45);
+    const userAgent = (req.headers['user-agent'] || '').substring(0, 255);
     await mysqlPool.execute(
       "INSERT INTO citizen_access_logs (email, ip_address, user_agent, azione) VALUES (?, ?, ?, ?)",
       [email, ip, userAgent, 'RICHIESTA_OTP']
@@ -74,8 +75,9 @@ router.post("/verify", async (req, res) => {
   }
 
   try {
-    const ip = req.ip || (req.headers['x-forwarded-for'] as string) || '';
-    const userAgent = req.headers['user-agent'] || '';
+    const ipHeader = req.ip || (req.headers['x-forwarded-for'] as string) || '';
+    const ip = ipHeader.substring(0, 45);
+    const userAgent = (req.headers['user-agent'] || '').substring(0, 255);
 
     const [rows]: any = await mysqlPool.execute(
       "SELECT * FROM user_otps WHERE email = ? AND otp_code = ?",
