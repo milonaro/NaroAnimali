@@ -626,7 +626,12 @@ async function bootServer() {
     }
   } else {
     app.use(express.static(path.join(process.cwd(), "dist")));
-    app.get("*", (_, res) => res.sendFile(path.join(process.cwd(), "dist", "index.html")));
+    app.get("*", (req, res) => {
+      if (req.url.startsWith("/api/")) {
+         return res.status(404).json({ error: "API Route Not Found on Vercel: " + req.url });
+      }
+      res.sendFile(path.join(process.cwd(), "dist", "index.html"));
+    });
   }
   
   if (!process.env.VERCEL) {

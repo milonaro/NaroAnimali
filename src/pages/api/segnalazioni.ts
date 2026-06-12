@@ -10,9 +10,18 @@ try {
   if (fs.existsSync(configPath)) {
     const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
     firestoreDatabaseId = config.firestoreDatabaseId;
+    if (config.firebaseProjectId && admin.apps.length === 0) {
+      admin.initializeApp({ projectId: config.firebaseProjectId });
+    }
+  } else if (process.env.FIREBASE_PROJECT_ID && admin.apps.length === 0) {
+      admin.initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID });
   }
 } catch (e) {
   console.error("Error reading firebase-applet-config.json in API:", e);
+}
+
+if (admin.apps.length === 0) {
+   try { admin.initializeApp({ projectId: "demo-animalhub" }); } catch(e) {}
 }
 
 const router = Router();
@@ -108,26 +117,31 @@ router.post("/", async (req, res) => {
 
     let sqlId = 0;
     if (getIsMysqlHealthy() && pool) {
-        const [result]: any = await pool.execute(`
-          INSERT INTO segnalazioni (
-            comune_key, codice_tracking, specie, condizioni, descrizione, foto_url, 
-            latitudine, longitudine, indirizzo, stato, urgenza, 
-            email_segnalante, consenso_privacy, nome_segnalante
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-          activeComune, codiceTracking, specie, condizioni, finalDesc, fotoUrl, 
-          lat, lng, indirizzo, "CREATA", urgenza, emailSegnalante, 1, fullName
-        ]);
-        sqlId = result.insertId;
+        try {
+          const [result]: any = await pool.execute(`
+            INSERT INTO segnalazioni (
+              comune_key, codice_tracking, specie, condizioni, descrizione, foto_url, 
+              latitudine, longitudine, indirizzo, stato, urgenza, 
+              email_segnalante, consenso_privacy, nome_segnalante
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `, [
+            activeComune, codiceTracking, specie, condizioni, finalDesc, fotoUrl, 
+            lat, lng, indirizzo, "CREATA", urgenza, emailSegnalante, 1, fullName
+          ]);
+          sqlId = result.insertId;
 
-        // Log report submission
-        const ipHeader = req.ip || (req.headers['x-forwarded-for'] as string) || '';
-        const ip = ipHeader.substring(0, 45);
-        const userAgent = (req.headers['user-agent'] || '').substring(0, 255);
-        await pool.execute(
-          "INSERT INTO citizen_access_logs (email, ip_address, user_agent, azione) VALUES (?, ?, ?, ?)",
-          [emailSegnalante, ip, userAgent, 'INOLTRO_SEGNALAZIONE']
-        );
+          // Log report submission
+          const ipHeader = req.ip || (req.headers['x-forwarded-for'] as string) || '';
+          const ip = ipHeader.substring(0, 45);
+          const userAgent = (req.headers['user-agent'] || '').substring(0, 255);
+          await pool.execute(
+            "INSERT INTO citizen_access_logs (email, ip_address, user_agent, azione) VALUES (?, ?, ?, ?)",
+            [emailSegnalante, ip, userAgent, 'INOLTRO_SEGNALAZIONE']
+          );
+        } catch (dbErr: any) {
+          console.error("MySQL Insert error:", dbErr.message);
+          setMysqlHealthy(false);
+        }
     }
     
     let firestoreId = sqlId.toString();
@@ -161,7 +175,12 @@ router.put("/:codiceTracking/stato", async (req, res) => {
     if (!stato) return res.status(400).json({ error: "Stato obbligatorio" });
 
     if (getIsMysqlHealthy() && pool) {
-        await pool.execute("UPDATE segnalazioni SET stato = ?, updated_at = NOW() WHERE codice_tracking = ?", [stato, codiceTracking]);
+        try {
+          await pool.execute("UPDATE segnalazioni SET stato = ?, updated_at = NOW() WHERE codice_tracking = ?", [stato, codiceTracking]);
+        } catch(e: any) {
+          console.error("MySQL update stato error:", e.message);
+          setMysqlHealthy(false);
+        }
     }
     if (db) {
       const snapshot = await db.collection("segnalazioni").where("codiceTracking", "==", codiceTracking).get();
@@ -187,10 +206,15 @@ router.post("/:codiceTracking/log", async (req, res) => {
     const activeComune = await getActiveComuneKeyServer();
 
     if (getIsMysqlHealthy() && pool) {
-        await pool.execute("INSERT INTO interventi_logs (comune_key, segnalazione_codice, operatore, azione, note) VALUES (?, ?, ?, ?, ?)",
-          [activeComune, codiceTracking, operatore, azione, note || ""]);
-        if (nuovoStato) {
-          await pool.execute("UPDATE segnalazioni SET stato = ?, updated_at = NOW() WHERE codice_tracking = ?", [nuovoStato, codiceTracking]);
+        try {
+          await pool.execute("INSERT INTO interventi_logs (comune_key, segnalazione_codice, operatore, azione, note) VALUES (?, ?, ?, ?, ?)",
+            [activeComune, codiceTracking, operatore, azione, note || ""]);
+          if (nuovoStato) {
+            await pool.execute("UPDATE segnalazioni SET stato = ?, updated_at = NOW() WHERE codice_tracking = ?", [nuovoStato, codiceTracking]);
+          }
+        } catch(e: any) {
+          console.error("MySQL log error:", e.message);
+          setMysqlHealthy(false);
         }
     }
 
