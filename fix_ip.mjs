@@ -1,0 +1,10 @@
+import fs from "fs";
+let content = fs.readFileSync("server.ts", "utf-8");
+let t1 = `const ip = req.ip || (req.headers['x-forwarded-for'] as string) || '';
+    const userAgent = req.headers['user-agent'] || '';`;
+let t2 = `const ipHeader = req.ip || (req.headers['x-forwarded-for'] as string) || '';
+    const ip = ipHeader.substring(0, 45);
+    const userAgent = (req.headers['user-agent'] || '').substring(0, 255);`;
+content = content.replaceAll(t1, t2);
+fs.writeFileSync("server.ts", content);
+console.log("Replaced!");

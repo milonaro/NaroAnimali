@@ -81,8 +81,9 @@ app.post("/api/admin/login", async (req, res) => {
   try {
     const [rows]: any = await mysqlPool.execute("SELECT * FROM admin_users WHERE username = ?", [username]);
     const user = rows[0];
-    const ip = req.ip || (req.headers['x-forwarded-for'] as string) || '';
-    const userAgent = req.headers['user-agent'] || '';
+    const ipHeader = req.ip || (req.headers['x-forwarded-for'] as string) || '';
+    const ip = ipHeader.substring(0, 45);
+    const userAgent = (req.headers['user-agent'] || '').substring(0, 255);
 
     if (user && await bcrypt.compare(password, user.password_hash)) {
       if (user.email) {
@@ -136,8 +137,9 @@ app.post("/api/admin/login/verify-otp", async (req, res) => {
   try {
     const [userRows]: any = await mysqlPool.execute("SELECT * FROM admin_users WHERE username = ?", [username]);
     const user = userRows[0];
-    const ip = req.ip || (req.headers['x-forwarded-for'] as string) || '';
-    const userAgent = req.headers['user-agent'] || '';
+    const ipHeader = req.ip || (req.headers['x-forwarded-for'] as string) || '';
+    const ip = ipHeader.substring(0, 45);
+    const userAgent = (req.headers['user-agent'] || '').substring(0, 255);
 
     if (!user || !user.email) {
       return res.status(401).json({ error: "Utente non trovato o email mancante" });
@@ -316,8 +318,9 @@ app.get("/api/comuni", async (req, res) => {
   if (!mysqlPool || !getIsMysqlHealthy()) return res.json([]);
   try {
     // Registra IP e User-Agent in visitor_tracking_logs
-    const ip = req.ip || (req.headers['x-forwarded-for'] as string) || '';
-    const userAgent = req.headers['user-agent'] || '';
+    const ipHeader = req.ip || (req.headers['x-forwarded-for'] as string) || '';
+    const ip = ipHeader.substring(0, 45);
+    const userAgent = (req.headers['user-agent'] || '').substring(0, 255);
     const pageVisited = (req.query.page as string) || 'Home / Elenco Comuni';
     const comuneSel = (req.query.comune as string) || '';
     const referrer = (req.headers['referrer'] as string) || (req.headers['referer'] as string) || '';
@@ -349,8 +352,9 @@ app.post("/api/track-visit", async (req, res) => {
   if (!mysqlPool || !getIsMysqlHealthy()) return res.json({ success: false });
   try {
     const { page, comuneSel } = req.body;
-    const ip = req.ip || (req.headers['x-forwarded-for'] as string) || '';
-    const userAgent = req.headers['user-agent'] || '';
+    const ipHeader = req.ip || (req.headers['x-forwarded-for'] as string) || '';
+    const ip = ipHeader.substring(0, 45);
+    const userAgent = (req.headers['user-agent'] || '').substring(0, 255);
     const referrer = (req.headers['referrer'] as string) || (req.headers['referer'] as string) || '';
     const sessId = (req.cookies && req.cookies.visitor_session) || 'SESS_' + Math.random().toString(36).substring(2, 10);
     
