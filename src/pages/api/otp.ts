@@ -1,5 +1,5 @@
 import { Router } from "express";
-import mysqlPool, { getIsMysqlHealthy } from "../../../src/lib/mysql";
+import mysqlPool, { getIsMysqlHealthy } from "../../../src/lib/mysql.js";
 import jwt from "jsonwebtoken";
 import { Resend } from "resend";
 

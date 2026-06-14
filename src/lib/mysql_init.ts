@@ -1,4 +1,4 @@
-import pool, { getIsMysqlHealthy, setMysqlHealthy } from "../lib/mysql";
+import pool, { getIsMysqlHealthy, setMysqlHealthy } from "./mysql.js";
 import admin from "firebase-admin";
 
 export async function addMySQLColumns() {

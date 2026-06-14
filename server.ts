@@ -8,12 +8,12 @@ import { getFirestore as getFirestoreAdmin } from "firebase-admin/firestore";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
-import mysqlPool, { getIsMysqlHealthy, setMysqlHealthy } from "./src/lib/mysql";
-import segnalazioniRouter from "./src/pages/api/segnalazioni";
-import otpRouter from "./src/pages/api/otp";
+import mysqlPool, { getIsMysqlHealthy, setMysqlHealthy } from "./src/lib/mysql.js";
+import segnalazioniRouter from "./src/pages/api/segnalazioni.js";
+import otpRouter from "./src/pages/api/otp.js";
 import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
-import { createMySQLTables, addMySQLColumns } from "./src/lib/mysql_init";
+import { createMySQLTables, addMySQLColumns } from "./src/lib/mysql_init.js";
 
 dotenv.config();
 

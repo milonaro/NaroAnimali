@@ -1,5 +1,5 @@
 import express, { Router } from "express";
-import pool, { getIsMysqlHealthy, setMysqlHealthy } from "../../lib/mysql";
+import pool, { getIsMysqlHealthy, setMysqlHealthy } from "../../lib/mysql.js";
 import admin from "firebase-admin";
 import fs from "fs";
 import path from "path";
