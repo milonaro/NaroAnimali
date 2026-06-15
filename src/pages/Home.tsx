@@ -8,6 +8,9 @@ import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { COMUNI } from '@/src/lib/geofence';
 import { useLanguage } from '@/src/contexts/LanguageContext';
 
+import step3Img from '@/src/assets/images/step3_protocollare_1781441452355.jpg';
+import step4Img from '@/src/assets/images/step4_monitoraggio_1781441470199.jpg';
+
 interface SegnalazioneDoc {
   id: string;
   specie: string;
@@ -22,6 +25,25 @@ interface SegnalazioneDoc {
   longitudine: number;
   nomeSegnalante?: string;
   urgenza?: string;
+}
+
+function StepTooltip({ content, isVisible }: { content: string; isVisible: boolean }) {
+  return (
+    <AnimatePresence>
+      {isVisible && (
+        <motion.div
+          initial={{ opacity: 0, y: 12, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 8, scale: 0.95 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
+          className="absolute z-50 bottom-[104%] left-1/2 -translate-x-1/2 mb-4 w-[250px] sm:w-[320px] p-4 bg-[#080d1a]/95 backdrop-blur-md border border-emerald-500/40 rounded-2xl shadow-[0_15px_40px_rgba(0,0,0,0.6),_0_0_20px_rgba(16,185,129,0.15)] ring-1 ring-white/10 text-xs font-semibold leading-relaxed text-slate-100 pointer-events-none text-center"
+        >
+          <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1.5 w-3 h-3 bg-[#080d1a] border-r border-b border-emerald-500/40 rotate-45" />
+          {content}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 }
 
 export default function Home() {
@@ -50,6 +72,9 @@ export default function Home() {
   const cityName = useMemo(() => {
     return siteName.replace("Comune di ", "");
   }, [siteName]);
+
+  const [hoveredStepIcon, setHoveredStepIcon] = useState<number | null>(null);
+  const [hoveredStepTitle, setHoveredStepTitle] = useState<number | null>(null);
 
   const [runTour, setRunTour] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -263,7 +288,7 @@ export default function Home() {
       />
 
       {/* 1. HERO SLIDER */}
-      <section id="hero-step" className="relative h-[93vh] lg:h-[750px] overflow-hidden bg-[#101b3a] flex items-center pt-24">
+      <section id="hero-step" className="relative h-[93vh] lg:h-[750px] overflow-hidden bg-[#101b3a] flex items-center pt-24 shadow-2xl z-20">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.012)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.012)_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none z-20 opacity-40" />
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#101b3a] to-transparent pointer-events-none z-20" />
 
@@ -446,7 +471,7 @@ export default function Home() {
       </section>
 
       {/* 2. COME FUNZIONA IL PORTALE */}
-      <section id="how-it-works-step" className="py-32 bg-white relative overflow-hidden">
+      <section id="how-it-works-step" className="py-32 bg-white relative overflow-hidden shadow-[inset_0_4px_30px_rgba(0,0,0,0.02),_0_20px_50px_rgba(0,0,0,0.04)] z-10">
         <div className="absolute top-0 right-0 w-1/3 h-full bg-gray-50/50 -skew-x-12 translate-x-1/2"></div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center mb-20">
@@ -464,28 +489,36 @@ export default function Home() {
                 title: language === 'it' ? "Identifica" : "Identify", 
                 desc: language === 'it' ? "Se vedi un cane o un gatto in difficoltà sul territorio di Naro." : "Spot a stray dog or cat in distress on municipal fields.",
                 icon: <Search className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-400" />,
-                img: "https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=600"
+                img: "https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=600",
+                tooltipSec: "Osserva l'animale a distanza di sicurezza per capire se è smarrito, ferito o necessita di cure primarie immediate. Verifica la presenza di collari.",
+                tooltipEn: "Observe the animal from a safe distance to check if it's lost, injured, or requires immediate primary care. Check for collars."
               },
               { 
                 step: "02", 
                 title: language === 'it' ? "Localizza" : "Map & Pin", 
                 desc: language === 'it' ? "Usa la mappa interattiva per indicare il punto esatto del ritrovamento." : "Use the interactive map to precisely pin where you spotted them.",
                 icon: <MapPin className="h-4 w-4 sm:h-5 sm:w-5 text-blue-400" />,
-                img: "https://images.unsplash.com/photo-1569336415962-a4bd9f69cd83?auto=format&fit=crop&q=80&w=600"
+                img: "https://images.unsplash.com/photo-1569336415962-a4bd9f69cd83?auto=format&fit=crop&q=80&w=600",
+                tooltipSec: "Il posizionamento GPS automatico o l'inserimento manuale dell'indirizzo consente alla squadra di pronto intervento comunali di pianificare i percorsi velocemente.",
+                tooltipEn: "Automatic GPS centering or manual address input allows the municipal emergency squad to plan optimal route layouts instantly."
               },
               { 
                 step: "03", 
                 title: "Protocolla", 
                 desc: language === 'it' ? "Aggiungi foto e dettagli. Il sistema genera un codice unico di tracking COF." : "Upload photos and state details. The system generates a tracking code.",
                 icon: <Briefcase className="h-4 w-4 sm:h-5 sm:w-5 text-amber-400" />,
-                img: "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&q=80&w=600"
+                img: step3Img,
+                tooltipSec: "L'acquisizione digitale genera un protocollo di tracking COF istantaneo, integrato con la messaggistica per aggiornamenti di stato automatici.",
+                tooltipEn: "Digital filing creates an instant COF tracking protocol integrated with direct updates and status logs."
               },
               { 
                 step: "04", 
                 title: language === 'it' ? "Monitora" : "Monitor", 
                 desc: language === 'it' ? "Segui in tempo reale l'intervento e l'affidamento degli operatori comunali." : "Watch live updates as municipal responders intervene and resolve the report.",
                 icon: <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-400" />,
-                img: "https://images.unsplash.com/photo-1544568100-847a948585b9?auto=format&fit=crop&q=80&w=600"
+                img: step4Img,
+                tooltipSec: "La dashboard tiene traccia del ciclo di vita completo: dalla presa in carico, al controllo veterinario, fino alle proposte di adozione.",
+                tooltipEn: "The lifecycle display tracks all key milestones: from ingestion, vetting, to community adoption options."
               }
             ].map((item, i) => (
               <motion.div 
@@ -494,28 +527,53 @@ export default function Home() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="relative group flex flex-col rounded-2xl overflow-hidden aspect-[3/4] sm:aspect-[4/5] shadow-lg border border-slate-200/50 cursor-pointer bg-[#0c142b] text-left"
+                whileHover={{ scale: 1.04, y: -4 }}
+                className="relative group flex flex-col rounded-2xl aspect-[3/4] sm:aspect-[4/5] shadow-lg border border-slate-200/50 cursor-pointer bg-[#0c142b] text-left transition-all duration-300 hover:shadow-2xl hover:border-emerald-500/25"
               >
-                <div className="absolute inset-0 z-0">
+                <StepTooltip 
+                  content={language === 'it' ? item.tooltipSec : item.tooltipEn} 
+                  isVisible={hoveredStepIcon === i || hoveredStepTitle === i} 
+                />
+
+                <div className="absolute inset-0 z-0 rounded-2xl overflow-hidden">
                   <img 
                     src={item.img} 
                     alt={item.title} 
-                    className="w-full h-full object-cover opacity-50 filter blur-[1px] brightness-75 group-hover:scale-105 group-hover:blur-0 transition-transform duration-1000" 
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-cover opacity-50 filter blur-[1px] brightness-75 group-hover:scale-110 group-hover:blur-0 group-hover:opacity-85 group-hover:brightness-105 transition-all duration-1000 ease-out" 
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/80 to-transparent"></div>
                   <div className="absolute inset-0 bg-black/40 mix-blend-multiply"></div>
                 </div>
 
-                <div className="relative z-10 p-3 sm:p-6 flex flex-col justify-between h-full">
+                <div className="relative z-10 p-3 sm:p-6 flex flex-col justify-between h-full group-hover:translate-y-[-2px] transition-transform duration-300">
                   <div className="flex items-center justify-between w-full">
                     <span className="text-white/40 font-black text-xs sm:text-lg tracking-widest">{item.step}</span>
-                    <div className="w-8 h-8 sm:w-11 sm:h-11 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center shrink-0 border border-white/15 shadow-sm">
-                      {item.icon}
+                    <div 
+                      className="relative"
+                      onMouseEnter={() => setHoveredStepIcon(i)}
+                      onMouseLeave={() => setHoveredStepIcon(null)}
+                      onFocus={() => setHoveredStepIcon(i)}
+                      onBlur={() => setHoveredStepIcon(null)}
+                    >
+                      <div className="w-8 h-8 sm:w-11 sm:h-11 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center shrink-0 border border-white/15 shadow-sm hover:scale-110 hover:border-white/35 hover:bg-white/15 transition-all duration-300 cursor-help">
+                        {item.icon}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="space-y-1.5 sm:space-y-2">
-                    <h3 className="text-sm sm:text-xl font-black text-white tracking-tight">{item.title}</h3>
+                  <div className="space-y-1.5 sm:space-y-2 pointer-events-auto">
+                    <div 
+                      className="relative inline-block"
+                      onMouseEnter={() => setHoveredStepTitle(i)}
+                      onMouseLeave={() => setHoveredStepTitle(null)}
+                      onFocus={() => setHoveredStepTitle(i)}
+                      onBlur={() => setHoveredStepTitle(null)}
+                    >
+                      <h3 className="text-sm sm:text-xl font-black text-white tracking-tight cursor-help hover:text-emerald-300 transition-colors duration-200">
+                        {item.title}
+                      </h3>
+                    </div>
                     <p className="text-[10px] sm:text-xs font-semibold text-slate-300 leading-relaxed sm:leading-relaxed">
                       {item.desc}
                     </p>
@@ -528,7 +586,7 @@ export default function Home() {
       </section>
 
       {/* 3. DATABASE ANIMALI ENTRANCE */}
-      <section id="explore-step" className="py-32 bg-gray-50/50">
+      <section id="explore-step" className="py-32 bg-[#fafafb] relative shadow-[inset_0_6px_36px_rgba(0,0,0,0.03),_0_20px_40px_rgba(0,0,0,0.02)] z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-end gap-8 mb-16">
             <div className="max-w-2xl text-left">
@@ -688,7 +746,7 @@ export default function Home() {
       </section>
 
       {/* 4. FEED REAL-TIME / ULTIME SEGNALAZIONI */}
-      <section className="py-24 bg-white border-t border-gray-50">
+      <section className="py-24 bg-white relative border-t border-gray-100 shadow-[inset_0_4px_30px_rgba(0,0,0,0.015),_0_15px_35px_rgba(0,0,0,0.03)] z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-end mb-16">
             <div className="max-w-2xl text-left">
@@ -736,7 +794,7 @@ export default function Home() {
       </section>
 
       {/* 5. TECH & INNOVATION */}
-      <section className="py-24 bg-gray-50 border-y border-gray-100 overflow-hidden">
+      <section className="py-24 bg-[#fafafb] border-y border-gray-200/80 overflow-hidden relative shadow-[inset_0_6px_36px_rgba(0,0,0,0.035),_0_20px_40px_rgba(0,0,0,0.02)] z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-black text-[#101b3a] tracking-tight mb-4">{t('home.sec_innovation')}</h2>
@@ -823,7 +881,7 @@ export default function Home() {
       </section>
 
       {/* 6. PERCHÈ USARE ANIMALHUB PA */}
-      <section className="py-24 bg-white border-t border-gray-100">
+      <section className="py-24 bg-white relative border-t border-gray-100 shadow-[inset_0_4px_30px_rgba(0,0,0,0.015),_0_20px_40px_rgba(0,0,0,0.03)] z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl font-black text-[#101b3a] tracking-tight mb-16">{t('home.sec_why')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12 text-left">
@@ -868,7 +926,7 @@ export default function Home() {
       </section>
 
       {/* COMPLIANCE FOOTER BADGES */}
-      <section className="py-12 border-t border-gray-100 flex justify-center gap-12 grayscale opacity-40">
+      <section className="py-12 border-t border-gray-100 bg-[#fafafb] flex justify-center gap-12 grayscale opacity-40 shadow-[inset_0_4px_20px_rgba(0,0,0,0.01)]">
          <div className="flex items-center gap-2 font-bold text-xs"><ShieldCheck className="h-4 w-4" /> {language === 'it' ? 'Conforme GDPR' : 'GDPR Compliant'}</div>
          <div className="flex items-center gap-2 font-bold text-xs"><CheckCircle className="h-4 w-4" /> WCAG 2.1 AA</div>
          <div className="flex items-center gap-2 font-bold text-xs"><Info className="h-4 w-4" /> {language === 'it' ? `Portale Civico ${siteName}` : `Civic Portal ${cityName}`}</div>
