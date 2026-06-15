@@ -2,6 +2,7 @@ import { Router } from "express";
 import mysqlPool, { getIsMysqlHealthy } from "../../../src/lib/mysql.js";
 import jwt from "jsonwebtoken";
 import { Resend } from "resend";
+import { sendOtpEmail } from "../../lib/mailer.js";
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || "animal-hub-secret-otp";
@@ -37,27 +38,8 @@ router.post("/request", async (req, res) => {
       [email, ip, userAgent, 'RICHIESTA_OTP']
     );
 
-    if (process.env.RESEND_API_KEY) {
-      const resend = new Resend(process.env.RESEND_API_KEY);
-      await resend.emails.send({
-        from: "AnimalHub PA <onboarding@resend.dev>",
-        to: email,
-        subject: "Il tuo codice di accesso OTP - AnimalHub PA",
-         html: `
-          <div style="font-family: sans-serif; padding: 20px;">
-            <h2 style="color: #15803d;">Codice di Accesso Monouso</h2>
-            <p>Usa il seguente codice per accedere al Fascicolo Elettronico (La Mia Area):</p>
-            <div style="background-color: #f1f5f9; padding: 16px; border-radius: 8px; font-size: 24px; font-weight: bold; letter-spacing: 4px; text-align: center; color: #1e3a5f;">
-              ${otp}
-            </div>
-            <p style="margin-top: 20px; font-size: 12px; color: #64748b;">Il codice è valido per 15 minuti. Non condividerlo con nessuno.</p>
-          </div>
-        `
-      });
-      console.log(`[OTP] Email inviata a: ${email}`);
-    } else {
-      console.log(`[OTP] Email: ${email} - Codice: ${otp} (Simulato, nessuna KEY Resend)`);
-    }
+    // Invia email di OTP reale tramite Mailer Unificato (SMTP / Resend)
+    await sendOtpEmail(email, otp, false);
 
     res.json({ success: true, message: "OTP inviato con successo alla tua email" });
   } catch (err: any) {

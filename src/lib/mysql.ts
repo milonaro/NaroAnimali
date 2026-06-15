@@ -78,7 +78,16 @@ async function initSqliteSchema(db: any) {
     // Check if the tables already exist (e.g. check for admin_users)
     const tableExists = await db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='admin_users'");
     if (tableExists) {
-      console.log("Database SQLite già esistente e strutturato.");
+      console.log("Database SQLite già esistente e strutturato. Sincronizzazione contatti e-mail amministratori...");
+      try {
+        await db.run("UPDATE admin_users SET email = ? WHERE username = ?", ["franco.tese@gmail.com", "admin"]);
+        await db.run("UPDATE admin_users SET email = ? WHERE username = ?", ["polizia@animalhubpa.it", "polizia"]);
+        await db.run("UPDATE admin_users SET email = ? WHERE username = ?", ["canile@animalhubpa.it", "canile"]);
+        await db.run("UPDATE admin_users SET email = ? WHERE username = ?", ["volontari@animalhubpa.it", "volontario"]);
+        console.log("Contatti e-mail amministratori sincronizzati con successo in SQLite.");
+      } catch (e: any) {
+        console.warn("Avviso: Impossibile aggiornare i contatti e-mail degli amministratori esistenti:", e.message);
+      }
       return;
     }
 

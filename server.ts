@@ -9,6 +9,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import mysqlPool, { getIsMysqlHealthy, setMysqlHealthy } from "./src/lib/mysql.js";
+import { sendOtpEmail } from "./src/lib/mailer.js";
 import segnalazioniRouter from "./src/pages/api/segnalazioni.js";
 import otpRouter from "./src/pages/api/otp.js";
 import jwt from "jsonwebtoken";
@@ -94,7 +95,13 @@ app.post("/api/admin/login", async (req, res) => {
           "INSERT INTO user_otps (email, otp_code, expires_at) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE otp_code = ?, expires_at = ?",
           [user.email, otp, expiresAt, otp, expiresAt]
         );
-        console.log(`[OTP ADMIN] Email: ${user.email} - Codice: ${otp} (Simulato)`);
+        
+        // Send real email through nodemailer/resend helper
+        try {
+          await sendOtpEmail(user.email, otp, true);
+        } catch (mailErr: any) {
+          console.error(`[ADMIN OTP ERROR] Errore nell'invio della mail reale a ${user.email}:`, mailErr.message);
+        }
 
         // Log access request
         await mysqlPool.execute(
@@ -554,6 +561,23 @@ app.post("/api/chat", async (req, res) => {
 async function seedAdminUsers() {
   if (!mysqlPool || !getIsMysqlHealthy()) return;
   try {
+    // Sincronizzazione / Aggiornamento degli account esistenti per allineare l'email
+    console.log("Sincronizzazione contatti e-mail amministratori e operatori nel DB...");
+    const updates = [
+      { username: "admin", email: "franco.tese@gmail.com" },
+      { username: "polizia", email: "polizia@animalhubpa.it" },
+      { username: "canile", email: "canile@animalhubpa.it" },
+      { username: "volontario", email: "volontari@animalhubpa.it" }
+    ];
+
+    for (const item of updates) {
+      try {
+        await mysqlPool.execute("UPDATE admin_users SET email = ? WHERE username = ?", [item.email, item.username]);
+      } catch (err: any) {
+        console.warn(`Avviso: impossibile aggiornare email per ${item.username}:`, err.message);
+      }
+    }
+
     const [rows]: any = await mysqlPool.execute("SELECT COUNT(*) as count FROM admin_users");
     const count = rows[0]?.count || 0;
     if (count === 0) {
@@ -593,7 +617,7 @@ async function seedAdminUsers() {
       console.log("Succesfully seeded 4 default admin operator accounts.");
     }
   } catch (err) {
-    console.error("Error seeding default admin users:", err);
+    console.error("Error seeding or syncing default admin users:", err);
   }
 }
 
