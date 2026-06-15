@@ -111,6 +111,21 @@ class VirtualJsonDb {
     return results[0] || null;
   }
 
+  filterAndPush(tableName: string, row: Record<string, any>) {
+    if (tableName === "user_otps" && row.email) {
+      this.tables[tableName] = this.tables[tableName].filter(r => r.email !== row.email);
+    } else if (tableName === "admin_config" && row.key_name) {
+      this.tables[tableName] = this.tables[tableName].filter(r => r.key_name !== row.key_name);
+    } else if (tableName === "comuni" && row.key_name) {
+      this.tables[tableName] = this.tables[tableName].filter(r => r.key_name !== row.key_name);
+    } else if (tableName === "admin_users" && row.username) {
+      this.tables[tableName] = this.tables[tableName].filter(r => r.username !== row.username);
+    } else if (row.id) {
+      this.tables[tableName] = this.tables[tableName].filter(r => r.id !== row.id);
+    }
+    this.tables[tableName].push(row);
+  }
+
   async run(sql: string, params?: any[]): Promise<any> {
     const upper = sql.trim().toUpperCase();
     if (upper.startsWith("CREATE TABLE")) {
@@ -122,44 +137,56 @@ class VirtualJsonDb {
         }
       }
     } else if (upper.startsWith("INSERT")) {
-      const match = sql.match(/INSERT\s+(?:OR\s+REPLACE\s+)?INTO\s+([a-zA-Z0-9_]+)\s*\(([^)]+)\)\s*VALUES\s*\(([^)]+)\)/i);
+      const match = sql.match(/INSERT\s+(?:OR\s+REPLACE\s+)?INTO\s+([a-zA-Z0-9_]+)\s*\(([^)]+)\)\s*VALUES/i);
       const valuesKeyword = sql.toUpperCase().indexOf("VALUES");
 
-      if (match) {
+      if (match && valuesKeyword !== -1) {
         const tableName = match[1].toLowerCase();
         const cols = match[2].split(",").map(c => c.trim().replace(/['"`]/g, ""));
         
-        let values: any[] = [];
-        if (params && params.length > 0) {
-          values = params;
-        } else {
-          const valString = sql.substring(valuesKeyword + 6).trim().replace(/^[^(]*\(/, "").split(/\)[^)]*$/)[0];
-          values = parseSqlValues(valString);
-        }
-
         if (!this.tables[tableName]) {
           this.tables[tableName] = [];
         }
 
-        const row: Record<string, any> = {};
-        cols.forEach((col, idx) => {
-          row[col] = values[idx];
-        });
+        if (params && params.length > 0) {
+          const row: Record<string, any> = {};
+          cols.forEach((col, idx) => {
+            row[col.toLowerCase()] = params[idx];
+          });
+          this.filterAndPush(tableName, row);
+        } else {
+          const valString = sql.substring(valuesKeyword + 6).trim();
+          const tuples: string[] = [];
+          let currentTuple = "";
+          let insideQuote = false;
+          let insideTuple = false;
+          
+          for (let i = 0; i < valString.length; i++) {
+            const char = valString[i];
+            if (char === "'" && (i === 0 || valString[i-1] !== "\\")) {
+              insideQuote = !insideQuote;
+              currentTuple += char;
+            } else if (char === "(" && !insideQuote) {
+              insideTuple = true;
+              currentTuple = "";
+            } else if (char === ")" && !insideQuote) {
+              insideTuple = false;
+              tuples.push(currentTuple);
+              currentTuple = "";
+            } else if (insideTuple) {
+              currentTuple += char;
+            }
+          }
 
-        // Unique check based on specific tables
-        if (tableName === "user_otps" && row.email) {
-          this.tables[tableName] = this.tables[tableName].filter(r => r.email !== row.email);
-        } else if (tableName === "admin_config" && row.key_name) {
-          this.tables[tableName] = this.tables[tableName].filter(r => r.key_name !== row.key_name);
-        } else if (tableName === "comuni" && row.key_name) {
-          this.tables[tableName] = this.tables[tableName].filter(r => r.key_name !== row.key_name);
-        } else if (tableName === "admin_users" && row.username) {
-          this.tables[tableName] = this.tables[tableName].filter(r => r.username !== row.username);
-        } else if (row.id) {
-          this.tables[tableName] = this.tables[tableName].filter(r => r.id !== row.id);
+          for (const tuple of tuples) {
+            const values = parseSqlValues(tuple);
+            const row: Record<string, any> = {};
+            cols.forEach((col, idx) => {
+              row[col.toLowerCase()] = values[idx];
+            });
+            this.filterAndPush(tableName, row);
+          }
         }
-
-        this.tables[tableName].push(row);
       }
     } else if (upper.startsWith("UPDATE")) {
       const updateMatch = sql.match(/UPDATE\s+([a-zA-Z0-9_]+)\s+SET\s+([^WHERE]+)(?:\s+WHERE\s+(.+))?/i);
@@ -174,10 +201,11 @@ class VirtualJsonDb {
           let pIdx = 0;
           setParts.forEach(part => {
             const [col, valExpr] = part.split("=").map(x => x.trim().replace(/['"`]/g, ""));
+            const lowerCol = col.toLowerCase();
             if (valExpr === "?") {
-              setMap[col] = params ? params[pIdx++] : undefined;
+              setMap[lowerCol] = params ? params[pIdx++] : undefined;
             } else {
-              setMap[col] = valExpr.replace(/^'|'$/g, "");
+              setMap[lowerCol] = valExpr.replace(/^'|'$/g, "");
             }
           });
 
@@ -217,7 +245,10 @@ class VirtualJsonDb {
     const upper = sql.trim().toUpperCase();
     
     if (sql.includes("sqlite_master")) {
-      return [{ name: "admin_users" }]; 
+      if (this.tables["admin_users"] && this.tables["admin_users"].length > 0) {
+        return [{ name: "admin_users" }]; 
+      }
+      return [];
     }
 
     const fromMatch = sql.match(/FROM\s+([a-zA-Z0-9_]+)/i);
