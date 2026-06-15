@@ -153,11 +153,13 @@ app.post("/api/admin/login/verify-otp", async (req, res) => {
     }
 
     const [otpRows]: any = await mysqlPool.execute(
-      "SELECT * FROM user_otps WHERE email = ? AND otp_code = ? AND expires_at > NOW()",
+      "SELECT * FROM user_otps WHERE email = ? AND otp_code = ?",
       [user.email, otp]
     );
 
-    if (otpRows.length > 0) {
+    const otpRecord = otpRows[0];
+
+    if (otpRecord && new Date() <= new Date(otpRecord.expires_at)) {
       await mysqlPool.execute("DELETE FROM user_otps WHERE email = ?", [user.email]);
       const token = jwt.sign({ username: user.username, role: user.role, comune_key: user.comune_key }, "animal-hub-secret");
       res.cookie("admin_token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production" });

@@ -55,7 +55,22 @@ export async function getSqliteDb() {
   if (sqliteDb) return sqliteDb;
 
   try {
-    const dbPath = path.join(process.cwd(), "database.sqlite");
+    const isVercel = process.env.VERCEL === "1" || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+    let dbPath = path.join(process.cwd(), "database.sqlite");
+
+    if (isVercel) {
+      dbPath = "/tmp/database.sqlite";
+      try {
+        const sourcePath = path.join(process.cwd(), "database.sqlite");
+        if (fs.existsSync(sourcePath) && !fs.existsSync(dbPath)) {
+          fs.copyFileSync(sourcePath, dbPath);
+          console.log("[VERCEL SF] Copiato database.sqlite iniziale in /tmp!");
+        }
+      } catch (copyErr: any) {
+        console.warn("[VERCEL SF] Errore copia sqlite in /tmp:", copyErr.message);
+      }
+    }
+
     sqliteDb = await openSqlite({
       filename: dbPath,
       driver: sqlite3.Database
