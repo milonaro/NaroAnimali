@@ -1,17 +1,14 @@
-import mysql from 'mysql2/promise';
-import sqlite3 from 'sqlite3';
-import { open } from 'sqlite';
+import mysqlPromise from 'mysql2/promise';
 import dotenv from 'dotenv';
 import path from 'path';
 import admin from 'firebase-admin';
 import { getFirestore as getFirestoreAdmin } from 'firebase-admin/firestore';
-
-import fs from 'fs';
+import fs from "fs";
 
 // Assicuriamoci che l'ambiente sia caricato
 dotenv.config();
 
-let mysqlPool: mysql.Pool | null = null;
+let mysqlPool: mysqlPromise.Pool | null = null;
 let sqliteDb: any = null;
 
 // Leggiamo la configurazione client per estrarre la corretta istanza di database Firestore
@@ -48,7 +45,7 @@ export async function getDatabase() {
   if (process.env.DB_HOST && process.env.DB_NAME && process.env.DB_USER) {
     if (!mysqlPool) {
       try {
-        mysqlPool = mysql.createPool({
+        mysqlPool = mysqlPromise.createPool({
           host: process.env.DB_HOST,
           user: process.env.DB_USER,
           database: process.env.DB_NAME,
@@ -66,9 +63,11 @@ export async function getDatabase() {
 
   // Fallback su SQLite se MySQL non configurato o offline
   if (!mysqlPool && !sqliteDb) {
-    sqliteDb = await open({
+    const sqlite3Module = await import('sqlite3');
+    const sqliteModule = await import('sqlite');
+    sqliteDb = await sqliteModule.open({
       filename: path.join(process.cwd(), 'database.sqlite'),
-      driver: sqlite3.Database
+      driver: sqlite3Module.default.Database
     });
     console.log("Uso Fallback SQLite locale per testing");
   }

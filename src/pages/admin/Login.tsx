@@ -33,7 +33,11 @@ export default function AdminLogin() {
           navigate('/operatori');
         }
       } else {
-        setError(data.error || "Credenziali errate");
+        if (data.VERCEL_WRAPPER_ERROR) {
+          setError(`Errore Server Vercel: ${data.VERCEL_WRAPPER_ERROR}. Verifica le variabili d'ambiente (.env) su Vercel.`);
+        } else {
+          setError(data.error || "Credenziali o codice non validi");
+        }
       }
     } catch (e) {
       setError("Errore di connessione");
@@ -53,7 +57,11 @@ export default function AdminLogin() {
       if (res.ok) {
         navigate('/operatori');
       } else {
-        setError(data.error || "Codice OTP non valido");
+        if (data.VERCEL_WRAPPER_ERROR) {
+          setError(`Errore Server Vercel: ${data.VERCEL_WRAPPER_ERROR}`);
+        } else {
+          setError(data.error || "Codice OTP non valido");
+        }
       }
     } catch (e) {
       setError("Errore di connessione OTP");

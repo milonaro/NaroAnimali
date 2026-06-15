@@ -1,6 +1,4 @@
 import mysql from "mysql2/promise";
-import sqlite3 from "sqlite3";
-import { open as openSqlite } from "sqlite";
 import fs from "fs";
 import path from "path";
 import dotenv from "dotenv";
@@ -71,9 +69,12 @@ export async function getSqliteDb() {
       }
     }
 
-    sqliteDb = await openSqlite({
+    const sqlite3Module = await import("sqlite3");
+    const sqliteModule = await import("sqlite");
+
+    sqliteDb = await sqliteModule.open({
       filename: dbPath,
-      driver: sqlite3.Database
+      driver: sqlite3Module.default.Database
     });
 
     if (!isSqliteInitialized) {
