@@ -8,8 +8,8 @@ import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { COMUNI } from '@/src/lib/geofence';
 import { useLanguage } from '@/src/contexts/LanguageContext';
 
-import step3Img from '@/src/assets/images/step3_protocollare_1781441452355.jpg';
-import step4Img from '@/src/assets/images/step4_monitoraggio_1781441470199.jpg';
+import step3Img from './images/step3_protocollare_1781441452355.jpg';
+import step4Img from './images/step4_monitoraggio_1781441470199.jpg';
 
 interface SegnalazioneDoc {
   id: string;

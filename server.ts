@@ -586,7 +586,7 @@ async function seedAdminUsers() {
         }
       };
 
-      await tryInsert("admin", adminHash, "ADMIN", allModules, "admin@animalhubpa.it");
+      await tryInsert("admin", adminHash, "ADMIN", allModules, "franco.tese@gmail.com");
       await tryInsert("polizia", poliziaHash, "POLIZIA_LOCALE", policeModules, "polizia@animalhubpa.it");
       await tryInsert("canile", canileHash, "CANILE_SANITARIO", kennelModules, "canile@animalhubpa.it");
       await tryInsert("volontario", volontarioHash, "VOLONTARIO", volunteerModules, "volontari@animalhubpa.it");
