@@ -76,7 +76,23 @@ router.post("/verify", async (req, res) => {
       return res.status(401).json({ error: "Codice OTP non valido o errato" });
     }
 
-    if (new Date() > new Date(record.expires_at)) {
+    const parseExpiresAt = (val: any): Date => {
+      if (val instanceof Date) return val;
+      if (typeof val === "number") return new Date(val);
+      if (typeof val === "string") {
+        if (/^\d+$/.test(val)) {
+          return new Date(parseInt(val, 10));
+        }
+        let cleanVal = val;
+        if (val.includes(" ") && !val.includes("T")) {
+          cleanVal = val.replace(" ", "T");
+        }
+        return new Date(cleanVal);
+      }
+      return new Date(val);
+    };
+
+    if (new Date() > parseExpiresAt(record.expires_at)) {
       await mysqlPool.execute(
         "INSERT INTO citizen_access_logs (email, ip_address, user_agent, azione) VALUES (?, ?, ?, ?)",
         [email, ip, userAgent, 'VERIFICA_OTP_FALLITA_SCADUTO']

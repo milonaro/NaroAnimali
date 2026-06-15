@@ -159,7 +159,23 @@ app.post("/api/admin/login/verify-otp", async (req, res) => {
 
     const otpRecord = otpRows[0];
 
-    if (otpRecord && new Date() <= new Date(otpRecord.expires_at)) {
+    const parseExpiresAt = (val: any): Date => {
+      if (val instanceof Date) return val;
+      if (typeof val === "number") return new Date(val);
+      if (typeof val === "string") {
+        if (/^\d+$/.test(val)) {
+          return new Date(parseInt(val, 10));
+        }
+        let cleanVal = val;
+        if (val.includes(" ") && !val.includes("T")) {
+          cleanVal = val.replace(" ", "T");
+        }
+        return new Date(cleanVal);
+      }
+      return new Date(val);
+    };
+
+    if (otpRecord && new Date() <= parseExpiresAt(otpRecord.expires_at)) {
       await mysqlPool.execute("DELETE FROM user_otps WHERE email = ?", [user.email]);
       const token = jwt.sign({ username: user.username, role: user.role, comune_key: user.comune_key }, "animal-hub-secret");
       res.cookie("admin_token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production" });

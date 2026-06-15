@@ -69,23 +69,315 @@ export async function getSqliteDb() {
       }
     }
 
-    const sqlite3Module = await import("sqlite3");
-    const sqliteModule = await import("sqlite");
+    try {
+      const sqlite3Module = await import("sqlite3");
+      const sqliteModule = await import("sqlite");
 
-    sqliteDb = await sqliteModule.open({
-      filename: dbPath,
-      driver: sqlite3Module.default.Database
-    });
+      sqliteDb = await sqliteModule.open({
+        filename: dbPath,
+        driver: sqlite3Module.default.Database
+      });
 
-    if (!isSqliteInitialized) {
-      isSqliteInitialized = true;
-      await initSqliteSchema(sqliteDb);
+      if (!isSqliteInitialized) {
+        isSqliteInitialized = true;
+        await initSqliteSchema(sqliteDb);
+      }
+    } catch (sqliteLoadErr: any) {
+      console.warn("[FAILOVER] Caricamento SQLite fallito (previsto su Vercel Serverless). Attivazione Virtual JSON Database...", sqliteLoadErr.message);
+      sqliteDb = new VirtualJsonDb() as any;
+      if (!isSqliteInitialized) {
+        isSqliteInitialized = true;
+        await initSqliteSchema(sqliteDb);
+      }
     }
+
     return sqliteDb;
   } catch (err) {
-    console.error("Errore durante l'apertura o l'inizializzazione di SQLite:", err);
+    console.error("Errore generico durante l'apertura o l'inizializzazione di SQLite:", err);
     throw err;
   }
+}
+
+// Virtual JSON Database fallback for Vercel Serverless environment where native sqlite3 binary can't load
+class VirtualJsonDb {
+  tables: Record<string, any[]> = {};
+
+  constructor() {
+    this.tables = loadVirtualDb() || {};
+  }
+
+  async get(sql: string, params?: any[]): Promise<any> {
+    const results = await this.all(sql, params);
+    return results[0] || null;
+  }
+
+  async run(sql: string, params?: any[]): Promise<any> {
+    const upper = sql.trim().toUpperCase();
+    if (upper.startsWith("CREATE TABLE")) {
+      const match = sql.match(/CREATE TABLE\s+(?:IF NOT EXISTS\s+)?([a-zA-Z0-9_]+)/i);
+      if (match) {
+        const tableName = match[1].toLowerCase();
+        if (!this.tables[tableName]) {
+          this.tables[tableName] = [];
+        }
+      }
+    } else if (upper.startsWith("INSERT")) {
+      const match = sql.match(/INSERT\s+(?:OR\s+REPLACE\s+)?INTO\s+([a-zA-Z0-9_]+)\s*\(([^)]+)\)\s*VALUES\s*\(([^)]+)\)/i);
+      const valuesKeyword = sql.toUpperCase().indexOf("VALUES");
+
+      if (match) {
+        const tableName = match[1].toLowerCase();
+        const cols = match[2].split(",").map(c => c.trim().replace(/['"`]/g, ""));
+        
+        let values: any[] = [];
+        if (params && params.length > 0) {
+          values = params;
+        } else {
+          const valString = sql.substring(valuesKeyword + 6).trim().replace(/^[^(]*\(/, "").split(/\)[^)]*$/)[0];
+          values = parseSqlValues(valString);
+        }
+
+        if (!this.tables[tableName]) {
+          this.tables[tableName] = [];
+        }
+
+        const row: Record<string, any> = {};
+        cols.forEach((col, idx) => {
+          row[col] = values[idx];
+        });
+
+        // Unique check based on specific tables
+        if (tableName === "user_otps" && row.email) {
+          this.tables[tableName] = this.tables[tableName].filter(r => r.email !== row.email);
+        } else if (tableName === "admin_config" && row.key_name) {
+          this.tables[tableName] = this.tables[tableName].filter(r => r.key_name !== row.key_name);
+        } else if (tableName === "comuni" && row.key_name) {
+          this.tables[tableName] = this.tables[tableName].filter(r => r.key_name !== row.key_name);
+        } else if (tableName === "admin_users" && row.username) {
+          this.tables[tableName] = this.tables[tableName].filter(r => r.username !== row.username);
+        } else if (row.id) {
+          this.tables[tableName] = this.tables[tableName].filter(r => r.id !== row.id);
+        }
+
+        this.tables[tableName].push(row);
+      }
+    } else if (upper.startsWith("UPDATE")) {
+      const updateMatch = sql.match(/UPDATE\s+([a-zA-Z0-9_]+)\s+SET\s+([^WHERE]+)(?:\s+WHERE\s+(.+))?/i);
+      if (updateMatch) {
+        const tableName = updateMatch[1].toLowerCase();
+        const setClause = updateMatch[2].trim();
+        const whereClause = updateMatch[3] ? updateMatch[3].trim() : "";
+
+        if (this.tables[tableName]) {
+          const setParts = setClause.split(",").map(s => s.trim());
+          const setMap: Record<string, any> = {};
+          let pIdx = 0;
+          setParts.forEach(part => {
+            const [col, valExpr] = part.split("=").map(x => x.trim().replace(/['"`]/g, ""));
+            if (valExpr === "?") {
+              setMap[col] = params ? params[pIdx++] : undefined;
+            } else {
+              setMap[col] = valExpr.replace(/^'|'$/g, "");
+            }
+          });
+
+          this.tables[tableName].forEach(row => {
+            let matches = true;
+            if (whereClause) {
+              matches = evalWhere(row, whereClause, params ? params.slice(pIdx) : []);
+            }
+            if (matches) {
+              Object.assign(row, setMap);
+            }
+          });
+        }
+      }
+    } else if (upper.startsWith("DELETE")) {
+      const match = sql.match(/DELETE\s+FROM\s+([a-zA-Z0-9_]+)(?:\s+WHERE\s+(.+))?/i);
+      if (match) {
+        const tableName = match[1].toLowerCase();
+        const whereClause = match[2] ? match[2].trim() : "";
+        if (this.tables[tableName]) {
+          if (whereClause) {
+            this.tables[tableName] = this.tables[tableName].filter(row => {
+              return !evalWhere(row, whereClause, params || []);
+            });
+          } else {
+            this.tables[tableName] = [];
+          }
+        }
+      }
+    }
+
+    saveVirtualDb(this.tables);
+    return { lastID: Date.now(), changes: 1 };
+  }
+
+  async all(sql: string, params?: any[]): Promise<any[]> {
+    const upper = sql.trim().toUpperCase();
+    
+    if (sql.includes("sqlite_master")) {
+      return [{ name: "admin_users" }]; 
+    }
+
+    const fromMatch = sql.match(/FROM\s+([a-zA-Z0-9_]+)/i);
+    if (!fromMatch) {
+      if (sql.includes("SELECT NOW()") || sql.includes("SELECT datetime")) {
+        return [{ now_db: new Date().toISOString().replace("T", " ").substring(0, 19) }];
+      }
+      return [{}];
+    }
+
+    const tableName = fromMatch[1].toLowerCase();
+    let rows = this.tables[tableName] || [];
+
+    // Filter by WHERE
+    const whereMatch = sql.match(/WHERE\s+([^ORDER|GROUP|LIMIT|OFFSET]+)/i);
+    if (whereMatch) {
+      const whereClause = whereMatch[1].trim();
+      rows = rows.filter(row => evalWhere(row, whereClause, params || []));
+    }
+
+    // Sort by ORDER BY
+    const orderMatch = sql.match(/ORDER\s+BY\s+([a-zA-Z0-9_]+)(?:\s+(ASC|DESC))?/i);
+    if (orderMatch) {
+      const col = orderMatch[1].toLowerCase();
+      const desc = orderMatch[2] && orderMatch[2].toUpperCase() === "DESC";
+      rows = [...rows].sort((a, b) => {
+        const valA = a[col];
+        const valB = b[col];
+        if (valA === valB) return 0;
+        if (valA === undefined || valA === null) return 1;
+        if (valB === undefined || valB === null) return -1;
+        const compare = valA < valB ? -1 : 1;
+        return desc ? -compare : compare;
+      });
+    }
+
+    // Slice limit
+    const limitMatch = sql.match(/LIMIT\s+(\d+)/i);
+    if (limitMatch) {
+      const limit = parseInt(limitMatch[1], 10);
+      rows = rows.slice(0, limit);
+    }
+
+    return rows;
+  }
+}
+
+function parseSqlValues(valString: string): any[] {
+  const results: any[] = [];
+  let current = "";
+  let insideQuote = false;
+  for (let i = 0; i < valString.length; i++) {
+    const char = valString[i];
+    if (char === "'" && (i === 0 || valString[i-1] !== "\\")) {
+      insideQuote = !insideQuote;
+    } else if (char === "," && !insideQuote) {
+      results.push(parseSingleValue(current.trim()));
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  if (current) {
+    results.push(parseSingleValue(current.trim()));
+  }
+  return results;
+}
+
+function parseSingleValue(str: string): any {
+  if (str.startsWith("'") && str.endsWith("'")) {
+    return str.replace(/^'|'$/g, "").replace(/\\'/g, "'");
+  }
+  if (str.toLowerCase() === "null") return null;
+  if (str.toLowerCase() === "true") return 1;
+  if (str.toLowerCase() === "false") return 0;
+  if (/^\d+(\.\d+)?$/.test(str)) return Number(str);
+  return str;
+}
+
+function evalWhere(row: any, clause: string, params: any[]): boolean {
+  const cleanClause = clause.replace(/\s+/g, " ");
+  const parts = cleanClause.split(/\s+AND\s+/i);
+  let paramIdx = 0;
+
+  for (const part of parts) {
+    const expr = part.trim();
+    let operator = "=";
+    let colName = "";
+    let valExpr = "";
+
+    if (expr.includes("=")) {
+      [colName, valExpr] = expr.split("=").map(x => x.trim().replace(/['"`]/g, ""));
+      operator = "=";
+    } else if (expr.includes(">")) {
+      [colName, valExpr] = expr.split(">").map(x => x.trim().replace(/['"`]/g, ""));
+      operator = ">";
+    } else if (expr.includes("<")) {
+      [colName, valExpr] = expr.split("<").map(x => x.trim().replace(/['"`]/g, ""));
+      operator = "<";
+    } else {
+      continue;
+    }
+
+    colName = colName.toLowerCase();
+    let compValue: any = undefined;
+
+    if (valExpr === "?") {
+      compValue = params[paramIdx++];
+    } else {
+      compValue = valExpr.replace(/^'|'$/g, "");
+    }
+
+    const rowValue = row[colName];
+
+    if (operator === "=") {
+      if (rowValue === undefined) return false;
+      if (String(rowValue) !== String(compValue)) return false;
+    } else if (operator === ">") {
+      if (rowValue === undefined) return false;
+      if (colName === "expires_at") {
+        const rowTime = Number(rowValue);
+        const compTime = compValue === "NOW()" || compValue.includes("now") ? Date.now() : Number(compValue);
+        if (rowTime <= compTime) return false;
+      } else {
+        if (Number(rowValue) <= Number(compValue)) return false;
+      }
+    } else if (operator === "<") {
+      if (rowValue === undefined) return false;
+      if (colName === "expires_at") {
+        const rowTime = Number(rowValue);
+        const compTime = compValue === "NOW()" || compValue.includes("now") ? Date.now() : Number(compValue);
+        if (rowTime >= compTime) return false;
+      } else {
+        if (Number(rowValue) >= Number(compValue)) return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+function saveVirtualDb(tables: any) {
+  try {
+    const dbPath = process.env.VERCEL === "1" ? "/tmp/db.json" : path.join(process.cwd(), "db.json");
+    fs.writeFileSync(dbPath, JSON.stringify(tables, null, 2), "utf8");
+  } catch (err: any) {
+    console.warn("VirtualDB SAVE failed:", err.message);
+  }
+}
+
+function loadVirtualDb(): Record<string, any[]> {
+  try {
+    const dbPath = process.env.VERCEL === "1" ? "/tmp/db.json" : path.join(process.cwd(), "db.json");
+    if (fs.existsSync(dbPath)) {
+      return JSON.parse(fs.readFileSync(dbPath, "utf8"));
+    }
+  } catch (err: any) {
+    console.warn("VirtualDB LOAD failed:", err.message);
+  }
+  return {};
 }
 
 // Map MySQL schema to SQLite and seed
