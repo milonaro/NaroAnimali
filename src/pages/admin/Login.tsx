@@ -28,7 +28,11 @@ export default function AdminLogin() {
         if (data.requireOtp) {
           setUserEmail(data.email);
           setStep(2);
-          setMessage(`Token inviato all'indirizzo email: ${data.email || 'registrato'}`);
+          let successMsg = `Token inviato all'indirizzo email: ${data.email || 'registrato'}`;
+          if (data.debugOtp) {
+            successMsg += ` (SMTP non configurato. Token di test: ${data.debugOtp})`;
+          }
+          setMessage(successMsg);
         } else {
           navigate('/operatori');
         }

@@ -23,6 +23,7 @@ export default function MiaArea() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<{ isOpen: boolean; url: string | null; title: string }>({
     isOpen: false,
     url: null,
@@ -75,6 +76,7 @@ export default function MiaArea() {
   const handleSendOTP = async () => {
     setLoading(true);
     setError(null);
+    setInfo(null);
     try {
       const res = await fetch("/api/otp/request", {
         method: "POST",
@@ -83,6 +85,9 @@ export default function MiaArea() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Errore durante l'invio dell'OTP");
+      if (data.debugOtp) {
+        setInfo(`SMTP non configurato. Usa il codice di test: ${data.debugOtp}`);
+      }
       setStep(2);
     } catch (e: any) {
       setError(e.message);
@@ -272,6 +277,12 @@ export default function MiaArea() {
                     <h2 className="text-xl font-black text-[#101b3a] tracking-tight">Verifica OTP</h2>
                     <p className="text-slate-500 text-xs font-bold mt-1.5 uppercase tracking-wide">Inserisci il codice temporaneo inviato alla tua casella mail.</p>
                   </div>
+
+                  {info && (
+                    <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-xl text-xs font-bold text-center">
+                      {info}
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-center block">Codice Monouso</label>
