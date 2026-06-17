@@ -245,7 +245,7 @@ class VirtualJsonDb {
     const upper = sql.trim().toUpperCase();
     
     if (sql.includes("sqlite_master")) {
-      if (this.tables["admin_users"] && this.tables["admin_users"].length > 0) {
+      if (this.tables["admin_users"] !== undefined) {
         return [{ name: "admin_users" }]; 
       }
       return [];
@@ -477,8 +477,8 @@ async function initSqliteSchema(db: any) {
       console.log("Struttura tabelle SQLite creata con successo.");
 
       // Seeding default admin users if they don't exist
-      const userCount = await db.get("SELECT COUNT(*) as count FROM admin_users");
-      if (userCount && userCount.count === 0) {
+      const usersList = await db.all("SELECT * FROM admin_users");
+      if (!usersList || usersList.length === 0) {
         console.log("Seeding degli utenti amministratori di default in SQLite...");
         const adminHash = await bcrypt.hash("admin2026", 10);
         const poliziaHash = await bcrypt.hash("polizia2026", 10);

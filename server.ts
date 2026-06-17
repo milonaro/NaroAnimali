@@ -37,6 +37,65 @@ const PORT = 3000;
 app.use(express.json({ limit: "20mb" }));
 app.use(cookieParser());
 
+let dbInitPromise: Promise<void> | null = null;
+
+async function runDatabaseInitialization() {
+  if (mysqlPool && getIsMysqlHealthy()) {
+    try {
+      await mysqlPool.query("SELECT 1");
+    } catch (err) {
+      console.warn("MySQL Ping Failed on boot. Disabling MySQL features to prevent timeout.");
+      setMysqlHealthy(false);
+    }
+  }
+
+  if (!process.env.VERCEL) {
+    await createMySQLTables();
+    await addMySQLColumns();
+    await seedAdminUsers();
+  } else {
+    console.log("[VERCEL] Checking if tables exist or need seeding...");
+    let needsMigration = false;
+    try {
+      if (mysqlPool) {
+        const [rows]: any = await mysqlPool.execute("SELECT * FROM admin_users");
+        if (!rows || rows.length === 0) {
+          needsMigration = true;
+        }
+      }
+    } catch (e: any) {
+      console.log("[VERCEL] Tables do not exist. Running migrations...", e.message);
+      needsMigration = true;
+    }
+
+    if (needsMigration) {
+      await createMySQLTables();
+      await addMySQLColumns();
+      await seedAdminUsers();
+    } else {
+      console.log("[VERCEL] Tables already exist and have users. Skipping auto-migrations.");
+    }
+  }
+}
+
+function getDbInitPromise() {
+  if (!dbInitPromise) {
+    dbInitPromise = runDatabaseInitialization();
+  }
+  return dbInitPromise;
+}
+
+// Global middleware to await DB initialization prior to any API requests
+app.use(async (req, res, next) => {
+  try {
+    await getDbInitPromise();
+    next();
+  } catch (err: any) {
+    console.error("Critical error in database initialization middleware:", err);
+    res.status(500).json({ error: "Errore di inizializzazione database", message: err.message });
+  }
+});
+
 app.use("/api/segnalazioni", segnalazioniRouter);
 app.use("/api/otp", otpRouter);
 
@@ -677,43 +736,7 @@ async function seedAdminUsers() {
 }
 
 async function bootServer() {
-  if (mysqlPool && getIsMysqlHealthy()) {
-    try {
-      await mysqlPool.query("SELECT 1");
-    } catch (err) {
-      console.warn("MySQL Ping Failed on boot. Disabling MySQL features to prevent timeout.");
-      setMysqlHealthy(false);
-    }
-  }
-
-  if (!process.env.VERCEL) {
-    await createMySQLTables();
-    await addMySQLColumns();
-    await seedAdminUsers();
-  } else {
-    console.log("[VERCEL] Checking if tables exist or need seeding...");
-    let needsMigration = false;
-    try {
-      if (mysqlPool) {
-        const [rows]: any = await mysqlPool.execute("SELECT COUNT(*) as count FROM admin_users");
-        const count = rows[0]?.count || 0;
-        if (count === 0) {
-          needsMigration = true;
-        }
-      }
-    } catch (e: any) {
-      console.log("[VERCEL] Tables do not exist. Running migrations...", e.message);
-      needsMigration = true;
-    }
-
-    if (needsMigration) {
-      await createMySQLTables();
-      await addMySQLColumns();
-      await seedAdminUsers();
-    } else {
-      console.log("[VERCEL] Tables already exist and have users. Skipping auto-migrations.");
-    }
-  }
+  await getDbInitPromise();
   
   if (process.env.NODE_ENV !== "production") {
     try {
