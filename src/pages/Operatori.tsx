@@ -49,6 +49,8 @@ export default function Operatori() {
 
   // ECOSYSTEM STATE VARIABLES FOR ADOPTIONS & FINANCES
   const [adozioni, setAdozioni] = useState<any[]>([]);
+  const [adozioniLogs, setAdozioniLogs] = useState<any[]>([]);
+  const [editingAdozione, setEditingAdozione] = useState<any | null>(null);
   const [strutture, setStrutture] = useState<any[]>([]);
   const [convenzioni, setConvenzioni] = useState<any[]>([]);
   const [fatture, setFatture] = useState<any[]>([]);
@@ -112,12 +114,81 @@ export default function Operatori() {
     }
   };
 
+  const fetchAdozioniLogs = async () => {
+    try {
+      const res = await fetch('/api/adozioni/logs');
+      if (res.ok) {
+        setAdozioniLogs(await res.json());
+      }
+    } catch (e) {
+      console.error("Error loading adozioni logs", e);
+    }
+  };
+
+  const handleDeleteAdoption = async (id: number) => {
+    if (!window.confirm("Sei sicuro di voler eliminare definitivamente questa richiesta di adozione dal registro?")) return;
+    try {
+      const res = await fetch(`/api/adozioni/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        alert("Richiesta di adozione eliminata.");
+        fetchAdozioni();
+        fetchAdozioniLogs();
+      } else {
+        const err = await res.json();
+        alert(err.error || "Errore durante l'eliminazione.");
+      }
+    } catch (e) {
+      alert("Errore imprevisto.");
+    }
+  };
+
+  const handleCloneAdoption = async (id: number) => {
+    if (!window.confirm("Sei sicuro di voler clonare questa richiesta di adozione? Verrà creata una nuova copia nello stato iniziale.")) return;
+    try {
+      const res = await fetch(`/api/adozioni/${id}/clona`, { method: 'POST' });
+      if (res.ok) {
+        alert("Richiesta di adozione clonata con successo!");
+        fetchAdozioni();
+        fetchAdozioniLogs();
+      } else {
+        const err = await res.json();
+        alert(err.error || "Errore durante la clonazione.");
+      }
+    } catch (e) {
+      alert("Errore imprevisto.");
+    }
+  };
+
+  const handleEditAdoptionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAdozione) return;
+    try {
+      const res = await fetch(`/api/adozioni/${editingAdozione.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editingAdozione)
+      });
+      if (res.ok) {
+        alert("Pratica di adozione modificata con successo!");
+        setEditingAdozione(null);
+        fetchAdozioni();
+        fetchAdozioniLogs();
+      } else {
+        const err = await res.json();
+        alert(err.error || "Errore durante il salvataggio.");
+      }
+    } catch (e) {
+      alert("Errore imprevisto durante il salvataggio.");
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'modulo-adozioni') {
       fetchAdozioni();
       fetchStrutture();
       fetchFatture();
       fetchConvenzioni();
+      fetchAdozioniLogs();
     }
   }, [activeTab]);
 
@@ -1617,6 +1688,7 @@ export default function Operatori() {
                         <th className="p-4">Animale</th>
                         <th className="p-4">Richiedente / CF</th>
                         <th className="p-4">Contatti</th>
+                        <th className="p-4">Inserito / Modificato</th>
                         <th className="p-4">Data Pratica</th>
                         <th className="p-4">Stato</th>
                         <th className="p-4 text-right">Azioni Istruttoria</th>
@@ -1646,37 +1718,73 @@ export default function Operatori() {
                             <p className="text-xs text-slate-600">{adop.adottante_tel}</p>
                             <p className="text-xs text-slate-400 font-mono">{adop.adottante_email}</p>
                           </td>
+                          <td className="p-4 text-xs">
+                            <div className="space-y-0.5">
+                              <p className="text-slate-700 font-bold">Inserito: <span className="text-indigo-600">@{adop.creato_da || "Sito Pubblico"}</span></p>
+                              {adop.modificato_da ? (
+                                <p className="text-[10px] text-slate-400">Modifica: <span className="text-emerald-600 font-bold">@{adop.modificato_da}</span></p>
+                              ) : (
+                                <p className="text-[10px] text-slate-350 italic">Nessuna modifica</p>
+                              )}
+                            </div>
+                          </td>
                           <td className="p-4 text-xs font-bold text-slate-500">
                             {adop.data_richiesta ? new Date(adop.data_richiesta).toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "N.D."}
                           </td>
                           <td className="p-4">
                             <span className={`inline-flex px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                              adop.stato === "APPROVATA" ? "bg-emerald-50 text-emerald-700 border border-emerald-100" :
-                              adop.stato === "RIFIUTATA" ? "bg-rose-50 text-rose-700 border border-rose-100" :
-                              "bg-amber-50 text-amber-700 border border-amber-100"
+                                adop.stato === "APPROVATA" ? "bg-emerald-50 text-emerald-700 border border-emerald-100" :
+                                adop.stato === "RIFIUTATA" ? "bg-rose-50 text-rose-700 border border-rose-100" :
+                                "bg-amber-50 text-amber-700 border border-amber-100"
                             }`}>
                               {adop.stato}
                             </span>
                           </td>
                           <td className="p-4 text-right">
-                            {(adop.stato === "IN_VALUTAZIONE" || adop.stato === "CREATA") ? (
-                              <div className="inline-flex gap-2">
-                                <button
-                                  onClick={() => handleApproveAdoption(adop.id)}
-                                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] uppercase tracking-widest px-3 py-2 rounded-lg transition-colors flex items-center gap-1 active:scale-95 shadow-sm"
-                                >
-                                  <CheckCircle className="h-3 w-3" /> Approva
-                                </button>
-                                <button
-                                  onClick={() => handleRejectAdoption(adop.id)}
-                                  className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] uppercase tracking-widest px-3 py-2 rounded-lg transition-colors flex items-center gap-1 active:scale-95 shadow-sm"
-                                >
-                                  <AlertTriangle className="h-3 w-3" /> Respigi
-                                </button>
-                              </div>
-                            ) : (
-                              <span className="text-[10px] uppercase font-black text-slate-400">Dossier Chiuso</span>
-                            )}
+                            <div className="flex flex-wrap items-center justify-end gap-1.5 list-none">
+                              {(adop.stato === "IN_VALUTAZIONE" || adop.stato === "CREATA") && (
+                                <>
+                                  <button
+                                    onClick={() => handleApproveAdoption(adop.id)}
+                                    title="Approva Pratica"
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] uppercase tracking-widest px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1 active:scale-95 shadow-sm"
+                                  >
+                                    <CheckCircle className="h-3.5 w-3.5" /> Approva
+                                  </button>
+                                  <button
+                                    onClick={() => handleRejectAdoption(adop.id)}
+                                    title="Respingi Pratica"
+                                    className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] uppercase tracking-widest px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1 active:scale-95 shadow-sm"
+                                  >
+                                    <AlertTriangle className="h-3.5 w-3.5" /> Respingi
+                                  </button>
+                                </>
+                              )}
+
+                              <button
+                                onClick={() => setEditingAdozione(adop)}
+                                title="Modifica Dati"
+                                className="bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-[10px] uppercase tracking-wider px-2.5 py-1.5 rounded-lg transition-all"
+                              >
+                                Modifica
+                              </button>
+
+                              <button
+                                onClick={() => handleCloneAdoption(adop.id)}
+                                title="Clona Pratica"
+                                className="bg-indigo-500 hover:bg-indigo-600 text-white font-extrabold text-[10px] uppercase tracking-wider px-2.5 py-1.5 rounded-lg transition-all"
+                              >
+                                Clona
+                              </button>
+
+                              <button
+                                onClick={() => handleDeleteAdoption(adop.id)}
+                                title="Elimina"
+                                className="bg-red-600 hover:bg-red-700 text-white font-extrabold text-[10px] uppercase tracking-wider px-2.5 py-1.5 rounded-lg transition-all"
+                              >
+                                Elimina
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -1684,6 +1792,34 @@ export default function Operatori() {
                   </table>
                 </div>
               )}
+            </div>
+
+            {/* AUDIT TRAIL LOG PANEL */}
+            <div className="bg-[#1e293b] text-slate-100 p-6 sm:p-8 rounded-2xl border border-slate-700 shadow-xl space-y-4">
+              <div className="flex items-center justify-between pb-4 border-b border-slate-705">
+                <div className="flex items-center gap-2">
+                  <Activity className="h-5 w-5 text-indigo-400" />
+                  <h3 className="text-base font-black uppercase tracking-wider text-indigo-350">Tracciabilità Operativa adozioni (Audit Trail DB)</h3>
+                </div>
+                <span className="text-[10px] font-black uppercase bg-indigo-500/10 text-indigo-400 px-2.5 py-0.5 rounded border border-indigo-500/20 font-mono">Sicurezza C.O.F.</span>
+              </div>
+              
+              <div className="max-h-60 overflow-y-auto space-y-2 pr-2 font-mono scrollbar-thin scrollbar-thumb-slate-700">
+                {adozioniLogs.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic py-4 text-center">Nessuna operazione registrata nel registro adozioni ancora.</p>
+                ) : (
+                  adozioniLogs.map((log: any) => (
+                    <div key={log.id} className="text-xs flex flex-col md:flex-row md:items-center gap-2 md:gap-4 p-2.5 rounded bg-slate-800/65 border border-slate-800 hover:bg-slate-800 transition-all text-left">
+                      <span className="text-[#a5b4fc] w-32 shrink-0">
+                        {log.timestamp ? new Date(log.timestamp).toLocaleString("it-IT", { hour: "2-digit", minute: "2-digit", second: "2-digit", day: "2-digit", month: "2-digit", year: '2-digit' }) : "N.D."}
+                      </span>
+                      <span className="text-[#34d399] font-bold w-24 shrink-0 uppercase">[{log.operazione}]</span>
+                      <span className="text-[#2dd4bf] font-semibold w-24 shrink-0 font-mono">@{log.operatore}</span>
+                      <span className="text-slate-350 flex-1">{log.dettagli}</span>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
 
             {/* SEZIONE 2: STRUTTURE ECOSYSTEM & CONVENZIONI ATTIVE */}
@@ -1971,6 +2107,136 @@ export default function Operatori() {
                       <button
                         type="button"
                         onClick={() => setShowNuovaAdozioneModal(false)}
+                        className="border border-slate-200 px-4 py-2.5 rounded-lg text-xs font-bold uppercase text-slate-600 hover:bg-slate-50"
+                      >
+                        Annulla
+                      </button>
+                      <button
+                        type="submit"
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs uppercase tracking-wider px-5 py-2.5 rounded-lg active:scale-95"
+                      >
+                        Salva Pratica
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* MODAL 1.5: MODIFICA PRATICA ADOZIONE */}
+            {editingAdozione && (
+              <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden max-w-lg w-full flex flex-col max-h-[90vh]">
+                  <div className="bg-slate-900 px-6 py-4 flex items-center justify-between text-white border-b border-slate-800">
+                    <h3 className="font-extrabold uppercase tracking-wider text-xs flex items-center gap-2">
+                       Modifica Pratica Adozione #{editingAdozione.id}
+                    </h3>
+                    <button onClick={() => setEditingAdozione(null)} className="text-slate-400 hover:text-white transition-colors">
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                  <form onSubmit={handleEditAdoptionSubmit} className="p-6 space-y-4 overflow-y-auto w-full text-left">
+                    
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center gap-3">
+                      <img
+                        src={editingAdozione.animal_foto || "https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=150"}
+                        alt={editingAdozione.animal_nome}
+                        className="w-12 h-12 object-cover rounded-lg border border-slate-200"
+                      />
+                      <div>
+                        <p className="font-extrabold text-slate-800 leading-tight">Soggetto: {editingAdozione.animal_nome || "Animale Registrato"}</p>
+                        <p className="text-[10px] text-indigo-500 uppercase font-bold tracking-wider">{editingAdozione.animal_specie || "CANE"}</p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Nome e Cognome Adottante</label>
+                      <input
+                        type="text"
+                        required
+                        value={editingAdozione.adottante_nome || ""}
+                        onChange={(e) => setEditingAdozione({ ...editingAdozione, adottante_nome: e.target.value })}
+                        className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-600 bg-white"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Codice Fiscale</label>
+                        <input
+                          type="text"
+                          required
+                          value={editingAdozione.adottante_cf || ""}
+                          onChange={(e) => setEditingAdozione({ ...editingAdozione, adottante_cf: e.target.value.toUpperCase() })}
+                          className="w-full p-2.5 border border-slate-200 rounded-lg text-sm font-mono outline-none focus:border-indigo-600 bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Telefono</label>
+                        <input
+                          type="text"
+                          required
+                          value={editingAdozione.adottante_tel || ""}
+                          onChange={(e) => setEditingAdozione({ ...editingAdozione, adottante_tel: e.target.value })}
+                          className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-600 bg-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Email Adottante</label>
+                      <input
+                        type="email"
+                        required
+                        value={editingAdozione.adottante_email || ""}
+                        onChange={(e) => setEditingAdozione({ ...editingAdozione, adottante_email: e.target.value })}
+                        className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-600 bg-white"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Stato Pratica</label>
+                        <select
+                          required
+                          value={editingAdozione.stato || "IN_VALUTAZIONE"}
+                          onChange={(e) => setEditingAdozione({ ...editingAdozione, stato: e.target.value })}
+                          className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-600 bg-white"
+                        >
+                          <option value="CREATA">CREATA</option>
+                          <option value="IN_VALUTAZIONE">IN_VALUTAZIONE</option>
+                          <option value="APPROVATA">APPROVATA</option>
+                          <option value="RIFIUTATA">RIFIUTATA</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Esito Istruttoria</label>
+                        <select
+                          value={editingAdozione.esito || ""}
+                          onChange={(e) => setEditingAdozione({ ...editingAdozione, esito: e.target.value })}
+                          className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-600 bg-white"
+                        >
+                          <option value="">Nessuno (In attesa)</option>
+                          <option value="CANDIDATO_IDONEO">CANDIDATO_IDONEO (Idoneità Approvata)</option>
+                          <option value="NON_SUPPORTATO">NON_SUPPORTATO (Respinta)</option>
+                          <option value="RINUNCIA">RINUNCIA (Rinunciata)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Relazione Note</label>
+                      <textarea
+                        value={editingAdozione.note || ""}
+                        onChange={(e) => setEditingAdozione({ ...editingAdozione, note: e.target.value })}
+                        className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-600 h-24 resize-none bg-white"
+                      />
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditingAdozione(null)}
                         className="border border-slate-200 px-4 py-2.5 rounded-lg text-xs font-bold uppercase text-slate-600 hover:bg-slate-50"
                       >
                         Annulla

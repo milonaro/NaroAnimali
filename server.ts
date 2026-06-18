@@ -510,6 +510,19 @@ app.put("/api/registro/:id", requireAuth(["ADMIN", "POLIZIA_LOCALE", "CANILE_SAN
 // --- ECOSYSTEM ENDPOINTS FOR ADOPTIONS & FINANCES ---
 
 // 1. ADOZIONI (Adoptions)
+// Helper to write audit logs for adoptions
+async function logAdozioneOperazione(comuneKey: string, adozioneId: number | null, operatore: string, operazione: string, dettagli: string) {
+  if (!mysqlPool || !getIsMysqlHealthy()) return;
+  try {
+    await mysqlPool.execute(
+      "INSERT INTO adozioni_operazioni_logs (comune_key, adozione_id, operatore, operazione, dettagli) VALUES (?, ?, ?, ?, ?)",
+      [comuneKey, adozioneId, operatore, operazione, dettagli]
+    );
+  } catch (err) {
+    console.error("Errore scrittura log adozioni:", err);
+  }
+}
+
 app.get("/api/adozioni", async (req, res) => {
   if (!mysqlPool || !getIsMysqlHealthy()) return res.json([]);
   const [activeRow]: any = await mysqlPool.execute("SELECT value_data FROM admin_config WHERE key_name = 'activeComune'");
@@ -526,16 +539,79 @@ app.get("/api/adozioni", async (req, res) => {
   res.json(rows);
 });
 
-app.post("/api/adozioni", async (req, res) => {
+app.get("/api/adozioni/logs", requireAuth(["ADMIN", "CANILE_SANITARIO", "POLIZIA_LOCALE"]), async (req, res) => {
+  if (!mysqlPool || !getIsMysqlHealthy()) return res.json([]);
+  const [activeRow]: any = await mysqlPool.execute("SELECT value_data FROM admin_config WHERE key_name = 'activeComune'");
+  const comune = activeRow[0]?.value_data || 'naro';
+
+  try {
+    const [rows] = await mysqlPool.execute(
+      "SELECT * FROM adozioni_operazioni_logs WHERE comune_key = ? ORDER BY timestamp DESC LIMIT 200",
+      [comune]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error("Errore recupero log adozioni:", err);
+    res.status(500).json([]);
+  }
+});
+
+app.post("/api/adozioni", requireAuth(["ADMIN", "CANILE_SANITARIO", "POLIZIA_LOCALE"]), async (req, res) => {
   const data = req.body;
   if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
   const [activeRow]: any = await mysqlPool.execute("SELECT value_data FROM admin_config WHERE key_name = 'activeComune'");
   const comune = activeRow[0]?.value_data || 'naro';
+  const user = (req as any).user.username;
+
+  const [result]: any = await mysqlPool.execute(
+    "INSERT INTO adozioni (registro_id, comune_key, adottante_nome, adottante_cf, adottante_tel, adottante_email, stato, note, creato_da) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    [data.registro_id, comune, data.adottante_nome, data.adottante_cf, data.adottante_tel, data.adottante_email, data.stato || 'IN_VALUTAZIONE', data.note || '', user]
+  );
+  const newId = result.insertId;
+
+  await logAdozioneOperazione(comune, newId, user, 'CREAZIONE', `Creata nuova richiesta di adozione. Adottante: ${data.adottante_nome}, CF: ${data.adottante_cf}`);
+
+  res.json({ success: true, id: newId });
+});
+
+app.put("/api/adozioni/:id", requireAuth(["ADMIN", "CANILE_SANITARIO", "POLIZIA_LOCALE"]), async (req, res) => {
+  const { id } = req.params;
+  const data = req.body;
+  if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
+
+  const [activeRow]: any = await mysqlPool.execute("SELECT value_data FROM admin_config WHERE key_name = 'activeComune'");
+  const comune = activeRow[0]?.value_data || 'naro';
+  const user = (req as any).user.username;
+
+  const [orig]: any = await mysqlPool.execute("SELECT * FROM adozioni WHERE id = ?", [id]);
+  if (!orig || orig.length === 0) {
+    return res.status(404).json({ error: "Pratica adozione non trovata." });
+  }
 
   await mysqlPool.execute(
-    "INSERT INTO adozioni (registro_id, comune_key, adottante_nome, adottante_cf, adottante_tel, adottante_email, stato, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-    [data.registro_id, comune, data.adottante_nome, data.adottante_cf, data.adottante_tel, data.adottante_email, data.stato || 'IN_VALUTAZIONE', data.note || '']
+    "UPDATE adozioni SET adottante_nome=?, adottante_cf=?, adottante_tel=?, adottante_email=?, stato=?, esito=?, note=?, modificato_da=? WHERE id=?",
+    [
+      data.adottante_nome !== undefined ? data.adottante_nome : orig[0].adottante_nome,
+      data.adottante_cf !== undefined ? data.adottante_cf : orig[0].adottante_cf,
+      data.adottante_tel !== undefined ? data.adottante_tel : orig[0].adottante_tel,
+      data.adottante_email !== undefined ? data.adottante_email : orig[0].adottante_email,
+      data.stato !== undefined ? data.stato : orig[0].stato,
+      data.esito !== undefined ? data.esito : orig[0].esito,
+      data.note !== undefined ? data.note : orig[0].note,
+      user,
+      id
+    ]
   );
+
+  const stato = data.stato || orig[0].stato;
+  const esito = data.esito || orig[0].esito;
+  if (stato === 'APPROVATA' || esito === 'APPROVATA') {
+    const animalId = orig[0].registro_id;
+    await mysqlPool.execute("UPDATE registro_anagrafica SET stato='ADOTTATO' WHERE id=?", [animalId]);
+  }
+
+  await logAdozioneOperazione(comune, Number(id), user, 'MODIFICA', `Modificata pratica adozione. Nuovo stato: ${stato}, esito: ${esito || 'N.D.'}`);
+
   res.json({ success: true });
 });
 
@@ -544,9 +620,13 @@ app.put("/api/adozioni/:id/stato", requireAuth(["ADMIN", "CANILE_SANITARIO", "PO
   const { stato, esito, note } = req.body;
   if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
   
+  const [activeRow]: any = await mysqlPool.execute("SELECT value_data FROM admin_config WHERE key_name = 'activeComune'");
+  const comune = activeRow[0]?.value_data || 'naro';
+  const user = (req as any).user.username;
+
   await mysqlPool.execute(
-    "UPDATE adozioni SET stato=?, esito=?, note=? WHERE id=?",
-    [stato, esito || null, note || '', id]
+    "UPDATE adozioni SET stato=?, esito=?, note=?, modificato_da=? WHERE id=?",
+    [stato, esito || null, note || '', user, id]
   );
 
   if (stato === 'APPROVATA' || esito === 'APPROVATA') {
@@ -556,7 +636,55 @@ app.put("/api/adozioni/:id/stato", requireAuth(["ADMIN", "CANILE_SANITARIO", "PO
       await mysqlPool.execute("UPDATE registro_anagrafica SET stato='ADOTTATO' WHERE id=?", [animalId]);
     }
   }
+
+  await logAdozioneOperazione(comune, Number(id), user, 'MODIFICA', `Modifica rapid_stato a: ${stato}, esito: ${esito || 'Nessuno'}`);
+
   res.json({ success: true });
+});
+
+app.delete("/api/adozioni/:id", requireAuth(["ADMIN", "CANILE_SANITARIO", "POLIZIA_LOCALE"]), async (req, res) => {
+  const { id } = req.params;
+  if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
+
+  const [activeRow]: any = await mysqlPool.execute("SELECT value_data FROM admin_config WHERE key_name = 'activeComune'");
+  const comune = activeRow[0]?.value_data || 'naro';
+  const user = (req as any).user.username;
+
+  const [orig]: any = await mysqlPool.execute("SELECT * FROM adozioni WHERE id = ?", [id]);
+  if (!orig || orig.length === 0) {
+    return res.status(404).json({ error: "Pratica adozione non trovata." });
+  }
+
+  await mysqlPool.execute("DELETE FROM adozioni WHERE id = ?", [id]);
+
+  await logAdozioneOperazione(comune, Number(id), user, 'ELIMINAZIONE', `Eliminata richiesta di adozione. Adottante rimosso: ${orig[0].adottante_nome}`);
+
+  res.json({ success: true });
+});
+
+app.post("/api/adozioni/:id/clona", requireAuth(["ADMIN", "CANILE_SANITARIO", "POLIZIA_LOCALE"]), async (req, res) => {
+  const { id } = req.params;
+  if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
+
+  const [activeRow]: any = await mysqlPool.execute("SELECT value_data FROM admin_config WHERE key_name = 'activeComune'");
+  const comune = activeRow[0]?.value_data || 'naro';
+  const user = (req as any).user.username;
+
+  const [orig]: any = await mysqlPool.execute("SELECT * FROM adozioni WHERE id = ?", [id]);
+  if (!orig || orig.length === 0) {
+    return res.status(404).json({ error: "Pratica da clonare non trovata." });
+  }
+
+  const item = orig[0];
+  const [result]: any = await mysqlPool.execute(
+    "INSERT INTO adozioni (registro_id, comune_key, adottante_nome, adottante_cf, adottante_tel, adottante_email, stato, note, creato_da) VALUES (?, ?, ?, ?, ?, ?, 'IN_VALUTAZIONE', ?, ?)",
+    [item.registro_id, comune, item.adottante_nome + " (Clonata)", item.adottante_cf, item.adottante_tel, item.adottante_email, `Pratica clonata da ID ${id}. ` + (item.note || ''), user]
+  );
+  const clonedId = result.insertId;
+
+  await logAdozioneOperazione(comune, clonedId, user, 'CLONAZIONE', `Clonata pratica dall'id d'origine: ${id}`);
+
+  res.json({ success: true, id: clonedId });
 });
 
 // 2. STRUTTURE (Shelters / Clinics)

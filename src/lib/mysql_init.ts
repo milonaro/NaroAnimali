@@ -56,6 +56,24 @@ export async function addMySQLColumns() {
         console.warn("Info migrazione MySQL colonna email:", e.message);
       }
     }
+
+    try {
+      await pool.execute("ALTER TABLE adozioni ADD COLUMN creato_da VARCHAR(150) DEFAULT NULL");
+      console.log("MySQL: aggiunta colonna creato_da a adozioni");
+    } catch (e: any) {
+      if (!e.message.includes("Duplicate column") && !e.message.includes("already exists")) {
+        console.warn("Info migrazione MySQL colonna creato_da a adozioni:", e.message);
+      }
+    }
+
+    try {
+      await pool.execute("ALTER TABLE adozioni ADD COLUMN modificato_da VARCHAR(150) DEFAULT NULL");
+      console.log("MySQL: aggiunta colonna modificato_da a adozioni");
+    } catch (e: any) {
+      if (!e.message.includes("Duplicate column") && !e.message.includes("already exists")) {
+        console.warn("Info migrazione MySQL colonna modificato_da a adozioni:", e.message);
+      }
+    }
   }
 }
 
@@ -183,6 +201,8 @@ export async function createMySQLTables() {
         stato VARCHAR(50) DEFAULT 'IN_VALUTAZIONE',
         esito VARCHAR(50),
         note TEXT,
+        creato_da VARCHAR(150) DEFAULT NULL,
+        modificato_da VARCHAR(150) DEFAULT NULL,
         FOREIGN KEY (registro_id) REFERENCES registro_anagrafica(id) ON DELETE CASCADE
     )`,
     `CREATE TABLE IF NOT EXISTS calendari_intervento (
@@ -264,7 +284,16 @@ export async function createMySQLTables() {
         referrer VARCHAR(255),
         comune_selezionato VARCHAR(50),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );`
+    )`,
+    `CREATE TABLE IF NOT EXISTS adozioni_operazioni_logs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        comune_key VARCHAR(50) NOT NULL DEFAULT 'naro',
+        adozione_id INT,
+        operatore VARCHAR(100),
+        operazione VARCHAR(50),
+        dettagli TEXT,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`
   ];
 
   for (const q of queries) {

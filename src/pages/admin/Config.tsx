@@ -117,7 +117,7 @@ export default function Config() {
     );
   }
 
-  if (role !== 'Admin') {
+  if (role?.toUpperCase() !== 'ADMIN') {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-xl max-w-md w-full text-center space-y-4">
