@@ -303,6 +303,18 @@ export async function createMySQLTables() {
         operazione VARCHAR(50),
         dettagli TEXT,
         timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS citizen_profiles (
+        email VARCHAR(150) PRIMARY KEY,
+        nome VARCHAR(100),
+        cognome VARCHAR(100),
+        codice_fiscale VARCHAR(16),
+        telefono VARCHAR(30),
+        indirizzo VARCHAR(255),
+        comune_residenza VARCHAR(100),
+        is_spid_verified TINYINT(1) DEFAULT 0,
+        identity_provider VARCHAR(50) DEFAULT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )`
   ];
 

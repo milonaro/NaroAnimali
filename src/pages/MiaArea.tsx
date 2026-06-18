@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Mail, ShieldCheck, Search, Clock, CheckCircle2, ChevronRight, ArrowLeft, Loader2, MapPin, Activity, HelpCircle, Info, Download, BarChart3, Maximize2, Plus, FileText } from 'lucide-react';
+import { Mail, ShieldCheck, Search, Clock, CheckCircle2, ChevronRight, ChevronDown, ArrowLeft, Loader2, MapPin, Activity, HelpCircle, Info, Download, BarChart3, Maximize2, Plus, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
@@ -15,6 +15,21 @@ interface Report {
   specie?: string;
   image?: string;
 }
+
+const SPID_PROVIDERS = [
+  { id: 'poste', name: 'PosteID', logoText: 'Poste id', colorBg: 'bg-[#ffcc00] text-[#003366] border-[#ffcc00]' },
+  { id: 'aruba', name: 'ArubaID', logoText: 'Aruba id', colorBg: 'bg-[#ef6b00] text-white border-[#f37c1d]' },
+  { id: 'infocert', name: 'InfoCert ID', logoText: 'InfoCert ID', colorBg: 'bg-[#005c99] text-white border-[#0070b8]' },
+  { id: 'lepida', name: 'Lepida', logoText: 'Lepida', colorBg: 'bg-[#e21b1b] text-white border-[#eb3030]' },
+  { id: 'namirial', name: 'Namirial ID', logoText: 'Namirial ID', colorBg: 'bg-[#3b0066] text-white border-[#4d0085]' },
+  { id: 'tim', name: 'TIM id', logoText: 'TIM id', colorBg: 'bg-[#002e7a] text-white border-[#003ca3]' },
+  { id: 'sielte', name: 'SIELTE id', logoText: 'SIELTE id', colorBg: 'bg-[#008fcc] text-white border-[#00a3e8]' },
+  { id: 'spiditalia', name: 'SpidItalia', logoText: 'SpidItalia', colorBg: 'bg-[#333399] text-white border-[#4040a1]' },
+  { id: 'intesi', name: 'INTESI GROUP', logoText: 'Intesi Group', colorBg: 'bg-[#1a1a1a] text-white border-[#2b2b2b]' },
+  { id: 'teamsystem', name: 'TeamSystem ID', logoText: 'TeamSystem ID', colorBg: 'bg-[#00a896] text-white border-[#05c4ae]' },
+  { id: 'infocamere', name: 'InfoCamere', logoText: 'InfoCamere', colorBg: 'bg-[#3d7a5a] text-white border-[#4d946e]' },
+  { id: 'etnaid', name: 'etnaID', logoText: 'etnaID', colorBg: 'bg-[#f4511e] text-white border-[#ff6d3f]' }
+];
 
 export default function MiaArea() {
   const [email, setEmail] = useState('');
@@ -33,7 +48,7 @@ export default function MiaArea() {
   const [reports, setReports] = useState<Report[]>([]);
   
   // --- NUOVI STATI ANAGRAFE CANINA ---
-  const [activeTab, setActiveTab] = useState<'segnalazioni' | 'anagrafe'>('segnalazioni');
+  const [activeTab, setActiveTab] = useState<'segnalazioni' | 'anagrafe' | 'profilo'>('segnalazioni');
   const [animals, setAnimals] = useState<any[]>([]);
   const [loadingAnimals, setLoadingAnimals] = useState(false);
   const [regForm, setRegForm] = useState({
@@ -49,8 +64,52 @@ export default function MiaArea() {
   const [regError, setRegError] = useState<string | null>(null);
   const [regSuccess, setRegSuccess] = useState(false);
 
+  // --- NUOVI STATI PROFILO & SPID PER LEGGE ---
+  const [loginMethod, setLoginMethod] = useState<'otp' | 'spid'>('otp');
+  const [isSpidDropdownOpen, setIsSpidDropdownOpen] = useState(false);
+  const [selectedSpidProvider, setSelectedSpidProvider] = useState<string | null>(null);
+  const [showSpidModal, setShowSpidModal] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileSuccess, setProfileSuccess] = useState(false);
+
+  // Simulated SPID Credentials Form
+  const [spidForm, setSpidForm] = useState({
+    email: '',
+    username: '',
+    password: '',
+    nome: '',
+    cognome: '',
+    codiceFiscale: '',
+    telefono: '',
+    indirizzo: '',
+    comuneResidenza: 'Naro',
+    consensoDati: true
+  });
+
   useEffect(() => {
     checkAuth();
+    
+    // Sync tab switching requested from Header dropdown profile buttons
+    const handleTabChange = (e: any) => {
+      const targetTab = e.detail;
+      setActiveTab(targetTab);
+    };
+
+    const handleLogoutEvent = () => {
+      setEmail('');
+      setOtp('');
+      setStep(1);
+      setProfile(null);
+    };
+
+    window.addEventListener("citizen-tab-change", handleTabChange);
+    window.addEventListener("citizen-logout", handleLogoutEvent);
+
+    return () => {
+      window.removeEventListener("citizen-tab-change", handleTabChange);
+      window.removeEventListener("citizen-logout", handleLogoutEvent);
+    };
   }, []);
 
   const checkAuth = async () => {
@@ -59,13 +118,81 @@ export default function MiaArea() {
       if (res.ok) {
         const data = await res.json();
         setEmail(data.user.email);
+        setProfile(data.profile);
         await Promise.all([
           loadReports(data.user.email),
           loadAnimals()
         ]);
+        setStep(3);
       }
     } catch (e) {
       // Not authenticated
+    }
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingProfile(true);
+    setError(null);
+    setProfileSuccess(false);
+    try {
+      const res = await fetch("/api/otp/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(profile)
+      });
+      if (res.ok) {
+        setProfileSuccess(true);
+        // Refresh profile data
+        await checkAuth();
+        setTimeout(() => setProfileSuccess(false), 3000);
+      } else {
+        const d = await res.json();
+        setError(d.error || "Impossibile aggiornare il profilo cittadino.");
+      }
+    } catch (err) {
+      setError("Errore durante il salvataggio dei dati.");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleSpidSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!spidForm.email || !spidForm.codiceFiscale) {
+      setError("Email e Codice Fiscale sono richiesti ai fini SPID.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/otp/spid-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: selectedSpidProvider,
+          email: spidForm.email,
+          nome: spidForm.nome,
+          cognome: spidForm.cognome,
+          codice_fiscale: spidForm.codiceFiscale,
+          telefono: spidForm.telefono,
+          indirizzo: spidForm.indirizzo,
+          comune_residenza: spidForm.comuneResidenza
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Errore login SPID.");
+      
+      setShowSpidModal(false);
+      setSelectedSpidProvider(null);
+      setIsSpidDropdownOpen(false);
+      
+      setEmail(spidForm.email);
+      await checkAuth();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -334,25 +461,27 @@ export default function MiaArea() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex flex-col gap-6 flex-1">
         
         {/* Modern Header block */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-sm flex flex-col gap-5 transition-all">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15803d]">Fascicolo Elettronico del Cittadino</span>
-              <h1 className="text-2xl sm:text-3xl font-black text-[#101b3a] tracking-tight mt-0.5">Mia Area Riservata</h1>
-              <p className="text-xs text-slate-500 font-bold uppercase mt-1 tracking-wider text-left">
-                Verifica lo stato di avanzamento delle tue segnalazioni di soccorso a <span className="text-[#101b3a] font-extrabold">Naro</span>.
-              </p>
-            </div>
-            
-            {/* Quick stats / safety indicators */}
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="px-3 border border-slate-200/60 rounded-xl flex items-center gap-2 h-9 bg-slate-50/50">
-                <span className="w-2 h-2 rounded-full bg-[#15803d]" />
-                <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Accesso Sicuro OTP</span>
+        {step !== 3 && (
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-sm flex flex-col gap-5 transition-all">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15803d]">Fascicolo Elettronico del Cittadino</span>
+                <h1 className="text-2xl sm:text-3xl font-black text-[#101b3a] tracking-tight mt-0.5">Mia Area Riservata</h1>
+                <p className="text-xs text-slate-500 font-bold uppercase mt-1 tracking-wider text-left">
+                  Verifica lo stato di avanzamento delle tue segnalazioni di soccorso a <span className="text-[#101b3a] font-extrabold">Naro</span>.
+                </p>
+              </div>
+              
+              {/* Quick stats / safety indicators */}
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="px-3 border border-slate-200/60 rounded-xl flex items-center gap-2 h-9 bg-slate-50/50">
+                  <span className="w-2 h-2 rounded-full bg-[#15803d]" />
+                  <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Accesso Sicuro OTP / SPID</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         <div className="w-full flex-1">
           <AnimatePresence mode="wait">
@@ -363,38 +492,130 @@ export default function MiaArea() {
                 animate={{ opacity: 1, y: 0 }} 
                 exit={{ opacity: 0, y: -20 }} 
                 transition={{ type: "spring", stiffness: 200, damping: 25 }}
-                className="max-w-md mx-auto w-full pt-12"
+                className="max-w-md mx-auto w-full pt-12 text-left"
               >
-                <div className="bg-white p-8 rounded-2xl border border-slate-200/80 shadow-sm space-y-8">
-                  <div className="text-center">
-                    <div className="bg-emerald-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
-                      <Mail className="text-[#15803d] h-6 w-6" />
-                    </div>
-                    <h2 className="text-xl font-black text-[#101b3a] tracking-tight">Verifica la tua Identità</h2>
-                    <p className="text-slate-500 text-xs font-bold mt-1.5 uppercase tracking-wide">Inserisci la tua email per accedere al tuo dossier.</p>
+                <div className="bg-white p-8 rounded-2xl border border-slate-200/80 shadow-sm space-y-6">
+                  {/* METODO DI ACCESSO SELECTOR */}
+                  <div className="flex border-b border-slate-100 p-0.5 gap-2 bg-slate-50 rounded-xl">
+                    <button
+                      onClick={() => setLoginMethod('otp')}
+                      className={`flex-1 py-3.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer text-center ${
+                        loginMethod === 'otp'
+                          ? 'bg-[#15803d] text-white shadow-sm'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      🔑 ACCESSO OTP
+                    </button>
+                    <button
+                      onClick={() => setLoginMethod('spid')}
+                      className={`flex-1 py-3.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer text-center ${
+                        loginMethod === 'spid'
+                          ? 'bg-[#0066cc] text-white shadow-sm'
+                          : 'text-slate-500 hover:text-[#0066cc]'
+                      }`}
+                    >
+                      🇮🇹 ACCESSO SPID
+                    </button>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Indirizzo Email</label>
-                    <input
-                      type="email"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all placeholder:text-slate-300 text-sm"
-                      placeholder="la.tua@email.it"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                    />
-                  </div>
-                  {error && <p className="text-red-500 text-xs font-bold text-center">{error}</p>}
-                  <button
-                    disabled={!email || loading}
-                    onClick={handleSendOTP}
-                    className="w-full bg-[#15803d] text-white py-4 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-md shadow-[#15803d]/20 hover:bg-[#166534] transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Invia Codice Accesso &rarr;</>}
-                  </button>
+                  {loginMethod === 'otp' ? (
+                    <div className="space-y-6">
+                      <div className="text-center">
+                        <div className="bg-emerald-50 w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-xs">
+                          <Mail className="text-[#15803d] h-5 w-5" />
+                        </div>
+                        <h2 className="text-lg font-black text-[#101b3a] tracking-tight">Verifica la tua Identità</h2>
+                        <p className="text-slate-400 text-[10px] font-bold mt-1 uppercase tracking-wider">Inserisci la tua email per ricevere un codice provvisorio.</p>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Indirizzo Email</label>
+                        <input
+                          type="email"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all placeholder:text-slate-300 text-sm"
+                          placeholder="la.tua@email.it"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                        />
+                      </div>
+                      {error && <p className="text-red-500 text-xs font-bold text-center">{error}</p>}
+                      <button
+                        disabled={!email || loading}
+                        onClick={handleSendOTP}
+                        className="w-full bg-[#15803d] text-white py-4 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-sm hover:bg-[#166534] transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Invia Codice Accesso &rarr;</>}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      <div className="text-center">
+                        <div className="bg-blue-50 w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-xs">
+                          <ShieldCheck className="text-[#0066cc] h-5 w-5" />
+                        </div>
+                        <h2 className="text-lg font-black text-[#101b3a] tracking-tight">Accesso Certificato SPID</h2>
+                        <p className="text-slate-400 text-[10px] font-bold mt-1 uppercase tracking-wider">Accedi in modo sicuro tramite il tuo gestore d'identità.</p>
+                      </div>
+
+                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-2.5">
+                        <input
+                          type="checkbox"
+                          id="spid_professional"
+                          className="rounded text-blue-600 focus:ring-blue-500 cursor-pointer w-4 h-4 border-slate-300"
+                        />
+                        <label htmlFor="spid_professional" className="text-[10px] font-bold text-slate-600 uppercase tracking-wider cursor-pointer select-none">
+                          Utilizza SPID professionale
+                        </label>
+                      </div>
+
+                      <div className="relative">
+                        <button
+                          onClick={() => setIsSpidDropdownOpen(!isSpidDropdownOpen)}
+                          type="button"
+                          className="w-full bg-[#0066cc] text-white py-4 rounded-xl font-bold uppercase tracking-wider text-xs shadow-sm hover:bg-[#0052a3] transition-all flex items-center justify-center gap-3 cursor-pointer"
+                        >
+                          <span className="bg-white text-[#0066cc] px-1.5 py-0.5 rounded font-black text-[9px] tracking-tight uppercase">spid</span>
+                          <span>Entra con SPID</span>
+                          <ChevronDown className="h-4 w-4" />
+                        </button>
+
+                        {isSpidDropdownOpen && (
+                          <div className="absolute left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-150 p-3.5 z-[200] grid grid-cols-2 gap-2 max-h-72 overflow-y-auto">
+                            {SPID_PROVIDERS.map((p) => (
+                              <button
+                                key={p.id}
+                                onClick={() => {
+                                  setSelectedSpidProvider(p.name);
+                                  // Seed with a default demo credential that passes valid CF requirements
+                                  setSpidForm({
+                                    email: 'mario.rossi@poste.it',
+                                    username: 'mario.rossi.80',
+                                    password: '••••••••••••',
+                                    nome: 'Mario',
+                                    cognome: 'Rossi',
+                                    codiceFiscale: 'RSSMRA80A01H501U',
+                                    telefono: '3471234567',
+                                    indirizzo: 'Via Vittorio Emanuele 12',
+                                    comuneResidenza: 'Naro',
+                                    consensoDati: true
+                                  });
+                                  setShowSpidModal(true);
+                                  setIsSpidDropdownOpen(false);
+                                }}
+                                className={`flex items-center justify-center p-3 rounded-xl border font-black text-[10px] tracking-wide uppercase transition-all shadow-xs hover:scale-[1.03] cursor-pointer ${p.colorBg}`}
+                              >
+                                {p.logoText}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <p className="text-center text-[9px] font-bold uppercase tracking-widest text-slate-400 mt-8 flex items-center justify-center gap-2">
-                  <ShieldCheck className="h-3 w-3 text-emerald-600" /> Servizio di Sicurezza Certificato SLL
+                  <ShieldCheck className="h-3 w-3 text-emerald-600" /> Servizio di Sicurezza Certificato AGID
                 </p>
               </motion.div>
             )}
@@ -490,6 +711,16 @@ export default function MiaArea() {
                           }`}
                         >
                           I Miei Animali (Anagrafe Canina)
+                        </button>
+                        <button
+                          onClick={() => setActiveTab('profilo')}
+                          className={`pb-4 text-sm font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
+                            activeTab === 'profilo'
+                              ? 'border-[#15803d] text-[#15803d]'
+                              : 'border-transparent text-slate-400 hover:text-slate-600'
+                          }`}
+                        >
+                          Profilo Cittadino
                         </button>
                       </div>
 
@@ -600,10 +831,10 @@ export default function MiaArea() {
                             <p className="text-gray-500 font-medium max-w-xs mx-auto mt-4 px-8 leading-relaxed">Il tuo archivio storico mostra solo le attività recenti associate a questa utenza.</p>
                           </div>
                         </>
-                      ) : (
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+                      ) : activeTab === 'anagrafe' ? (
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start select-none">
                           {/* Modulo Registrazione Animale */}
-                          <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col h-fit">
+                          <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col h-fit text-left">
                             <h3 className="text-lg font-black text-[#101b3a] tracking-tight mb-1 flex items-center gap-2">
                               <Plus className="h-5 w-5 text-[#15803d]" /> Nuova Registrazione
                             </h3>
@@ -611,17 +842,41 @@ export default function MiaArea() {
                               Iscrivi il tuo animale all'Anagrafe Canina Comunale
                             </p>
 
-                            {regError && (
-                              <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl text-xs font-semibold mb-4 leading-relaxed">
-                                {regError}
+                            {!profile?.nome || !profile?.codice_fiscale || !profile?.telefono ? (
+                              <div className="space-y-4">
+                                <div className="flex gap-2.5 text-amber-805 bg-amber-50 rounded-xl p-4.5 border border-amber-205">
+                                  <Info className="h-5 w-5 shrink-0 text-amber-700 mt-0.5" />
+                                  <div>
+                                    <span className="text-[10px] font-black uppercase tracking-wider block text-amber-800">Dati Demografici Mancanti</span>
+                                    <p className="text-[11px] leading-relaxed mt-1 font-semibold text-slate-650">
+                                      Per legge (D.P.R. 445/2000), le istanze inviate alla Pubblica Amministrazione devono essere associate a dati anagrafici certificati e ad un recapito telefonico valido.
+                                    </p>
+                                  </div>
+                                </div>
+                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+                                  Completa il tuo <span className="text-[#15803d] underline">Profilo Cittadino</span> con Nome, Cognome, Codice Fiscale e Telefono prima di inoltrare la pratica.
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveTab('profilo')}
+                                  className="w-full bg-[#15803d] text-white py-3.5 rounded-xl text-[10px] font-black uppercase tracking-wider text-center cursor-pointer hover:bg-[#116430] transition-all"
+                                >
+                                  Completa Profilo &rarr;
+                                </button>
                               </div>
-                            )}
+                            ) : (
+                              <>
+                                {regError && (
+                                  <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl text-xs font-semibold mb-4 leading-relaxed">
+                                    {regError}
+                                  </div>
+                                )}
 
-                            {regSuccess && (
-                              <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded-xl text-xs font-semibold mb-4 leading-relaxed">
-                                Richiesta d'iscrizione protocollata con successo! L'ufficio comunale verificherà la pratica a breve. Puoi già scaricare l'attestato provvisorio dalla lista a fianco.
-                              </div>
-                            )}
+                                {regSuccess && (
+                                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded-xl text-xs font-semibold mb-4 leading-relaxed">
+                                    Richiesta d'iscrizione protocollata con successo! L'ufficio comunale verificherà la pratica a breve. Puoi già scaricare l'attestato provvisorio dalla lista a fianco.
+                                  </div>
+                                )}
 
                             <form onSubmit={handleRegisterAnimal} className="space-y-4">
                               <div>
@@ -726,6 +981,8 @@ export default function MiaArea() {
                                 {submittingReg ? <Loader2 className="h-4 w-4 animate-spin" /> : "Invia Pratica Iscrizione"}
                               </button>
                             </form>
+                              </>
+                            )}
                           </div>
 
                           {/* Lista dei Propri Animali */}
@@ -805,6 +1062,130 @@ export default function MiaArea() {
                               )}
                             </div>
                           </div>
+                        </div>
+                      ) : (
+                        <div className="bg-white p-6 sm:p-10 rounded-2xl border border-slate-200/80 shadow-sm space-y-8 text-left animate-fadeIn">
+                          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-6 border-b border-slate-100">
+                            <div>
+                              <h2 className="text-xl font-black text-[#101b3a] tracking-tight">Dati Anagrafici Certificati</h2>
+                              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">Gestisci la tua identità e i dati anagrafici richiesti per legge.</p>
+                            </div>
+                            {profile?.is_spid_verified === 1 ? (
+                              <div className="flex items-center gap-2 bg-blue-50 text-blue-800 px-4 py-2.5 rounded-xl border border-blue-200 text-xs font-black uppercase tracking-wider">
+                                🔒 Connesso con SPID ({profile.identity_provider})
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 bg-amber-50 text-amber-805 px-4 py-2.5 rounded-xl border border-amber-200 text-xs font-black uppercase tracking-wider">
+                                📧 Connesso con OTP (Email)
+                              </div>
+                            )}
+                          </div>
+
+                          {profileSuccess && (
+                            <div className="bg-emerald-50 border border-emerald-250 text-emerald-800 p-4 rounded-xl text-xs font-black uppercase tracking-wide leading-relaxed">
+                              ✅ Profilo aggiornato correttamente! Tutti i dati giuridici sono stati allineati.
+                            </div>
+                          )}
+
+                          <form onSubmit={handleUpdateProfile} className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="space-y-1.5">
+                                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Nome</label>
+                                <input
+                                  type="text"
+                                  required
+                                  disabled={profile?.is_spid_verified === 1}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all text-sm disabled:opacity-60"
+                                  value={profile?.nome || ''}
+                                  onChange={(e) => setProfile(profile ? { ...profile, nome: e.target.value } : { nome: e.target.value })}
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Cognome</label>
+                                <input
+                                  type="text"
+                                  required
+                                  disabled={profile?.is_spid_verified === 1}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all text-sm disabled:opacity-60"
+                                  value={profile?.cognome || ''}
+                                  onChange={(e) => setProfile(profile ? { ...profile, cognome: e.target.value } : { cognome: e.target.value })}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="space-y-1.5">
+                                <label className="text-[10px] font-black uppercase tracking-wider text-[#15803d] flex items-center gap-1.5 font-bold font-black">
+                                  Codice Fiscale <span className="text-[8px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-black">LEGGE</span>
+                                </label>
+                                <input
+                                  type="text"
+                                  required
+                                  disabled={profile?.is_spid_verified === 1}
+                                  maxLength={16}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all text-sm uppercase disabled:opacity-60 font-mono"
+                                  placeholder="RSSMRA80A01H501U"
+                                  value={profile?.codice_fiscale || ''}
+                                  onChange={(e) => setProfile(profile ? { ...profile, codice_fiscale: e.target.value.toUpperCase() } : { codice_fiscale: e.target.value.toUpperCase() })}
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Telefono Cellulare</label>
+                                <input
+                                  type="text"
+                                  required
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all text-sm"
+                                  value={profile?.telefono || ''}
+                                  onChange={(e) => setProfile(profile ? { ...profile, telefono: e.target.value } : { telefono: e.target.value })}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="space-y-1.5">
+                                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Indirizzo di Residenza</label>
+                                <input
+                                  type="text"
+                                  required
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all text-sm"
+                                  placeholder="Via Vittorio Emanuele, 12"
+                                  value={profile?.indirizzo || ''}
+                                  onChange={(e) => setProfile(profile ? { ...profile, indirizzo: e.target.value } : { indirizzo: e.target.value })}
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Comune di Residenza</label>
+                                <input
+                                  type="text"
+                                  required
+                                  className="w-full bg-slate-50 border border-slate-250 rounded-xl p-3.5 font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all text-sm"
+                                  value={profile?.comune_residenza || ''}
+                                  onChange={(e) => setProfile(profile ? { ...profile, comune_residenza: e.target.value } : { comune_residenza: e.target.value })}
+                                />
+                              </div>
+                            </div>
+
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider leading-relaxed pt-2">
+                              ℹ️ Ai sensi del D.P.R. 445/2000 l'utente dichiara sotto la propria personale responsabilità che le informazioni fornite corrispondono al vero. I dati contrassegnati da SPID sono certificati e non modificabili autonomamente.
+                            </p>
+
+                            <div className="flex justify-end pt-4 gap-4">
+                              <button
+                                type="button"
+                                onClick={() => setActiveTab('segnalazioni')}
+                                className="px-6 py-3 border border-slate-200 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-slate-50 transition-all cursor-pointer"
+                              >
+                                Torna alla Dashboard
+                              </button>
+                              <button
+                                type="submit"
+                                disabled={savingProfile}
+                                className="bg-[#15803d] hover:bg-[#166534] text-white px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer"
+                              >
+                                {savingProfile ? 'Salvataggio in Corso...' : 'Salva Profilo'}
+                              </button>
+                            </div>
+                          </form>
                         </div>
                       )}
                     </motion.div>
@@ -945,6 +1326,168 @@ export default function MiaArea() {
       </AnimatePresence>
         </div>
       </div>
+
+      {showSpidModal && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center z-[99999] p-4 text-left select-none">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-2xl w-full overflow-hidden flex flex-col md:flex-row animate-scaleIn">
+            {/* Left side: credentials */}
+            <div className="p-8 flex-1 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="bg-[#0066cc] text-white px-2 py-0.5 rounded font-black text-[10px] uppercase font-sans">spid</span>
+                  <span className="text-[10px] font-black text-slate-400 font-sans tracking-tight uppercase">Identità Digitale</span>
+                </div>
+                <span className="text-[9px] font-black text-[#0066cc] bg-blue-50/80 px-2.5 py-1 rounded-md border border-blue-200 uppercase font-sans">
+                  {selectedSpidProvider}
+                </span>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-black text-[#101b3a] tracking-tight">Accedi con Credenziali SPID</h3>
+                <p className="text-slate-400 text-[10px] font-bold mt-1 uppercase tracking-wider">Verifica i dati forniti dall'Identity Provider {selectedSpidProvider}.</p>
+              </div>
+
+              <form onSubmit={handleSpidSubmit} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Username o Nome Utente</label>
+                  <input
+                    type="text"
+                    required
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-semibold text-sm text-[#101b3a] focus:bg-white focus:border-blue-600 outline-none transition-all"
+                    placeholder="mario.rossi.80"
+                    value={spidForm.username}
+                    onChange={(e) => setSpidForm({...spidForm, username: e.target.value})}
+                  />
+                </div>
+                
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Password</label>
+                  <input
+                    type="password"
+                    required
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-semibold text-sm text-[#101b3a] focus:bg-white focus:border-blue-600 outline-none transition-all"
+                    value={spidForm.password}
+                    onChange={(e) => setSpidForm({...spidForm, password: e.target.value})}
+                  />
+                </div>
+
+                <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100/80 space-y-3">
+                  <span className="text-[9px] font-black text-[#0066cc] uppercase tracking-widest block font-sans">Dati Certificati Trasmessi all'Ente:</span>
+                  
+                  <div className="grid grid-cols-2 gap-3 text-[10px] font-bold text-slate-600">
+                    <div>
+                      <span className="text-slate-400 block text-[8px] uppercase tracking-wide">Nome</span>
+                      <input
+                        type="text"
+                        required
+                        className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:border-blue-500 outline-none font-bold mt-0.5 text-[#101b3a]"
+                        value={spidForm.nome}
+                        onChange={(e) => setSpidForm({...spidForm, nome: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[8px] uppercase tracking-wide">Cognome</span>
+                      <input
+                        type="text"
+                        required
+                        className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:border-blue-500 outline-none font-bold mt-0.5 text-[#101b3a]"
+                        value={spidForm.cognome}
+                        onChange={(e) => setSpidForm({...spidForm, cognome: e.target.value})}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-[10px] font-bold text-slate-600">
+                    <div>
+                      <span className="text-[#15803d] block text-[8px] uppercase tracking-wide flex items-center gap-1 font-bold">
+                        Codice Fiscale <span className="text-[7px] bg-red-100 text-red-650 px-1 rounded font-black">LEGGERA</span>
+                      </span>
+                      <input
+                        type="text"
+                        required
+                        maxLength={16}
+                        className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:border-blue-500 outline-none font-mono font-bold mt-0.5 uppercase text-[#101b3a]"
+                        value={spidForm.codiceFiscale}
+                        onChange={(e) => setSpidForm({...spidForm, codiceFiscale: e.target.value.toUpperCase()})}
+                      />
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[8px] uppercase tracking-wide">Email</span>
+                      <input
+                        type="email"
+                        required
+                        className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:border-blue-500 outline-none font-bold mt-0.5 text-[#101b3a]"
+                        value={spidForm.email}
+                        onChange={(e) => setSpidForm({...spidForm, email: e.target.value})}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-[10px] font-bold text-slate-600">
+                    <div>
+                      <span className="text-slate-400 block text-[8px] uppercase tracking-wide font-sans">Telefono Cellulare</span>
+                      <input
+                        type="text"
+                        required
+                        className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:border-blue-500 outline-none font-bold mt-0.5 text-[#101b3a]"
+                        value={spidForm.telefono}
+                        onChange={(e) => setSpidForm({...spidForm, telefono: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[8px] uppercase tracking-wide">Comune di Residenza</span>
+                      <input
+                        type="text"
+                        required
+                        className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:border-blue-500 outline-none font-bold mt-0.5 text-[#101b3a]"
+                        value={spidForm.comuneResidenza}
+                        onChange={(e) => setSpidForm({...spidForm, comuneResidenza: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-2.5 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowSpidModal(false)}
+                    className="flex-1 border border-slate-200 hover:bg-slate-50 text-slate-500 py-3 rounded-xl font-bold uppercase tracking-wider text-[10px] text-center cursor-pointer font-sans"
+                  >
+                    Annulla
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 bg-[#0066cc] hover:bg-[#0052a3] text-white py-3 rounded-xl font-black uppercase tracking-wider text-[10px] shadow-md shadow-blue-500/10 flex items-center justify-center gap-1 cursor-pointer font-sans"
+                  >
+                    Autorizza e Accedi &rarr;
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Right side: Mock QR code scanner */}
+            <div className="bg-slate-50 p-8 border-t md:border-t-0 md:border-l border-slate-200/60 w-full md:w-64 flex flex-col items-center justify-center text-center space-y-6">
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest font-sans">Oppure con App</span>
+              
+              <div className="relative p-3 bg-white border border-slate-200 rounded-2xl shadow-xs">
+                <div className="w-36 h-36 bg-slate-100 flex items-center justify-center rounded-xl overflow-hidden relative">
+                  {/* QR Core code bars drawing */}
+                  <svg className="w-28 h-28 text-slate-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 9h6V3H3v6zm0 12h6v-6H3v6zm12 0h6v-6h-6v6ZM15 3v6h6V3h-6zm-4 4h2V5h-2v2zm0 8h2v-2h-2v2zm0 4h2v-2h-2v2zm4-12h2V5h-2v2zm0 8h2v-2h-2v2zm4 4h2v-2h-2v2z" />
+                  </svg>
+                  {/* Glowing scanner red line */}
+                  <div className="absolute left-0 right-0 h-0.5 bg-red-500 shadow-lg shadow-red-500 animate-bounce top-2" />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-700 font-sans">Inquadra QR Code</p>
+                <p className="text-[9px] text-slate-450 font-semibold leading-normal font-sans">Accedi istantaneamente scansionando il codice con l'applicazione di {selectedSpidProvider} dal tuo cellulare.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Lightbox 
         isOpen={lightbox.isOpen} 

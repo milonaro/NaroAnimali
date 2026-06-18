@@ -35,6 +35,35 @@ export default function Header() {
 
   const langRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
+  const citizenRef = useRef<HTMLDivElement>(null);
+
+  const [citizenEmail, setCitizenEmail] = useState<string | null>(null);
+  const [citizenProfile, setCitizenProfile] = useState<any | null>(null);
+  const [isCitizenDropdownOpen, setIsCitizenDropdownOpen] = useState(false);
+
+  const checkCitizenAuth = async () => {
+    try {
+      const res = await fetch("/api/otp/me");
+      if (res.ok) {
+        const data = await res.json();
+        setCitizenEmail(data.user.email);
+        setCitizenProfile(data.profile);
+      } else {
+        setCitizenEmail(null);
+        setCitizenProfile(null);
+      }
+    } catch (e) {
+      setCitizenEmail(null);
+      setCitizenProfile(null);
+    }
+  };
+
+  useEffect(() => {
+    checkCitizenAuth();
+    // Refresh citizen status periodically to stay updated if they login/logout
+    const interval = setInterval(checkCitizenAuth, 4000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -56,10 +85,37 @@ export default function Header() {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setIsSearchFocused(false);
       }
+      if (citizenRef.current && !citizenRef.current.contains(event.target as Node)) {
+        setIsCitizenDropdownOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const handleCitizenLogout = async () => {
+    try {
+      const res = await fetch("/api/otp/logout", { method: "POST" });
+      if (res.ok) {
+        setCitizenEmail(null);
+        setCitizenProfile(null);
+        setIsCitizenDropdownOpen(false);
+        // Dispatch custom event to let MiaArea know to update immediately
+        window.dispatchEvent(new Event("citizen-logout"));
+        navigate("/mia-area");
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleGoToProfilo = (tabName: 'segnalazioni' | 'anagrafe' | 'profilo') => {
+    setIsCitizenDropdownOpen(false);
+    localStorage.setItem("citizenActiveTab", tabName);
+    // Dispatch a custom event to change active tab in MiaArea immediately
+    window.dispatchEvent(new CustomEvent("citizen-tab-change", { detail: tabName }));
+    navigate("/mia-area");
+  };
 
   const [siteName, setSiteName] = useState("Comune di Naro");
   const [siteLogo, setSiteLogo] = useState("");
@@ -197,9 +253,80 @@ export default function Header() {
               <Link to="/mappa" className={`transition-colors flex flex-col items-center gap-1.5 pb-0.5 ${transparentHeader ? 'hover:text-white text-white/80' : 'hover:text-[#101b3a]'}`}>
                 <MapIcon className="h-4.5 w-4.5" /> <span>{t('nav.map')}</span>
               </Link>
-              <Link to="/mia-area" className={`transition-colors flex flex-col items-center gap-1.5 pb-0.5 ${transparentHeader ? 'hover:text-white text-white/80' : 'hover:text-[#101b3a]'}`}>
-                <UserCircle className="h-4.5 w-4.5" /> <span>{t('nav.myarea')}</span>
-              </Link>
+              {!citizenEmail ? (
+                <Link to="/mia-area" className={`transition-colors flex flex-col items-center gap-1.5 pb-0.5 ${transparentHeader ? 'hover:text-white text-white/80' : 'hover:text-[#101b3a]'}`}>
+                  <UserCircle className="h-4.5 w-4.5" /> <span>{t('nav.myarea')}</span>
+                </Link>
+              ) : (
+                <div ref={citizenRef} className="relative inline-block">
+                  <button
+                    onClick={() => setIsCitizenDropdownOpen(!isCitizenDropdownOpen)}
+                    className={`transition-colors flex flex-col items-center gap-1 bg-transparent border-none outline-none pb-0.5 relative cursor-pointer ${
+                      transparentHeader ? 'hover:text-white text-emerald-400' : 'hover:text-[#15803d] text-[#15803d]'
+                    }`}
+                  >
+                    <div className="relative">
+                      <UserCircle className="h-5 w-5" />
+                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white animate-pulse" />
+                    </div>
+                    <span className="text-[12px] font-bold tracking-wider uppercase flex items-center gap-0.5">
+                      {citizenProfile?.nome ? citizenProfile.nome : 'Profilo'} <ChevronDown className="h-3 w-3" />
+                    </span>
+                  </button>
+
+                  {isCitizenDropdownOpen && (
+                    <div className="absolute right-0 mt-2.5 w-72 bg-white text-slate-800 rounded-2xl shadow-2xl border border-slate-100 py-3.5 shrink-0 transition-all z-[10000] text-left">
+                      <div className="px-4 pb-3 pt-1 border-b border-slate-100">
+                        <span className="text-[9px] font-black text-[#15803d] uppercase tracking-widest block">Utenza Cittadino</span>
+                        <span className="text-xs font-black text-[#101b3a] block truncate mt-1">{citizenEmail}</span>
+                        {citizenProfile?.is_spid_verified ? (
+                          <span className="inline-flex items-center gap-1 mt-1.5 bg-blue-50 text-blue-700 text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded border border-blue-200">
+                            🔒 SPID Verified ({citizenProfile.identity_provider})
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 mt-1.5 bg-amber-50 text-amber-700 text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded border border-amber-200">
+                            📧 OTP Authenticated
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="py-2">
+                        <button
+                          onClick={() => handleGoToProfilo('profilo')}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-emerald-50 hover:text-[#15803d] transition-all cursor-pointer bg-transparent border-none text-left"
+                        >
+                          <UserCircle className="h-4 w-4 text-emerald-600" />
+                          <span>Vedi / Modifica Profilo</span>
+                        </button>
+                        <button
+                          onClick={() => handleGoToProfilo('segnalazioni')}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-emerald-50 hover:text-[#15803d] transition-all cursor-pointer bg-transparent border-none text-left"
+                        >
+                          <MapPin className="h-4 w-4 text-[#15803d]" />
+                          <span>Le Mie Segnalazioni</span>
+                        </button>
+                        <button
+                          onClick={() => handleGoToProfilo('anagrafe')}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-emerald-50 hover:text-[#15803d] transition-all cursor-pointer bg-transparent border-none text-left"
+                        >
+                          <PawPrint className="h-4 w-4 text-[#101b3a]" />
+                          <span>I Miei Animali (Anagrafe)</span>
+                        </button>
+                      </div>
+
+                      <div className="border-t border-slate-100 pt-2 px-1">
+                        <button
+                          onClick={handleCitizenLogout}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-xl transition-all cursor-pointer bg-transparent border-none text-left"
+                        >
+                          <X className="h-4 w-4 text-red-500" />
+                          <span>Esci Sessione</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </nav>
 
             {/* Language Switcher Dropdown */}
