@@ -74,6 +74,15 @@ export async function addMySQLColumns() {
         console.warn("Info migrazione MySQL colonna modificato_da a adozioni:", e.message);
       }
     }
+
+    try {
+      await pool.execute("ALTER TABLE registro_anagrafica ADD COLUMN proprietario_email VARCHAR(150) DEFAULT NULL");
+      console.log("MySQL: aggiunta colonna proprietario_email a registro_anagrafica");
+    } catch (e: any) {
+      if (!e.message.includes("Duplicate column") && !e.message.includes("already exists")) {
+        console.warn("Info migrazione MySQL colonna proprietario_email a registro_anagrafica:", e.message);
+      }
+    }
   }
 }
 
@@ -106,6 +115,7 @@ export async function createMySQLTables() {
         condizioni_sanitarie TEXT,
         stato VARCHAR(50),
         foto_url TEXT,
+        proprietario_email VARCHAR(150) DEFAULT NULL,
         data_registrazione TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`,
     `CREATE TABLE IF NOT EXISTS interventi_logs (

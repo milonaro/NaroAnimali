@@ -96,3 +96,92 @@
   src: url('https://fonts.cdnfonts.com/s/14845/OpenDyslexic-Regular.woff') format('woff');
 }
 
+/* --- SIENNA ACCESSIBILITY STYLES --- */
+.accessibility-epilepsy-safe {
+  filter: saturate(0.4) !important;
+}
+
+.accessibility-epilepsy-safe * {
+  animation-duration: 0s !important;
+  transition-duration: 0s !important;
+}
+
+.accessibility-bold p, 
+.accessibility-bold span,
+.accessibility-bold a,
+.accessibility-bold button,
+.accessibility-bold div,
+.accessibility-bold h1,
+.accessibility-bold h2,
+.accessibility-bold h3,
+.accessibility-bold h4,
+.accessibility-bold h5,
+.accessibility-bold h6 {
+  font-weight: 800 !important;
+}
+
+.accessibility-line-height p,
+.accessibility-line-height span,
+.accessibility-line-height li,
+.accessibility-line-height div {
+  line-height: 2.0 !important;
+}
+
+.accessibility-letter-spacing p,
+.accessibility-letter-spacing span,
+.accessibility-letter-spacing a,
+.accessibility-letter-spacing button,
+.accessibility-letter-spacing h1,
+.accessibility-letter-spacing h2,
+.accessibility-letter-spacing h3 {
+  letter-spacing: 0.15em !important;
+}
+
+.accessibility-highlight-links a,
+.accessibility-highlight-links router-link {
+  background-color: #fef3c7 !important;
+  color: #92400e !important;
+  outline: 3px dashed #d97706 !important;
+  text-decoration: underline !important;
+  font-weight: bold !important;
+  padding: 1px 4px !important;
+}
+
+.accessibility-highlight-titles h1,
+.accessibility-highlight-titles h2,
+.accessibility-highlight-titles h3,
+.accessibility-highlight-titles h4,
+.accessibility-highlight-titles h5,
+.accessibility-highlight-titles h6 {
+  outline: 4px solid #ef4444 !important;
+  background-color: #fee2e2 !important;
+  color: #991b1b !important;
+  padding-left: 0.5rem !important;
+  padding-right: 0.5rem !important;
+}
+
+.accessibility-super-focus *:focus {
+  outline: 6px solid #2563eb !important;
+  outline-offset: 4px !important;
+  box-shadow: 0 0 15px rgba(37, 99, 235, 0.5) !important;
+}
+
+.accessibility-large-cursor,
+.accessibility-large-cursor * {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2050/svg' width='44' height='44' viewBox='0 0 44 44'%3E%3Cpath d='M2 2 L2 34 L12 26 L22 38 L26 34 L16 22 L26 22 Z' fill='%23101b3a' stroke='white' stroke-width='2.5'/%3E%3C/svg%3E"), auto !important;
+}
+
+.accessibility-adhd {
+  background-color: #f1f5f9 !important;
+}
+
+.accessibility-adhd main {
+  border-left: 8px solid #6366f1 !important;
+  border-right: 8px solid #6366f1 !important;
+  max-width: 900px !important;
+  margin: 0 auto !important;
+  background-color: #ffffff !important;
+  box-shadow: 0 0 50px rgba(0,0,0,0.15) !important;
+}
+
+

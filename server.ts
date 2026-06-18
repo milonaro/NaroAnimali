@@ -205,9 +205,24 @@ app.post("/api/admin/login", async (req, res) => {
   }
 });
 
+const adminFailedAttempts = new Map<string, { count: number; blockedUntil: number }>();
+
 app.post("/api/admin/login/verify-otp", async (req, res) => {
   const { username, otp } = req.body;
+  if (!username || !otp) return res.status(400).json({ error: "Username and OTP are required" });
   if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
+
+  const now = Date.now();
+  const userKey = username.toLowerCase();
+  const attempt = adminFailedAttempts.get(userKey);
+
+  if (attempt && attempt.blockedUntil > now) {
+    const minRem = Math.ceil((attempt.blockedUntil - now) / 1000 / 60);
+    return res.status(403).json({
+      error: `Accesso Amministrativo Sospeso: Rilevato blocco di sicurezza conto attacchi brute-force per l'utente "${username}". Attendi ancora ${minRem} minuti prima di rieseguire la verifica.`
+    });
+  }
+
   try {
     const [userRows]: any = await mysqlPool.execute("SELECT * FROM admin_users WHERE username = ?", [username]);
     const user = userRows[0];
@@ -247,6 +262,10 @@ app.post("/api/admin/login/verify-otp", async (req, res) => {
 
     if (isMasterOtp || (otpRecord && new Date() <= parseExpiresAt(otpRecord.expires_at))) {
       await mysqlPool.execute("DELETE FROM user_otps WHERE email = ?", [user.email]);
+      
+      // Success! Wipe previous lockout counter
+      adminFailedAttempts.delete(userKey);
+
       const token = jwt.sign({ username: user.username, role: user.role, comune_key: user.comune_key }, "animal-hub-secret");
       res.cookie("admin_token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production" });
 
@@ -258,13 +277,30 @@ app.post("/api/admin/login/verify-otp", async (req, res) => {
 
       res.json({ success: true, token });
     } else {
-      // Log failed OTP verify
-      await mysqlPool.execute(
-        "INSERT INTO admin_access_logs (username, comune_key, ip_address, user_agent, accesso_riuscito, note) VALUES (?, ?, ?, ?, ?, ?)",
-        [username, user.comune_key || "naro", ip, userAgent, 0, "Codice OTP non valido o scaduto"]
-      );
+      // Brute-force failure tracking
+      const currentFailures = (attempt ? attempt.count : 0) + 1;
+      if (currentFailures >= 5) {
+        adminFailedAttempts.set(userKey, { count: currentFailures, blockedUntil: now + 15 * 60000 });
+        await mysqlPool.execute("DELETE FROM user_otps WHERE email = ?", [user.email]);
 
-      res.status(401).json({ error: "Codice OTP non valido o scaduto" });
+        await mysqlPool.execute(
+          "INSERT INTO admin_access_logs (username, comune_key, ip_address, user_agent, accesso_riuscito, note) VALUES (?, ?, ?, ?, ?, ?)",
+          [username, user.comune_key || "naro", ip, userAgent, 0, "BLOCCO_BRUTE_FORCE_ADMIN_15M"]
+        );
+
+        return res.status(403).json({
+          error: `Rilevati troppi tentativi errati di verifica OTP (5/5). Per motivi di sicurezza e tutela anti-hacker della PA, l'utenza amministrativa "${username}" è stata memorizzata come sospesa per 15 minuti. L'OTP attivo è stato revocato.`
+        });
+      } else {
+        adminFailedAttempts.set(userKey, { count: currentFailures, blockedUntil: 0 });
+        await mysqlPool.execute(
+          "INSERT INTO admin_access_logs (username, comune_key, ip_address, user_agent, accesso_riuscito, note) VALUES (?, ?, ?, ?, ?, ?)",
+          [username, user.comune_key || "naro", ip, userAgent, 0, `Codice OTP non valido o scaduto. Prove: ${currentFailures}/5`]
+        );
+
+        const rem = 5 - currentFailures;
+        return res.status(401).json({ error: `Codice OTP non valido o scaduto. Rimangono ${rem} tentativi prima del blocco di sicurezza di 15 minuti.` });
+      }
     }
   } catch (err) {
     console.error("DB error in login verify otp:", err);
@@ -477,6 +513,94 @@ app.get("/api/interventi_logs", requireAuth(["ADMIN", "POLIZIA_LOCALE", "CANILE_
   
   const [rows] = await mysqlPool.execute("SELECT * FROM interventi_logs WHERE comune_key = ? ORDER BY timestamp DESC LIMIT ? OFFSET ?", [comune, limit, offset]);
   res.json({ data: rows, nextOffset: offset + limit });
+});
+
+// --- CITIZEN'S REGISTRY (ANAGRAFE CANINA) ENDPOINTS ---
+function getCitizenEmail(req: any): string | null {
+  const token = req.cookies?.citizen_token;
+  if (!token) return null;
+  try {
+    const decoded: any = jwt.verify(token, process.env.JWT_SECRET || "animal-hub-secret-otp");
+    return decoded.email || null;
+  } catch (err) {
+    return null;
+  }
+}
+
+app.get("/api/registro/my-animals", async (req, res) => {
+  const email = getCitizenEmail(req);
+  if (!email) return res.status(401).json({ error: "Accesso non autorizzato. Autenticazione richiesta via OTP." });
+  
+  if (!mysqlPool || !getIsMysqlHealthy()) return res.json([]);
+  try {
+    const [rows] = await mysqlPool.execute("SELECT * FROM registro_anagrafica WHERE proprietario_email = ? ORDER BY id DESC", [email]);
+    res.json(rows);
+  } catch (err: any) {
+    console.error("Errore recupero animali cittadino:", err.message);
+    res.status(500).json({ error: "Errore interno del server" });
+  }
+});
+
+app.post("/api/registro/my-animals", async (req, res) => {
+  const email = getCitizenEmail(req);
+  if (!email) return res.status(401).json({ error: "Accesso non autorizzato. Autenticazione richiesta via OTP." });
+  
+  if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
+  
+  const data = req.body;
+  if (!data.microchip || !data.nome || !data.specie) {
+    return res.status(400).json({ error: "Microchip, nome e specie sono campi obbligatori." });
+  }
+  
+  try {
+    const [activeRow]: any = await mysqlPool.execute("SELECT value_data FROM admin_config WHERE key_name = 'activeComune'");
+    const comune = activeRow[0]?.value_data || 'naro';
+    
+    // FULLSTACK SECURITY: check for duplicate registration before insertion
+    const [existing]: any = await mysqlPool.execute("SELECT * FROM registro_anagrafica WHERE microchip = ?", [data.microchip]);
+    if (existing && existing.length > 0) {
+      const record = existing[0];
+      if (record.proprietario_email?.toLowerCase() === email.toLowerCase()) {
+        return res.status(400).json({
+          error: `Hai già registrato l'animale '${record.nome}' con questo microchip (${data.microchip})! La richiesta è presente nel tuo Fascicolo del Cittadino. Puoi scaricare l'Attestato Ufficiale di Iscrizione direttamente dalla sezione a destra.`
+        });
+      } else {
+        return res.status(400).json({
+          error: `Sicurezza Anagrafe: Questo codice microchip (${data.microchip}) risulta già registrato a sistema sotto una differente identità/e-mail. Se questo animale ti appartiene legalmente ed hai cambiato e-mail o hai smarrito l'accesso del vecchio account, è necessario richiedere la voltura ufficiale. Invia una e-mail all'ufficio comunale: anagrafe.canina@comune.naro.ag.it allegando copia del libretto sanitario firmata dal veterinario, il certificato di inoculazione del microchip e il tuo documento di identità.`
+        });
+      }
+    }
+
+    await mysqlPool.execute(
+      "INSERT INTO registro_anagrafica (microchip, comune_key, nome, specie, sesso, taglia, colore, condizioni_sanitarie, stato, foto_url, proprietario_email) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [
+        data.microchip, 
+        comune, 
+        data.nome, 
+        data.specie, 
+        data.sesso || 'N/D', 
+        data.taglia || 'N/D', 
+        data.colore || 'N/D', 
+        data.condizioniSanitarie || 'Normale', 
+        'IN_ATTESA', 
+        data.fotoUrl || null, 
+        email
+      ]
+    );
+    
+    await mysqlPool.execute(
+      "INSERT INTO interventi_logs (comune_key, segnalazione_codice, operatore, azione, note) VALUES (?, ?, ?, ?, ?)",
+      [comune, `ISCR-${data.microchip.substring(0, 6)}`, `Cittadino (${email})`, `Iscrizione Anagrafe Canina`, `Registrazione inserita autonomamente dal proprietario per ${data.nome} con microchip ${data.microchip}`]
+    );
+
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error("Errore inserimento animale cittadino:", err.message);
+    if (err.message.includes("Duplicate entry") || err.message.includes("UNIQUE")) {
+      return res.status(400).json({ error: "Questo codice microchip risulta già registrato nel sistema." });
+    }
+    res.status(500).json({ error: "Errore durante l'iscrizione all'Anagrafe Canina." });
+  }
 });
 
 app.get("/api/registro", requireAuth(["ADMIN", "POLIZIA_LOCALE", "CANILE_SANITARIO", "VOLONTARIO"]), async (req, res) => {

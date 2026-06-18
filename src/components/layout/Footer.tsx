@@ -30,8 +30,7 @@ export default function Footer() {
           <div>
             <h4 className="text-xs font-bold text-white uppercase tracking-[0.2em] mb-8">{t('footer.links_useful')}</h4>
             <ul className="space-y-4 text-sm font-medium text-[#94a3b8]">
-              <li><Link to="/guida" className="hover:text-emerald-400 text-white transition-colors font-bold">Guida al Portale Civico</Link></li>
-              <li><Link to="/faq" className="hover:text-emerald-400 text-white transition-colors font-bold">Domande Frequenti (FAQ)</Link></li>
+              <li><Link to="/faq" className="hover:text-emerald-400 text-white transition-colors font-bold font-sans">Domande Frequenti (FAQ)</Link></li>
               <li><Link to="/privacy-policy" className="hover:text-emerald-400 transition-colors">Privacy Policy</Link></li>
               <li><Link to="/cookie-policy" className="hover:text-emerald-400 transition-colors">Cookie Policy</Link></li>
               <li><Link to="/statistiche-catasto" className="hover:text-emerald-400 transition-colors text-emerald-300 flex items-center gap-1.5 font-semibold"><BarChart3 className="h-4 w-4 text-emerald-400 shrink-0" /> {t('footer.stat_module')}</Link></li>
@@ -63,10 +62,18 @@ export default function Footer() {
         </div>
         
         <div className="mt-20 pt-10 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex flex-col md:flex-row items-center gap-8">
+          <div className="flex flex-col md:flex-row items-center gap-6">
             <p className="text-xs font-medium text-slate-400">
               © {new Date().getFullYear()} DEMO {t('home.hero_badge')}. {t('footer.rights')}
             </p>
+            <span className="hidden md:inline text-white/20">|</span>
+            <Link 
+              to="/accessibilita" 
+              className="text-xs font-bold text-slate-350 hover:text-emerald-400 hover:underline transition-all underline-offset-4"
+              aria-label="Leggi la dichiarazione di accessibilità"
+            >
+              Dichiarazione di accessibilità
+            </Link>
             <AccessibilityToggle />
           </div>
           <div className="flex items-center gap-6">

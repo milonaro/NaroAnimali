@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Mail, ShieldCheck, Search, Clock, CheckCircle2, ChevronRight, ArrowLeft, Loader2, MapPin, Activity, HelpCircle, Info, Download, BarChart3, Maximize2 } from 'lucide-react';
+import { Mail, ShieldCheck, Search, Clock, CheckCircle2, ChevronRight, ArrowLeft, Loader2, MapPin, Activity, HelpCircle, Info, Download, BarChart3, Maximize2, Plus, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
@@ -31,6 +31,23 @@ export default function MiaArea() {
   });
 
   const [reports, setReports] = useState<Report[]>([]);
+  
+  // --- NUOVI STATI ANAGRAFE CANINA ---
+  const [activeTab, setActiveTab] = useState<'segnalazioni' | 'anagrafe'>('segnalazioni');
+  const [animals, setAnimals] = useState<any[]>([]);
+  const [loadingAnimals, setLoadingAnimals] = useState(false);
+  const [regForm, setRegForm] = useState({
+    nome: '',
+    specie: 'Cane',
+    sesso: 'M',
+    taglia: 'Media',
+    colore: '',
+    microchip: '',
+    condizioniSanitarie: 'Sano'
+  });
+  const [submittingReg, setSubmittingReg] = useState(false);
+  const [regError, setRegError] = useState<string | null>(null);
+  const [regSuccess, setRegSuccess] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -42,10 +59,28 @@ export default function MiaArea() {
       if (res.ok) {
         const data = await res.json();
         setEmail(data.user.email);
-        await loadReports(data.user.email);
+        await Promise.all([
+          loadReports(data.user.email),
+          loadAnimals()
+        ]);
       }
     } catch (e) {
       // Not authenticated
+    }
+  };
+
+  const loadAnimals = async () => {
+    setLoadingAnimals(true);
+    try {
+      const res = await fetch("/api/registro/my-animals");
+      if (res.ok) {
+        const data = await res.json();
+        setAnimals(data);
+      }
+    } catch (e) {
+      console.error("Errore caricamento animali:", e);
+    } finally {
+      setLoadingAnimals(false);
     }
   };
 
@@ -108,7 +143,10 @@ export default function MiaArea() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "OTP non valido");
       
-      await loadReports(email);
+      await Promise.all([
+        loadReports(email),
+        loadAnimals()
+      ]);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -124,7 +162,108 @@ export default function MiaArea() {
     setEmail('');
     setOtp('');
     setReports([]);
+    setAnimals([]);
     setSelectedReport(null);
+    setActiveTab('segnalazioni');
+  };
+
+  const handleRegisterAnimal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmittingReg(true);
+    setRegError(null);
+    setRegSuccess(false);
+
+    // Validazione stringente del Codice Microchip a 15 cifre (requisito di legge)
+    if (!/^\d{15}$/.test(regForm.microchip)) {
+      setRegError("Il codice microchip inserito non è valido. Per legge, deve contenere esattamente 15 cifre numeriche.");
+      setSubmittingReg(false);
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/registro/my-animals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(regForm)
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Impossibile registrare l'animale.");
+      }
+      setRegSuccess(true);
+      setRegForm({
+        nome: '',
+        specie: 'Cane',
+        sesso: 'M',
+        taglia: 'Media',
+        colore: '',
+        microchip: '',
+        condizioniSanitarie: 'Sano'
+      });
+      await loadAnimals();
+    } catch (err: any) {
+      setRegError(err.message);
+    } finally {
+      setSubmittingReg(false);
+    }
+  };
+
+  const generateAnimalCertificate = (animal: any) => {
+    const doc = new jsPDF();
+    
+    // Sfondo Header
+    doc.setFillColor(16, 27, 58); // #101b3a
+    doc.rect(0, 0, 210, 45, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(20);
+    doc.text('COMUNE DI NARO', 105, 20, { align: 'center' });
+    doc.setFontSize(10);
+    doc.text('SETTORE BENESSERE ANIMALE - UFFICIO ANAGRAFE CANINA COMUNALE', 105, 32, { align: 'center' });
+    
+    // Titolo Certificato
+    doc.setTextColor(30, 58, 95); // #1e3a5f
+    doc.setFontSize(14);
+    doc.text('ATTESTATO DI RICHIESTA ISCRIZIONE ANAGRAFICA', 105, 60, { align: 'center' });
+    
+    doc.setDrawColor(220, 220, 220);
+    doc.line(20, 68, 190, 68);
+    
+    // Tabella delle proprietà
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(11);
+    
+    let currentY = 82;
+    const addRow = (label: string, value: string) => {
+      doc.setFont('Helvetica', 'bold');
+      doc.text(label, 30, currentY);
+      doc.setFont('Helvetica', 'normal');
+      doc.text(value, 95, currentY);
+      currentY += 10;
+    };
+
+    addRow('Codice Microchip (15 cifre):', animal.microchip);
+    addRow('Nome Animale:', animal.nome);
+    addRow('Specie / Tipo:', animal.specie === 'Cane' ? 'CANE (Canis lupus familiaris)' : animal.specie.toUpperCase());
+    addRow('Sesso:', animal.sesso === 'M' ? 'MASCHIO' : animal.sesso === 'F' ? 'FEMMINA' : animal.sesso);
+    addRow('Taglia dichiarata:', animal.taglia);
+    addRow('Colore / Mantello:', animal.colore || 'N/D');
+    addRow('Stato Sanitario:', animal.condizioni_sanitarie || 'Normale');
+    addRow('Proprietario (E-mail):', email);
+    addRow('Stato d\'Ufficio:', animal.stato === 'IN_ATTESA' ? 'IN ATTESA DI APPROVAZIONE PROTOCOLLO' : 'REGISTRATO CON SUCCESSO');
+    addRow('Data della richiesta:', new Date(animal.data_registrazione || animal.dataRegistrazione).toLocaleDateString('it-IT'));
+
+    // Bordo finale
+    doc.line(20, currentY + 5, 190, currentY + 5);
+
+    // footer attestato
+    doc.setFontSize(8);
+    doc.setTextColor(140, 140, 140);
+    doc.text('Questa ricevuta attesta l\'invio telematico della pratica di iscrizione all\'Anagrafe Canina.', 105, currentY + 15, { align: 'center' });
+    doc.text('Il Comune verificherà la conformità del codice microchip e la documentazione allegata.', 105, currentY + 20, { align: 'center' });
+    doc.text('Generato in automatico tramite piattaforma AnimalHub PA - ID: ' + animal.id, 105, currentY + 25, { align: 'center' });
+
+    doc.save(`Attestato_Iscrizione_${animal.microchip}.pdf`);
   };
 
   const generatePDF = (report: Report) => {
@@ -321,7 +460,7 @@ export default function MiaArea() {
                       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-6 sm:p-8 rounded-2xl border border-slate-200/80 shadow-sm">
                         <div>
                           <span className="text-[10px] font-black uppercase tracking-[0.28em] text-[#15803d] mb-1.5 block">Identificativo Digitale</span>
-                          <h1 className="text-xl sm:text-2xl font-black text-[#101b3a] tracking-tight">Le tue segnalazioni di soccorso</h1>
+                          <h1 className="text-xl sm:text-2xl font-black text-[#101b3a] tracking-tight">Il tuo Fascicolo del Cittadino</h1>
                           <div className="flex items-center gap-2 mt-2">
                             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                             <p className="text-xs text-slate-500 font-semibold">Utenza attiva: <span className="text-[#101b3a] font-extrabold">{email}</span></p>
@@ -330,112 +469,346 @@ export default function MiaArea() {
                         <button onClick={handleLogout} className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 hover:text-red-600 transition-all py-2.5 px-5 bg-slate-50 border border-slate-200 hover:border-red-200 rounded-xl cursor-pointer">Esci Sessione</button>
                       </div>
 
-                      {/* Chart Section */}
-                      <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200/80 shadow-sm">
-                        <div className="flex items-center gap-3 mb-6">
-                       <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
-                          <BarChart3 className="h-6 w-6" />
-                       </div>
-                       <div>
-                          <h2 className="text-2xl font-bold text-[#1e3a5f]">Statistiche Segnalazioni</h2>
-                          <p className="text-gray-400 text-sm font-medium">Andamento degli ultimi 6 mesi nel territorio di Naro</p>
-                       </div>
-                    </div>
-                    
-                    <div className="h-[300px] w-full">
-                       <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={[
-                            { name: 'Dic', total: 12 },
-                            { name: 'Gen', total: 18 },
-                            { name: 'Feb', total: 14 },
-                            { name: 'Mar', total: 22 },
-                            { name: 'Apr', total: 28 },
-                            { name: 'Mag', total: 25 },
-                          ]}>
-                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                             <XAxis 
-                                dataKey="name" 
-                                axisLine={false} 
-                                tickLine={false} 
-                                tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }}
-                                dy={10}
-                             />
-                             <YAxis 
-                                axisLine={false} 
-                                tickLine={false} 
-                                tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }}
-                             />
-                             <Tooltip 
-                                cursor={{ fill: '#f8fafc' }}
-                                content={({ active, payload }) => {
-                                  if (active && payload && payload.length) {
-                                    return (
-                                      <div className="bg-[#101b3a] p-4 rounded-lg shadow-2xl border border-white/10">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-white/50 mb-1">{payload[0].payload.name}</p>
-                                        <p className="text-xl font-bold text-white">{payload[0].value} <span className="text-xs font-medium text-emerald-400">Segnalazioni</span></p>
-                                      </div>
-                                    );
-                                  }
-                                  return null;
-                                }}
-                             />
-                             <Bar 
-                                dataKey="total" 
-                                radius={[8, 8, 0, 0]} 
-                                barSize={40}
-                             >
-                                {[1, 2, 3, 4, 5, 6].map((_, index) => (
-                                  <Cell key={`cell-${index}`} fill={index === 5 ? '#15803d' : '#e2e8f0'} className="hover:fill-blue-500 transition-colors" />
-                                ))}
-                             </Bar>
-                          </BarChart>
-                       </ResponsiveContainer>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 sm:gap-8">
-                    {reports.map((item, i) => (
-                      <div 
-                        key={i} 
-                        onClick={() => setSelectedReport(item)}
-                        className="bg-white border-2 border-transparent p-4 sm:p-10 rounded-xl shadow-md sm:shadow-xl hover:shadow-2xl hover:border-[#15803d]/20 transition-all cursor-pointer group relative overflow-hidden"
-                      >
-                         {/* Status Bar */}
-                        <div className={`absolute top-0 left-0 right-0 h-1.5 sm:h-2 ${
-                          item.status === 'CHIUSA' ? 'bg-emerald-500' : 'bg-amber-500'
-                        }`} />
-
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1.5 sm:gap-4 mb-3 sm:mb-8">
-                          <span className="bg-gray-50 text-[#1e3a5f] px-1.5 py-0.5 sm:px-3 sm:py-1.5 rounded-md sm:rounded-lg text-[8px] sm:text-[10px] font-bold uppercase tracking-widest border border-gray-100">{item.code}</span>
-                          <span className={`px-1.5 py-0.5 sm:px-4 sm:py-1.5 rounded-md sm:rounded-full text-[7px] sm:text-[9px] font-bold uppercase tracking-widest ${
-                            item.status === 'CHIUSA' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100'
-                          }`}>
-                            {item.status.replace('_', ' ')}
-                          </span>
-                        </div>
-                        <h3 className="text-xs sm:text-2xl font-bold text-[#1e3a5f] mb-1 sm:mb-4 leading-tight group-hover:text-[#15803d] transition-colors line-clamp-2 sm:line-clamp-none">{item.desc}</h3>
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-6">
-                           <div className="flex items-center gap-1 sm:gap-2 text-[8px] sm:text-xs font-semibold text-gray-400">
-                             <Clock className="h-3 w-3 sm:h-4 sm:w-4" /> {item.date}
-                           </div>
-                           <div className="flex items-center gap-1 sm:gap-2 text-[8px] sm:text-xs font-semibold text-gray-400">
-                             <MapPin className="h-3 w-3 sm:h-4 sm:w-4" /> {item.specie}
-                           </div>
-                        </div>
-                        <div className="mt-3 sm:mt-10 pt-3 sm:pt-8 border-t border-gray-50 flex justify-between items-center text-[8px] sm:text-[10px] uppercase tracking-widest font-bold text-[#15803d] group-hover:translate-x-1 sm:group-hover:translate-x-2 transition-transform">
-                          <span>Gestione Pratica</span> <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
-                        </div>
+                      {/* TABS SELECTOR */}
+                      <div className="flex border-b border-slate-200 gap-6">
+                        <button
+                          onClick={() => setActiveTab('segnalazioni')}
+                          className={`pb-4 text-sm font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
+                            activeTab === 'segnalazioni'
+                              ? 'border-[#15803d] text-[#15803d]'
+                              : 'border-transparent text-slate-400 hover:text-slate-600'
+                          }`}
+                        >
+                          Segnalazioni Soccorsi
+                        </button>
+                        <button
+                          onClick={() => setActiveTab('anagrafe')}
+                          className={`pb-4 text-sm font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
+                            activeTab === 'anagrafe'
+                              ? 'border-[#15803d] text-[#15803d]'
+                              : 'border-transparent text-slate-400 hover:text-slate-600'
+                          }`}
+                        >
+                          I Miei Animali (Anagrafe Canina)
+                        </button>
                       </div>
-                    ))}
-                  </div>
 
-                  <div className="bg-emerald-50/30 rounded-lg p-24 text-center border-4 border-dashed border-emerald-100">
-                    <Search className="h-16 w-16 text-emerald-200 mx-auto mb-8" />
-                    <h3 className="text-xl font-bold text-[#1e3a5f]">Nessun altro record</h3>
-                    <p className="text-gray-500 font-medium max-w-xs mx-auto mt-4 px-8 leading-relaxed">Il tuo archivio storico mostra solo le attività recenti associate a questa utenza.</p>
-                  </div>
-                </motion.div>
-              ) : (
+                      {activeTab === 'segnalazioni' ? (
+                        <>
+                          {/* Chart Section */}
+                          <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200/80 shadow-sm">
+                            <div className="flex items-center gap-3 mb-6">
+                              <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
+                                <BarChart3 className="h-6 w-6" />
+                              </div>
+                              <div>
+                                <h2 className="text-2xl font-bold text-[#1e3a5f]">Statistiche Segnalazioni</h2>
+                                <p className="text-gray-400 text-sm font-medium">Andamento degli ultimi 6 mesi nel territorio di Naro</p>
+                              </div>
+                            </div>
+                            
+                            <div className="h-[300px] w-full">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={[
+                                  { name: 'Dic', total: 12 },
+                                  { name: 'Gen', total: 18 },
+                                  { name: 'Feb', total: 14 },
+                                  { name: 'Mar', total: 22 },
+                                  { name: 'Apr', total: 28 },
+                                  { name: 'Mag', total: 25 },
+                                ]}>
+                                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                  <XAxis 
+                                    dataKey="name" 
+                                    axisLine={false} 
+                                    tickLine={false} 
+                                    tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }}
+                                    dy={10}
+                                  />
+                                  <YAxis 
+                                    axisLine={false} 
+                                    tickLine={false} 
+                                    tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }}
+                                  />
+                                  <Tooltip 
+                                    cursor={{ fill: '#f8fafc' }}
+                                    content={({ active, payload }) => {
+                                      if (active && payload && payload.length) {
+                                        return (
+                                          <div className="bg-[#101b3a] p-4 rounded-lg shadow-2xl border border-white/10">
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-white/50 mb-1">{payload[0].payload.name}</p>
+                                            <p className="text-xl font-bold text-white">{payload[0].value} <span className="text-xs font-medium text-emerald-400">Segnalazioni</span></p>
+                                          </div>
+                                        );
+                                      }
+                                      return null;
+                                    }}
+                                  />
+                                  <Bar 
+                                    dataKey="total" 
+                                    radius={[8, 8, 0, 0]} 
+                                    barSize={40}
+                                  >
+                                    {[1, 2, 3, 4, 5, 6].map((_, index) => (
+                                      <Cell key={`cell-${index}`} fill={index === 5 ? '#15803d' : '#e2e8f0'} className="hover:fill-blue-500 transition-colors" />
+                                    ))}
+                                  </Bar>
+                                </BarChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4 sm:gap-8">
+                            {reports.map((item, i) => (
+                              <div 
+                                key={i} 
+                                onClick={() => setSelectedReport(item)}
+                                className="bg-white border-2 border-transparent p-4 sm:p-10 rounded-xl shadow-md sm:shadow-xl hover:shadow-2xl hover:border-[#15803d]/20 transition-all cursor-pointer group relative overflow-hidden"
+                              >
+                                 {/* Status Bar */}
+                                <div className={`absolute top-0 left-0 right-0 h-1.5 sm:h-2 ${
+                                  item.status === 'CHIUSA' ? 'bg-emerald-500' : 'bg-amber-500'
+                                }`} />
+
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1.5 sm:gap-4 mb-3 sm:mb-8">
+                                  <span className="bg-gray-50 text-[#1e3a5f] px-1.5 py-0.5 sm:px-3 sm:py-1.5 rounded-md sm:rounded-lg text-[8px] sm:text-[10px] font-bold uppercase tracking-widest border border-gray-100">{item.code}</span>
+                                  <span className={`px-1.5 py-0.5 sm:px-4 sm:py-1.5 rounded-md sm:rounded-full text-[7px] sm:text-[9px] font-bold uppercase tracking-widest ${
+                                    item.status === 'CHIUSA' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100'
+                                  }`}>
+                                    {item.status.replace('_', ' ')}
+                                  </span>
+                                </div>
+                                <h3 className="text-xs sm:text-2xl font-bold text-[#1e3a5f] mb-1 sm:mb-4 leading-tight group-hover:text-[#15803d] transition-colors line-clamp-2 sm:line-clamp-none">{item.desc}</h3>
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-6">
+                                   <div className="flex items-center gap-1 sm:gap-2 text-[8px] sm:text-xs font-semibold text-gray-400">
+                                     <Clock className="h-3 w-3 sm:h-4 sm:w-4" /> {item.date}
+                                   </div>
+                                   <div className="flex items-center gap-1 sm:gap-2 text-[8px] sm:text-xs font-semibold text-gray-400">
+                                     <MapPin className="h-3 w-3 sm:h-4 sm:w-4" /> {item.specie}
+                                   </div>
+                                </div>
+                                <div className="mt-3 sm:mt-10 pt-3 sm:pt-8 border-t border-gray-50 flex justify-between items-center text-[8px] sm:text-[10px] uppercase tracking-widest font-bold text-[#15803d] group-hover:translate-x-1 sm:group-hover:translate-x-2 transition-transform">
+                                  <span>Gestione Pratica</span> <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="bg-emerald-50/30 rounded-lg p-24 text-center border-4 border-dashed border-emerald-100">
+                            <Search className="h-16 w-16 text-emerald-200 mx-auto mb-8" />
+                            <h3 className="text-xl font-bold text-[#1e3a5f]">Nessun altro record</h3>
+                            <p className="text-gray-500 font-medium max-w-xs mx-auto mt-4 px-8 leading-relaxed">Il tuo archivio storico mostra solo le attività recenti associate a questa utenza.</p>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+                          {/* Modulo Registrazione Animale */}
+                          <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col h-fit">
+                            <h3 className="text-lg font-black text-[#101b3a] tracking-tight mb-1 flex items-center gap-2">
+                              <Plus className="h-5 w-5 text-[#15803d]" /> Nuova Registrazione
+                            </h3>
+                            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-6 leading-tight">
+                              Iscrivi il tuo animale all'Anagrafe Canina Comunale
+                            </p>
+
+                            {regError && (
+                              <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl text-xs font-semibold mb-4 leading-relaxed">
+                                {regError}
+                              </div>
+                            )}
+
+                            {regSuccess && (
+                              <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded-xl text-xs font-semibold mb-4 leading-relaxed">
+                                Richiesta d'iscrizione protocollata con successo! L'ufficio comunale verificherà la pratica a breve. Puoi già scaricare l'attestato provvisorio dalla lista a fianco.
+                              </div>
+                            )}
+
+                            <form onSubmit={handleRegisterAnimal} className="space-y-4">
+                              <div>
+                                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">Nome Animale</label>
+                                <input
+                                  type="text"
+                                  required
+                                  placeholder="Es. Argo"
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-semibold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none text-sm transition-all"
+                                  value={regForm.nome}
+                                  onChange={(e) => setRegForm({...regForm, nome: e.target.value})}
+                                />
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">Specie</label>
+                                  <select
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-semibold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none text-sm transition-all text-left"
+                                    value={regForm.specie}
+                                    onChange={(e) => setRegForm({...regForm, specie: e.target.value})}
+                                  >
+                                    <option value="Cane">Cane 🐶</option>
+                                    <option value="Gatto">Gatto 🐱</option>
+                                    <option value="Altro">Altro soggetti</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">Sesso</label>
+                                  <select
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-semibold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none text-sm transition-all text-left"
+                                    value={regForm.sesso}
+                                    onChange={(e) => setRegForm({...regForm, sesso: e.target.value})}
+                                  >
+                                    <option value="M">Maschio</option>
+                                    <option value="F">Femmina</option>
+                                  </select>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">Taglia</label>
+                                  <select
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-semibold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none text-sm transition-all"
+                                    value={regForm.taglia}
+                                    onChange={(e) => setRegForm({...regForm, taglia: e.target.value})}
+                                  >
+                                    <option value="Piccola">Piccola</option>
+                                    <option value="Media">Media</option>
+                                    <option value="Grande">Grande</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">Mantello (Colore)</label>
+                                  <input
+                                    type="text"
+                                    required
+                                    placeholder="Es. Fulvo, Nero pezzato"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-semibold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none text-sm transition-all"
+                                    value={regForm.colore}
+                                    onChange={(e) => setRegForm({...regForm, colore: e.target.value})}
+                                  />
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">Codice Microchip (15 Cifre)</label>
+                                <input
+                                  type="text"
+                                  maxLength={15}
+                                  required
+                                  placeholder="Es. 380260000123456"
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-mono font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none text-sm transition-all"
+                                  value={regForm.microchip}
+                                  onChange={(e) => {
+                                    const val = e.target.value.replace(/\D/g, '');
+                                    setRegForm({...regForm, microchip: val});
+                                  }}
+                                />
+                                <span className="text-[9px] text-slate-400 mt-1 font-semibold block uppercase leading-tight">
+                                  Codice obbligatorio per legge inserito dal veterinario abilitato.
+                                </span>
+                              </div>
+
+                              <div>
+                                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">Stato Sanitario</label>
+                                <input
+                                  type="text"
+                                  placeholder="Es. Sano, sterilizzato"
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-semibold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none text-sm transition-all"
+                                  value={regForm.condizioniSanitarie}
+                                  onChange={(e) => setRegForm({...regForm, condizioniSanitarie: e.target.value})}
+                                />
+                              </div>
+
+                              <button
+                                type="submit"
+                                disabled={submittingReg || regForm.microchip.length !== 15}
+                                className="w-full bg-[#15803d] hover:bg-[#166534] text-white font-black uppercase tracking-widest text-[10px] py-3.5 rounded-xl transition-all disabled:opacity-50 mt-2 flex items-center justify-center gap-2 cursor-pointer"
+                              >
+                                {submittingReg ? <Loader2 className="h-4 w-4 animate-spin" /> : "Invia Pratica Iscrizione"}
+                              </button>
+                            </form>
+                          </div>
+
+                          {/* Lista dei Propri Animali */}
+                          <div className="lg:col-span-2 space-y-6">
+                            <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200/80 shadow-sm">
+                              <h3 className="text-lg font-black text-[#101b3a] tracking-tight mb-1 flex items-center gap-2">
+                                <FileText className="h-5 w-5 text-[#15803d]" /> I tuoi Animali Iscritti
+                              </h3>
+                              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-6">
+                                Animali d'affezione registrati a tuo nome
+                              </p>
+
+                              {loadingAnimals ? (
+                                <div className="py-12 text-center text-slate-400">
+                                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-[#15803d]" />
+                                  <span className="text-xs font-bold uppercase tracking-wider">Caricamento in corso...</span>
+                                </div>
+                              ) : animals.length === 0 ? (
+                                <div className="border-2 border-dashed border-slate-100 rounded-xl p-12 text-center">
+                                  <div className="bg-slate-50 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Info className="h-5 w-5 text-slate-400" />
+                                  </div>
+                                  <h4 className="text-sm font-bold text-[#101b3a] mb-1">Nessun animale registrato</h4>
+                                  <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+                                    Invia la tua prima richiesta con il modulo a sinistra per associare la tua utenza a un microchip protocollato.
+                                  </p>
+                                </div>
+                              ) : (
+                                <div className="space-y-4">
+                                  {animals.map((anim, idx) => (
+                                    <div 
+                                      key={anim.id || idx} 
+                                      className="bg-slate-50 border border-slate-200/80 rounded-xl p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative overflow-hidden"
+                                    >
+                                      {/* Barretta di stato colorata */}
+                                      <div className={`absolute top-0 bottom-0 left-0 w-1.5 ${
+                                        anim.stato === 'IN_ATTESA' ? 'bg-amber-400' : 'bg-emerald-500'
+                                      }`} />
+
+                                      <div className="pl-3 space-y-1 text-left">
+                                        <div className="flex items-center gap-3">
+                                          <h4 className="text-base font-black text-[#101b3a] leading-none mb-0.5">{anim.nome}</h4>
+                                          <span className="bg-white border border-slate-200 text-[#101b3a] text-[9px] font-mono font-bold px-2 py-0.5 rounded-md">
+                                            {anim.specie === 'Cane' ? '🐶 CANE' : anim.specie === 'Gatto' ? '🐱 GATTO' : `🐾 ${anim.specie.toUpperCase()}`}
+                                          </span>
+                                        </div>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">
+                                          Microchip: <span className="font-mono text-xs font-bold text-slate-600 tracking-wider font-semibold">{anim.microchip}</span>
+                                        </p>
+                                        <div className="flex items-center gap-4 text-xs font-medium text-slate-500 mt-1.5">
+                                          <span>Sesso: <strong>{anim.sesso === 'M' ? 'M' : 'F'}</strong></span>
+                                          <span className="w-1.5 h-1.5 bg-slate-300 rounded-full" />
+                                          <span>Taglia: <strong>{anim.taglia}</strong></span>
+                                          <span className="w-1.5 h-1.5 bg-slate-300 rounded-full" />
+                                          <span>Mantello: <strong>{anim.colore}</strong></span>
+                                        </div>
+                                      </div>
+
+                                      <div className="flex sm:flex-col items-start sm:items-end gap-3 w-full sm:w-auto">
+                                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border ${
+                                          anim.stato === 'IN_ATTESA'
+                                            ? 'bg-amber-50 text-amber-600 border-amber-200'
+                                            : 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                                        }`}>
+                                          {anim.stato === 'IN_ATTESA' ? "In attesa d'ufficio" : "Iscritto all'Anagrafe"}
+                                        </span>
+                                        <button 
+                                          onClick={() => generateAnimalCertificate(anim)}
+                                          className="flex items-center gap-1.5 bg-white border border-slate-200 hover:border-emerald-200 text-[#101b3a] hover:text-[#15803d] transition-all px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider shadow-sm cursor-pointer ml-auto sm:ml-0"
+                                        >
+                                          <Download className="h-3.5 w-3.5" /> Scarica Attestato
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </motion.div>
+                  ) : (
                 <motion.div key="details" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="space-y-12">
                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                     <button 

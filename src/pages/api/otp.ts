@@ -7,6 +7,29 @@ import { sendOtpEmail } from "../../lib/mailer.js";
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || "animal-hub-secret-otp";
 
+// MEMORY CYBERSECURITY LOCKS
+const otpRates = new Map<string, { count: number; resetTime: number }>();
+const otpFailedAttempts = new Map<string, { count: number; blockedUntil: number }>();
+
+function ipRateLimit(req: any, max: number, windowMs: number): { allowed: boolean; error?: string } {
+  const ip = req.ip || (req.headers['x-forwarded-for'] as string) || 'unknown';
+  const now = Date.now();
+  const data = otpRates.get(ip);
+  if (!data || now > data.resetTime) {
+    otpRates.set(ip, { count: 1, resetTime: now + windowMs });
+    return { allowed: true };
+  }
+  data.count += 1;
+  if (data.count > max) {
+    const minRem = Math.ceil((data.resetTime - now) / 1000 / 60);
+    return { 
+      allowed: false, 
+      error: `Hai superato il limite di richieste di sicurezza su questo endpoint. Riprova tra ${minRem} min. (DDoS/Anti-Spam active)` 
+    };
+  }
+  return { allowed: true };
+}
+
 // Funzione helper per generare OTP a 6 cifre
 function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -15,6 +38,24 @@ function generateOTP(): string {
 router.post("/request", async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: "Email is required" });
+
+  const now = Date.now();
+  const emailKey = email.toLowerCase();
+
+  // 1. Cybersecurity: Check if the email is under brute-force wait period
+  const attempt = otpFailedAttempts.get(emailKey);
+  if (attempt && attempt.blockedUntil > now) {
+    const minRem = Math.ceil((attempt.blockedUntil - now) / 1000 / 60);
+    return res.status(403).json({
+      error: `Utenza temporaneamente sospesa: Rilevato blocco di sicurezza contro attacchi brute-force per l'e-mail "${email}". Attendi ancora ${minRem} minuti prima di richiedere un altro OTP.`
+    });
+  }
+
+  // 2. DDoS protection: IP rate limiter for requesting OTP (max 5 requests per 3 minutes)
+  const limit = ipRateLimit(req, 5, 3 * 60000);
+  if (!limit.allowed) {
+    return res.status(429).json({ error: limit.error });
+  }
 
   if (!mysqlPool || !getIsMysqlHealthy()) {
     return res.status(500).json({ error: "DB Error" });
@@ -59,6 +100,24 @@ router.post("/verify", async (req, res) => {
   const { email, otp } = req.body;
   if (!email || !otp) return res.status(400).json({ error: "Email and OTP are required" });
 
+  const now = Date.now();
+  const emailKey = email.toLowerCase();
+
+  // 1. Cybersecurity: Check if the email represents a brute force locked target
+  const attempt = otpFailedAttempts.get(emailKey);
+  if (attempt && attempt.blockedUntil > now) {
+    const minRem = Math.ceil((attempt.blockedUntil - now) / 1000 / 60);
+    return res.status(403).json({
+      error: `Utenza temporaneamente sospesa: Rilevato blocco di sicurezza contro attacchi brute-force per l'e-mail "${email}". Attendi ancora ${minRem} minuti prima di rieseguire la verifica.`
+    });
+  }
+
+  // 2. DDoS protection: IP rate limiter for verifying OTP (max 15 trials per 3 minutes)
+  const limit = ipRateLimit(req, 15, 3 * 60000);
+  if (!limit.allowed) {
+    return res.status(429).json({ error: limit.error });
+  }
+
   if (!mysqlPool || !getIsMysqlHealthy()) {
     return res.status(500).json({ error: "DB Error" });
   }
@@ -79,11 +138,32 @@ router.post("/verify", async (req, res) => {
     const isMasterOtp = !isSmtpConfigured && (otp === "123456" || otp === "202699");
 
     if (!record && !isMasterOtp) {
-      await mysqlPool.execute(
-        "INSERT INTO citizen_access_logs (email, ip_address, user_agent, azione) VALUES (?, ?, ?, ?)",
-        [email, ip, userAgent, 'VERIFICA_OTP_FALLITA_ERRATO']
-      );
-      return res.status(401).json({ error: "Codice OTP non valido o errato" });
+      // Cybersecurity brute force incremental tracking
+      const currentFailures = (attempt ? attempt.count : 0) + 1;
+      if (currentFailures >= 5) {
+        // Block consecutive trials for 15 minutes, delete target transient OTP token instantly
+        otpFailedAttempts.set(emailKey, { count: currentFailures, blockedUntil: now + 15 * 60000 });
+        await mysqlPool.execute("DELETE FROM user_otps WHERE email = ?", [email]);
+        
+        await mysqlPool.execute(
+          "INSERT INTO citizen_access_logs (email, ip_address, user_agent, azione) VALUES (?, ?, ?, ?)",
+          [email, ip, userAgent, 'BLOCCO_BRUTE_FORCE_15M']
+        );
+
+        return res.status(403).json({
+          error: `Rilevati troppi tentativi errati di verifica OTP (5/5). Per motivi di sicurezza e tutela anti-hacker, l'e-mail "${email}" è stata temporaneamente sospesa per 15 minuti e l'OTP revocato. Potrai inviare un nuovo codice scaduto il timer di blocco.`
+        });
+      } else {
+        otpFailedAttempts.set(emailKey, { count: currentFailures, blockedUntil: 0 });
+        await mysqlPool.execute(
+          "INSERT INTO citizen_access_logs (email, ip_address, user_agent, azione) VALUES (?, ?, ?, ?)",
+          [email, ip, userAgent, 'VERIFICA_OTP_FALLITA_ERRATO']
+        );
+        const rem = 5 - currentFailures;
+        return res.status(401).json({ 
+          error: `Codice OTP non valido o errato. Rimangono ${rem} tentativi prima del blocco di sicurezza di 15 minuti.` 
+        });
+      }
     }
 
     const parseExpiresAt = (val: any): Date => {
@@ -109,6 +189,9 @@ router.post("/verify", async (req, res) => {
       );
       return res.status(401).json({ error: "Codice OTP scaduto" });
     }
+
+    // Success! Wipe previous lockout counter
+    otpFailedAttempts.delete(emailKey);
 
     // OTP Valido: Rimuovilo dal DB per sicurezza (One Time)
     await mysqlPool.execute("DELETE FROM user_otps WHERE email = ?", [email]);

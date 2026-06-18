@@ -99,6 +99,36 @@ router.post("/", async (req, res) => {
     if (!dichiarazioneVeridicita || !assunzioneResponsabilita) return res.status(400).json({ error: "Dichiarazioni legali obbligatorie." });
 
     const activeComune = await getActiveComuneKeyServer();
+
+    // FULLSTACK CYBER-SECURITY CONTROL: anti-clutter duplicate detection
+    if (getIsMysqlHealthy() && pool) {
+      try {
+        const [recentRows]: any = await pool.query(
+          "SELECT * FROM segnalazioni WHERE comune_key = ? AND specie = ? AND stato != 'CHIUSA' AND created_at >= NOW() - INTERVAL 2 HOUR",
+          [activeComune, specie]
+        );
+        
+        const possibleDuplicate = recentRows.find((item: any) => {
+          const itemLat = parseFloat(item.latitudine);
+          const itemLng = parseFloat(item.longitudine);
+          const targetLat = parseFloat(lat);
+          const targetLng = parseFloat(lng);
+          const dist = Math.abs(itemLat - targetLat) + Math.abs(itemLng - targetLng);
+          return dist < 0.005 || (indirizzo && item.indirizzo && item.indirizzo.toLowerCase() === indirizzo.toLowerCase());
+        });
+
+        if (possibleDuplicate) {
+          return res.status(400).json({
+            error: `Una segnalazione per un soggetto di tipo '${specie}' nello stesso raggio o luogo è già presente ed è attiva (Codice: ${possibleDuplicate.codice_tracking}, Stato: ${possibleDuplicate.stato}). Il Comune, la Polizia Locale e i veterinari associati sono già stati allertati e l'intervento si trova in fase di coordinamento. Per inviare materiale fotografico aggiuntivo o cooperare all'intervento, contatta l'assistenza citando il codice ${possibleDuplicate.codice_tracking}, evitando di reinviare lo stesso record.`,
+            duplicateReportDetected: true,
+            duplicateCode: possibleDuplicate.codice_tracking
+          });
+        }
+      } catch (err: any) {
+        console.warn("Info controllo duplicati segnalazione:", err.message);
+      }
+    }
+
     const prefix = activeComune.toUpperCase();
     const anno = new Date().getFullYear();
     

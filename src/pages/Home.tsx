@@ -935,24 +935,24 @@ export default function Home() {
       {/* Floating Tutorial Button */}
       <button 
         onClick={() => setRunTour(true)}
-        className="fixed bottom-20 left-4 md:bottom-8 md:left-8 z-[5000] w-12 h-12 md:w-14 md:h-14 bg-amber-500 hover:bg-amber-600 text-white rounded-full shadow-2xl flex items-center justify-center transition-all hover:scale-110 active:scale-95 border-2 border-white/50 group cursor-pointer"
+        className="fixed bottom-5 left-5 z-[5000] w-10 h-10 bg-amber-500 hover:bg-amber-600 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 border border-white/50 group cursor-pointer"
         aria-label="Avvia Tutorial"
       >
-        <HelpCircle className="h-6 w-6 md:h-7 md:w-7 group-hover:rotate-12 transition-transform" />
+        <HelpCircle className="h-4.5 w-4.5 group-hover:rotate-12 transition-transform" />
       </button>
 
       {/* Scroll to Top Button */}
       <AnimatePresence>
         {showScrollTop && (
           <motion.button
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 20, x: "-50%" }}
+            animate={{ opacity: 1, y: 0, x: "-50%" }}
+            exit={{ opacity: 0, y: 20, x: "-50%" }}
             onClick={scrollToTop}
-            className="fixed bottom-[8.5rem] left-4 md:bottom-24 md:left-8 z-[5000] w-12 h-12 md:w-14 md:h-14 bg-[#101b3a] hover:bg-[#15803d] text-white rounded-full shadow-2xl flex items-center justify-center transition-colors hover:scale-110 active:scale-95 border-2 border-white/50 cursor-pointer"
+            className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[5000] w-10 h-10 bg-[#101b3a] hover:bg-[#15803d] text-white rounded-full shadow-xl flex items-center justify-center transition-colors hover:scale-105 active:scale-95 border border-white/50 cursor-pointer"
             aria-label="Torna su"
           >
-            <ArrowUp className="h-6 w-6 md:h-7 md:w-7" />
+            <ArrowUp className="h-4.5 w-4.5" />
           </motion.button>
         )}
       </AnimatePresence>
