@@ -260,16 +260,28 @@ router.post("/profile", async (req, res) => {
   try {
     const decoded: any = jwt.verify(token, JWT_SECRET);
     const email = decoded.email;
-    const { nome, cognome, codice_fiscale, telefono, indirizzo, comune_residenza } = req.body;
+    const { nome, cognome, codice_fiscale, telefono, indirizzo, comune_residenza, sesso, comune_nascita, data_nascita } = req.body;
     
     if (mysqlPool && getIsMysqlHealthy()) {
       await mysqlPool.execute(
-        `INSERT INTO citizen_profiles (email, nome, cognome, codice_fiscale, telefono, indirizzo, comune_residenza)
-         VALUES (?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO citizen_profiles (email, nome, cognome, codice_fiscale, telefono, indirizzo, comune_residenza, sesso, comune_nascita, data_nascita)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
          nome = VALUES(nome), cognome = VALUES(cognome), codice_fiscale = VALUES(codice_fiscale),
-         telefono = VALUES(telefono), indirizzo = VALUES(indirizzo), comune_residenza = VALUES(comune_residenza)`,
-        [email, nome || null, cognome || null, (codice_fiscale || '').toUpperCase() || null, telefono || null, indirizzo || null, comune_residenza || null]
+         telefono = VALUES(telefono), indirizzo = VALUES(indirizzo), comune_residenza = VALUES(comune_residenza),
+         sesso = VALUES(sesso), comune_nascita = VALUES(comune_nascita), data_nascita = VALUES(data_nascita)`,
+        [
+          email, 
+          nome || null, 
+          cognome || null, 
+          (codice_fiscale || '').toUpperCase() || null, 
+          telefono || null, 
+          indirizzo || null, 
+          comune_residenza || null,
+          sesso || null,
+          comune_nascita || null,
+          data_nascita || null
+        ]
       );
       return res.json({ success: true });
     }

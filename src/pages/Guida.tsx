@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
-import { HelpCircle, ChevronRight, MapPin, Search, ShieldCheck, Mail, Volume2, Play, Pause, Square, Info, ShieldAlert, Award, FileText } from 'lucide-react';
+import { HelpCircle, ChevronRight, MapPin, Search, ShieldCheck, Mail, Volume2, Play, Pause, Square, Info, ShieldAlert, Award, FileText, Loader2 } from 'lucide-react';
 import { useAccessibility } from '@/src/contexts/AccessibilityContext';
 
 export default function Guida() {
@@ -8,6 +8,21 @@ export default function Guida() {
   const synthRef = useRef<SpeechSynthesis | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+
+  // States for Guida Intelligente AI
+  const [activeGuidedTab, setActiveGuidedTab] = useState<'manual' | 'ai'>('manual');
+  const [chatInput, setChatInput] = useState('');
+  const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
+
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (activeGuidedTab === 'ai') {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages, activeGuidedTab]);
 
   useEffect(() => {
     synthRef.current = window.speechSynthesis;
@@ -36,6 +51,53 @@ export default function Guida() {
   const stop = () => {
     synthRef.current?.cancel();
     setIsPlaying(false);
+  };
+
+  const suggestedQuestions = [
+    "Quali sono le sanzioni se non metto il microchip?",
+    "Cos'è il Codice Opzione Famiglia (COF) e che vantaggi ha?",
+    "Quali sono gli obblighi per condurre i cani in pubblico?",
+    "Come funzionano e chi tutela le colonie feline a Naro?"
+  ];
+
+  const handleSendChat = async (e?: React.FormEvent, customText?: string) => {
+    if (e) e.preventDefault();
+    const textToSend = customText || chatInput;
+    if (!textToSend.trim() || chatLoading) return;
+
+    const newMessages = [...chatMessages, { role: 'user' as const, content: textToSend }];
+    setChatMessages(newMessages);
+    if (!customText) setChatInput('');
+    setChatLoading(true);
+    setChatError(null);
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: newMessages })
+      });
+
+      if (!response.ok) {
+        throw new Error('Impossibile ottenere risposta dal server comunale. Verifica la connessione.');
+      }
+
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      setChatMessages([...newMessages, { role: 'assistant', content: data.reply }]);
+    } catch (err: any) {
+      console.error(err);
+      setChatError(err.message || 'Si è verificato un errore durante la risposta con l\'Intelligenza Artificiale.');
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const handleAskSuggested = (q: string) => {
+    handleSendChat(undefined, q);
   };
 
   const sections = [
@@ -122,45 +184,182 @@ export default function Guida() {
           )}
         </div>
 
+        {/* Navigation Tabs for Guide Type */}
+        <div className="flex border-b border-slate-200 p-0.5 gap-2 bg-slate-100/80 rounded-2xl max-w-sm self-start shadow-inner">
+          <button
+            onClick={() => setActiveGuidedTab('manual')}
+            className={`px-4 py-2.5 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
+              activeGuidedTab === 'manual'
+                ? 'bg-[#15803d]' + ' text-white shadow-xs'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            📋 Istruzioni Standard
+          </button>
+          <button
+            onClick={() => setActiveGuidedTab('ai')}
+            className={`px-4 py-2.5 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer relative ${
+              activeGuidedTab === 'ai'
+                ? 'bg-[#101b3a]' + ' text-white shadow-xs'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            🤖 Guida Intelligente AI
+            <span className="absolute -top-1 -right-1 flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+          </button>
+        </div>
+
         {/* Content Section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           {/* Left instructions list */}
           <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-sm flex flex-col gap-6">
-              <div className="space-y-6">
-                {sections.map((section, index) => (
-                  <motion.div
-                    key={section.id}
-                    initial={{ opacity: 0, y: 15 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: index * 0.05 }}
-                    className={`group cursor-pointer p-6 rounded-xl border border-slate-200/80 transition-all text-left ${
-                      settings.textToSpeech ? 'hover:border-[#15803d] hover:bg-emerald-50/10' : 'hover:border-slate-300 hover:bg-slate-50/20'
-                    }`}
-                    onClick={() => settings.textToSpeech && speak(`${section.title}. ${section.content}`)}
-                  >
-                    <div className="flex flex-col sm:flex-row gap-5 items-start">
-                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-transform group-hover:scale-105 ${
-                        index % 2 === 0 ? 'bg-[#15803d] text-white' : 'bg-[#101b3a] text-white'
-                      }`}>
-                        {React.cloneElement(section.icon, { className: "h-5 w-5" })}
+            {activeGuidedTab === 'manual' ? (
+              <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-sm flex flex-col gap-6">
+                <div className="space-y-6">
+                  {sections.map((section, index) => (
+                    <motion.div
+                      key={section.id}
+                      initial={{ opacity: 0, y: 15 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: index * 0.05 }}
+                      className={`group cursor-pointer p-6 rounded-xl border border-slate-200/80 transition-all text-left ${
+                        settings.textToSpeech ? 'hover:border-[#15803d] hover:bg-emerald-50/10' : 'hover:border-slate-300 hover:bg-slate-50/20'
+                      }`}
+                      onClick={() => settings.textToSpeech && speak(`${section.title}. ${section.content}`)}
+                    >
+                      <div className="flex flex-col sm:flex-row gap-5 items-start">
+                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-transform group-hover:scale-105 ${
+                          index % 2 === 0 ? 'bg-[#15803d] text-white' : 'bg-[#101b3a] text-white'
+                        }`}>
+                          {React.cloneElement(section.icon, { className: "h-5 w-5" })}
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-3">
+                            <h3 className="text-base font-black text-[#101b3a] tracking-tight">{section.title}</h3>
+                            {settings.textToSpeech && <Volume2 className="h-4 w-4 text-emerald-500" />}
+                          </div>
+                          <p className="text-xs sm:text-sm text-slate-500 leading-relaxed font-semibold">
+                            {section.content}
+                          </p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-sm flex flex-col h-[650px] justify-between">
+                <div className="flex flex-col gap-1.5 pb-4 border-b border-slate-100 text-left">
+                  <div className="flex items-center gap-2">
+                    <span className="bg-[#101b3a] text-emerald-400 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded">
+                      Live AI Grounded
+                    </span>
+                    <h2 className="text-lg font-black text-[#101b3a] tracking-tight">Regolamento Randagismo Naro</h2>
+                  </div>
+                  <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">
+                    Chiedi ad Ugo info su sanzioni, microchip, anagrafe canina, colonie feline e adozioni COF.
+                  </p>
+                </div>
+
+                {/* Chat message logs */}
+                <div className="flex-1 overflow-y-auto my-4 space-y-4 pr-1.5 text-left custom-scrollbar" style={{ maxHeight: '430px' }}>
+                  {chatMessages.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-4 pt-12">
+                      <div className="w-16 h-16 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-center text-[#101b3a] shadow-xs animate-bounce">
+                        <HelpCircle className="h-7 w-7 text-emerald-600" />
                       </div>
                       <div className="space-y-1">
-                        <div className="flex items-center gap-3">
-                          <h3 className="text-base font-black text-[#101b3a] tracking-tight">{section.title}</h3>
-                          {settings.textToSpeech && <Volume2 className="h-4 w-4 text-emerald-500" />}
-                        </div>
-                        <p className="text-xs sm:text-sm text-slate-500 leading-relaxed font-semibold">
-                          {section.content}
+                        <h3 className="text-sm font-black text-[#101b3a] uppercase tracking-wider">Avvia la Chat Intelligente</h3>
+                        <p className="text-xs text-slate-400 leading-normal max-w-sm font-bold">
+                          Fai una domanda libera oppure clicca su uno dei suggerimenti reali qui sotto, elaborati sui regolamenti caricati.
                         </p>
                       </div>
+                      
+                      {/* Suggested prompts list */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full pt-4">
+                        {suggestedQuestions.map((q, i) => (
+                          <button
+                            key={i}
+                            onClick={() => handleAskSuggested(q)}
+                            className="bg-slate-50 hover:bg-emerald-50 hover:text-[#15803d] border border-slate-200 hover:border-emerald-300 text-slate-600 text-left px-4 py-3 rounded-xl transition-all font-semibold text-xs cursor-pointer truncate"
+                          >
+                            💡 {q}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </motion.div>
-                ))}
+                  ) : (
+                    <div className="space-y-3 pt-2">
+                      {chatMessages.map((msg, index) => (
+                        <div
+                          key={index}
+                          className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                        >
+                          <div className={`max-w-[85%] rounded-2xl p-4 text-xs sm:text-sm font-semibold leading-relaxed shadow-xs relative group ${
+                            msg.role === 'user'
+                              ? 'bg-[#15803d] text-white rounded-br-none'
+                              : 'bg-slate-50 border border-slate-150 text-slate-800 rounded-bl-none whitespace-pre-line pr-10'
+                          }`}>
+                            {msg.content}
+                            
+                            {msg.role === 'assistant' && (
+                              <button
+                                onClick={() => speak(msg.content)}
+                                title="Riproduci a voce questo passaggio"
+                                className="absolute right-2.5 bottom-2.5 bg-white text-slate-500 hover:text-emerald-700 w-6 h-6 rounded-full shadow-xs border border-slate-200 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
+                              >
+                                <Volume2 className="h-3 w-3" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {chatLoading && (
+                        <div className="flex justify-start">
+                          <div className="bg-slate-50 border border-slate-100 rounded-2xl rounded-bl-none p-4 flex items-center gap-2 text-xs font-bold text-slate-400">
+                            <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
+                            <span>Ugo sta consultando i decreti di Naro...</span>
+                          </div>
+                        </div>
+                      )}
+                      <div ref={chatEndRef} />
+                    </div>
+                  )}
+                </div>
+
+                {/* Error Banner */}
+                {chatError && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-xs font-bold text-center mb-2">
+                    🚨 {chatError}
+                  </div>
+                )}
+
+                {/* Chat Input form */}
+                <form onSubmit={handleSendChat} className="flex gap-2 border-t border-slate-100 pt-4">
+                  <input
+                    type="text"
+                    disabled={chatLoading}
+                    placeholder="Chiedi ad Ugo... (es. Quali sanzioni per chi non iscrive il cane all'anagrafe?)"
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 font-semibold text-xs sm:text-sm text-[#101b3a] focus:bg-white focus:border-[#101b3a] outline-none transition-all placeholder:text-slate-400"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                  />
+                  <button
+                    type="submit"
+                    disabled={chatLoading || !chatInput.trim()}
+                    className="bg-[#101b3a] hover:bg-slate-800 text-white px-5 rounded-xl font-black uppercase tracking-wider text-[10px] sm:text-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40"
+                  >
+                    <span>Chiedi</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </form>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Right sidebar info */}
@@ -217,13 +416,18 @@ export default function Guida() {
 
         {/* AI Callout */}
         <div className="bg-slate-100/50 rounded-2xl border border-slate-200/80 p-8 text-center flex flex-col items-center justify-center gap-4">
-          <h2 className="text-xl font-black text-[#101b3a] tracking-tight">Hai un cane smarrito e provvisto di microchip?</h2>
-          <p className="text-xs text-slate-500 font-semibold max-w-xl">Chiedi istantaneamente al modulo AI collocato in basso a destra per scorrere i canili di rifugio o verificare la corrispondenza immediata con le segnalazioni d'ufficio del Comune.</p>
+          <h2 className="text-xl font-black text-[#101b3a] tracking-tight">Hai dubbi sui Regolamenti Comunali o sulle sanzioni?</h2>
+          <p className="text-xs text-slate-500 font-semibold max-w-xl">
+            Chiedi istantaneamente al nostro assistente intelligente virtuale "Ugo", pronto a rispondere sui documenti legislativi del Comune di Naro relativi ai cani e gatti randagi.
+          </p>
           <button
-            onClick={() => speak("Per assistenza urgente chiedi al nostro chatbot di supporto guidato in basso a destra.")}
-            className="text-[9px] font-black uppercase tracking-widest text-[#15803d]"
+            onClick={() => {
+              setActiveGuidedTab('ai');
+              window.scrollTo({ top: 350, behavior: 'smooth' });
+            }}
+            className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-[#15803d] hover:text-[#166534] transition-colors cursor-pointer"
           >
-            Apri Risoluzione Intelligente &rarr;
+            Chiedi ad Ugo (Assistente AI) &rarr;
           </button>
         </div>
 

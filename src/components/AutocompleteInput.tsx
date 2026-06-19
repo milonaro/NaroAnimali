@@ -1,0 +1,177 @@
+import { useState, useEffect, useRef } from 'react';
+import { MapPin, Search, Loader2 } from 'lucide-react';
+
+interface AutocompleteInputProps {
+  value: string;
+  onChange: (val: string) => void;
+  placeholder?: string;
+  type: 'comune' | 'via';
+  comuneContext?: string; // e.g. "Naro" when searching for "vias" in Naro
+  className?: string;
+  id?: string;
+}
+
+// Quick preloaded cache of common local/Italian municipalities for instant zero-lag response
+const LOCAL_COMUNI_FALLBACK = [
+  "NARO", "CANICATTÌ", "AGRIGENTO", "CAMPOBELLO DI LICATA", "FAVARA", "LICATA", 
+  "RAVANUSA", "PALERMO", "CATANIA", "ROMA", "MILANO", "TORINO", "NAPOLI", "FIRENZE", "VENEZIA"
+];
+
+export default function AutocompleteInput({
+  value,
+  onChange,
+  placeholder = "Inizia a scrivere...",
+  type,
+  comuneContext = "",
+  className = "",
+  id
+}: AutocompleteInputProps) {
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
+  const searchAPI = async (query: string) => {
+    if (!query || query.length < 2) {
+      // Local list for municipalities if search is short or empty
+      if (type === 'comune') {
+        const filtered = LOCAL_COMUNI_FALLBACK.filter(c => c.startsWith(query.toUpperCase()));
+        setSuggestions(filtered);
+      } else {
+        setSuggestions([]);
+      }
+      return;
+    }
+
+    setLoading(true);
+    try {
+      let url = "";
+      if (type === 'comune') {
+        url = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=it&featuretype=settlement&q=${encodeURIComponent(query)}&limit=8`;
+      } else {
+        // Via / Stradario context e.g. "Via Sabella, Naro"
+        const fullQuery = `${query}${comuneContext ? `, ${comuneContext}` : ''}`;
+        url = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=it&q=${encodeURIComponent(fullQuery)}&limit=8`;
+      }
+
+      const response = await fetch(url, {
+        headers: {
+          'Accept-Language': 'it-IT,it;q=0.9',
+          'User-Agent': 'AnimalHub-PA-WhiteLabel-CMS' // Recommended polite agent for Nominatim
+        }
+      });
+
+      if (!response.ok) throw new Error("Nominatim error");
+      const data = await response.json();
+
+      const results = data.map((item: any) => {
+        const parts = item.display_name.split(',');
+        if (type === 'comune') {
+          // Typically the first item is the town name (e.g. "Naro")
+          const cityName = parts[0]?.trim();
+          return cityName ? cityName.toUpperCase() : null;
+        } else {
+          // For streets, return the street name and number but exclude county and country if too long
+          // e.g. "Via Sabella, Naro"
+          const street = parts[0]?.trim();
+          const location = parts[1]?.trim();
+          if (street && location) {
+            return `${street}, ${location}`;
+          }
+          return item.display_name.split(',').slice(0, 2).join(', ');
+        }
+      }).filter((val: string | null): val is string => val !== null);
+
+      // Unique results
+      const uniqueResults = Array.from(new Set(results)) as string[];
+      setSuggestions(uniqueResults);
+    } catch (error) {
+      console.error("Autocomplete search failed:", error);
+      // Fallback locally
+      if (type === 'comune') {
+        const filtered = LOCAL_COMUNI_FALLBACK.filter(c => 
+          c.toLowerCase().includes(query.toLowerCase())
+        );
+        setSuggestions(filtered);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    onChange(val);
+    setShowDropdown(true);
+
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+
+    debounceTimer.current = setTimeout(() => {
+      searchAPI(val);
+    }, 450);
+  };
+
+  const selectSuggestion = (suggestion: string) => {
+    onChange(suggestion);
+    setSuggestions([]);
+    setShowDropdown(false);
+  };
+
+  return (
+    <div ref={containerRef} className="relative w-full" id={id}>
+      <div className="relative flex items-center">
+        <input
+          type="text"
+          value={value}
+          onChange={handleInputChange}
+          onFocus={() => {
+            setShowDropdown(true);
+            if (suggestions.length === 0) {
+              searchAPI(value);
+            }
+          }}
+          placeholder={placeholder}
+          className={`${className} pr-10`}
+          required
+        />
+        <div className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1 text-slate-400">
+          {loading ? (
+            <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
+          ) : (
+            <MapPin className="h-4 w-4 opacity-50 hover:text-emerald-600 transition-colors" />
+          )}
+        </div>
+      </div>
+
+      {showDropdown && suggestions.length > 0 && (
+        <div className="absolute z-50 left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl max-h-56 overflow-y-auto divide-y divide-slate-100 animate-fadeIn">
+          {suggestions.map((sug, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => selectSuggestion(sug)}
+              className="w-full text-left px-4 py-3 hover:bg-slate-50 text-xs font-bold text-[#101b3a] flex items-center gap-2.5 transition-colors uppercase font-sans cursor-pointer"
+            >
+              <span className="text-emerald-600 shrink-0">📍</span>
+              <span className="truncate">{sug}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

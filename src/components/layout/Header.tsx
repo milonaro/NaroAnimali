@@ -173,16 +173,26 @@ export default function Header() {
           {/* Brand Logo & Name */}
           <Link to="/" className="flex items-center gap-3 shrink-0">
             <div className={`hover:opacity-90 transition-opacity ${transparentHeader ? 'text-white' : 'text-[#101b3a]'}`}>
-              <div className="flex items-center gap-2">
-                {siteLogo ? (
-                   <img src={siteLogo} alt="Logo" className="h-10 md:h-12 object-contain" />
-                ) : (
-                   <PawPrint className={`h-8 w-8 md:h-9 md:w-9 ${transparentHeader ? 'text-emerald-400' : 'text-[#15803d]'}`} />
-                )}
-                <div className="flex flex-col text-left">
-                  <span className="text-xl md:text-2xl font-black tracking-tight leading-none">AnimalHub PA</span>
-                  <span className={`text-[8px] md:text-[9px] uppercase tracking-[0.2em] font-extrabold mt-1 leading-none ${transparentHeader ? 'text-white/80' : 'text-[#64748b]'}`}>{siteName}</span>
+              <div className="flex items-center gap-3.5">
+                {/* Brand Logo Group */}
+                <div className="flex items-center gap-2">
+                  <PawPrint className={`h-8 w-8 md:h-9 md:w-9 ${transparentHeader ? 'text-emerald-400' : 'text-[#15803d]'}`} />
+                  <div className="flex flex-col text-left">
+                    <span className="text-xl md:text-2xl font-black tracking-tight leading-none">AnimalHub PA</span>
+                    <span className={`text-[8px] md:text-[9px] uppercase tracking-[0.2em] font-extrabold mt-1 leading-none ${transparentHeader ? 'text-white/85' : 'text-[#64748b]'}`}>{siteName}</span>
+                  </div>
                 </div>
+
+                {/* Municipality Co-branding Logo */}
+                {siteLogo && (
+                  <div className="flex items-center gap-3 border-l pl-3 border-slate-350/30 md:border-l-2 md:pl-3.5 animate-fadeIn">
+                    <img 
+                      src={siteLogo} 
+                      alt={`Stemma ${siteName}`} 
+                      className={`h-11 md:h-14 w-auto object-contain max-w-[64px] drop-shadow-sm hover:scale-105 transition-all ${transparentHeader ? 'brightness-110 filter invert-0 contrast-125' : 'mix-blend-multiply'}`} 
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </Link>
@@ -279,15 +289,9 @@ export default function Header() {
                       <div className="px-4 pb-3 pt-1 border-b border-slate-100">
                         <span className="text-[9px] font-black text-[#15803d] uppercase tracking-widest block">Utenza Cittadino</span>
                         <span className="text-xs font-black text-[#101b3a] block truncate mt-1">{citizenEmail}</span>
-                        {citizenProfile?.is_spid_verified ? (
-                          <span className="inline-flex items-center gap-1 mt-1.5 bg-blue-50 text-blue-700 text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded border border-blue-200">
-                            🔒 SPID Verified ({citizenProfile.identity_provider})
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 mt-1.5 bg-amber-50 text-amber-700 text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded border border-amber-200">
-                            📧 OTP Authenticated
-                          </span>
-                        )}
+                        <span className="inline-flex items-center gap-1 mt-1.5 bg-emerald-50 text-emerald-700 text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded border border-emerald-200">
+                          📧 Accesso autenticato (OTP)
+                        </span>
                       </div>
 
                       <div className="py-2">

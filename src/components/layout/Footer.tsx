@@ -1,10 +1,36 @@
-import { Shield, Accessibility, Info, Mail, Phone, MapPin, HelpCircle, BarChart3 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Shield, Accessibility, Info, Mail, Phone, MapPin, HelpCircle, BarChart3, Globe } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AccessibilityToggle from './AccessibilityToggle';
 import { useLanguage } from '../../contexts/LanguageContext';
 
 export default function Footer() {
   const { language, t } = useLanguage();
+  const [config, setConfig] = useState<any>({
+    siteName: "Comune di Naro",
+    comune_indirizzo: "Piazza Giuseppe Garibaldi, 1",
+    comune_cap: "92028",
+    comune_provincia: "AG",
+    comune_email: "protocollo@comune.naro.ag.it",
+    comune_telefono: "0922 941111",
+    comune_pec: "protocollo@pec.comune.naro.ag.it"
+  });
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const res = await fetch("/api/admin/config");
+        if (res.ok) {
+          const data = await res.json();
+          setConfig((prev: any) => ({
+            ...prev,
+            ...data
+          }));
+        }
+      } catch (e) {}
+    };
+    fetchConfig();
+  }, []);
 
   return (
     <footer className="bg-[#101b3a] py-20 mt-auto text-white border-t border-[#101b3a]">
@@ -15,7 +41,7 @@ export default function Footer() {
               <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center font-bold italic text-[#101b3a] shadow-lg">AH</div>
               <div className="flex flex-col">
                  <span className="text-2xl font-bold tracking-tight text-white leading-none">AnimalHub PA</span>
-                 <span className="text-[10px] uppercase tracking-widest text-[#94a3b8] font-medium">DEMO {t('home.hero_badge')}</span>
+                 <span className="text-[10px] uppercase tracking-widest text-[#94a3b8] font-medium">DEMO {config.siteName}</span>
               </div>
             </div>
             <p className="text-sm font-medium text-[#94a3b8] max-w-sm leading-relaxed mb-8">
@@ -43,19 +69,24 @@ export default function Footer() {
           </div>
 
           <div>
-            <h4 className="text-xs font-bold text-white uppercase tracking-[0.2em] mb-8">Contatti</h4>
+            <h4 className="text-xs font-bold text-white uppercase tracking-[0.2em] mb-8">Contatti Ente</h4>
             <ul className="space-y-6 text-sm font-medium text-[#94a3b8]">
               <li className="flex items-start gap-3">
                 <MapPin className="h-5 w-5 text-emerald-400 shrink-0" />
-                <span>Comune di Naro, Piazza Garibaldi, 92014 Naro (AG)</span>
+                <span>{config.siteName}, {config.comune_indirizzo}, {config.comune_cap} {config.siteName.replace("Comune di ", "")} ({config.comune_provincia})</span>
               </li>
               <li className="flex items-center gap-3">
                 <Phone className="h-5 w-5 text-emerald-400 shrink-0" />
-                <span>0922 941111</span>
+                <span>{config.comune_telefono}</span>
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="h-5 w-5 text-emerald-400 shrink-0" />
-                <span className="break-all">protocollo@comune.naro.ag.it</span>
+                <div>
+                  <span className="block break-all">{config.comune_email}</span>
+                  {config.comune_pec && (
+                    <span className="block text-[11px] text-slate-400 mt-1 uppercase font-semibold">PEC: {config.comune_pec}</span>
+                  )}
+                </div>
               </li>
             </ul>
           </div>
@@ -64,7 +95,7 @@ export default function Footer() {
         <div className="mt-20 pt-10 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex flex-col md:flex-row items-center gap-6">
             <p className="text-xs font-medium text-slate-400">
-              © {new Date().getFullYear()} DEMO {t('home.hero_badge')}. {t('footer.rights')}
+              © {new Date().getFullYear()} {config.siteName}. {t('footer.rights')}
             </p>
             <span className="hidden md:inline text-white/20">|</span>
             <Link 

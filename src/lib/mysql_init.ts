@@ -83,6 +83,33 @@ export async function addMySQLColumns() {
         console.warn("Info migrazione MySQL colonna proprietario_email a registro_anagrafica:", e.message);
       }
     }
+
+    try {
+      await pool.execute("ALTER TABLE citizen_profiles ADD COLUMN sesso VARCHAR(10) DEFAULT NULL");
+      console.log("MySQL/SQLite: aggiunta colonna sesso o citizen_profiles");
+    } catch (e: any) {
+      if (!e.message.includes("Duplicate column") && !e.message.includes("already exists") && !e.message.includes("duplicate column")) {
+        console.warn("Info migrazione colonna sesso:", e.message);
+      }
+    }
+
+    try {
+      await pool.execute("ALTER TABLE citizen_profiles ADD COLUMN comune_nascita VARCHAR(100) DEFAULT NULL");
+      console.log("MySQL/SQLite: aggiunta colonna comune_nascita a citizen_profiles");
+    } catch (e: any) {
+      if (!e.message.includes("Duplicate column") && !e.message.includes("already exists") && !e.message.includes("duplicate column")) {
+        console.warn("Info migrazione colonna comune_nascita:", e.message);
+      }
+    }
+
+    try {
+      await pool.execute("ALTER TABLE citizen_profiles ADD COLUMN data_nascita VARCHAR(20) DEFAULT NULL");
+      console.log("MySQL/SQLite: aggiunta colonna data_nascita a citizen_profiles");
+    } catch (e: any) {
+      if (!e.message.includes("Duplicate column") && !e.message.includes("already exists") && !e.message.includes("duplicate column")) {
+        console.warn("Info migrazione colonna data_nascita:", e.message);
+      }
+    }
   }
 }
 
@@ -312,6 +339,9 @@ export async function createMySQLTables() {
         telefono VARCHAR(30),
         indirizzo VARCHAR(255),
         comune_residenza VARCHAR(100),
+        sesso VARCHAR(10),
+        comune_nascita VARCHAR(100),
+        data_nascita VARCHAR(20),
         is_spid_verified TINYINT(1) DEFAULT 0,
         identity_provider VARCHAR(50) DEFAULT NULL,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP

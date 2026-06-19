@@ -1,10 +1,25 @@
-import { useState, useEffect } from 'react';
-import { Mail, ShieldCheck, Search, Clock, CheckCircle2, ChevronRight, ChevronDown, ArrowLeft, Loader2, MapPin, Activity, HelpCircle, Info, Download, BarChart3, Maximize2, Plus, FileText } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Mail, ShieldCheck, Search, Clock, CheckCircle2, ChevronRight, ChevronDown, ArrowLeft, Loader2, MapPin, Activity, HelpCircle, Info, Download, BarChart3, Maximize2, Plus, FileText, Cloud, Upload, Database, Trash2, RefreshCw, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import Lightbox from '../components/ui/Lightbox';
+
+// Google Drive Integration
+import {
+  googleSignInDrive,
+  logoutDrive,
+  listDriveFiles,
+  uploadToDrive,
+  deleteDriveFile,
+  getDriveAccessToken,
+  initDriveAuth,
+  DriveFile
+} from '../lib/googleDrive';
+
+import { calculateFiscalCode, isValidFiscalCode } from '../lib/fiscalCode';
+import AutocompleteInput from '../components/AutocompleteInput';
 
 interface Report {
   code: string;
@@ -48,7 +63,7 @@ export default function MiaArea() {
   const [reports, setReports] = useState<Report[]>([]);
   
   // --- NUOVI STATI ANAGRAFE CANINA ---
-  const [activeTab, setActiveTab] = useState<'segnalazioni' | 'anagrafe' | 'profilo'>('segnalazioni');
+  const [activeTab, setActiveTab] = useState<'segnalazioni' | 'anagrafe' | 'profilo' | 'gdrive'>('segnalazioni');
   const [animals, setAnimals] = useState<any[]>([]);
   const [loadingAnimals, setLoadingAnimals] = useState(false);
   const [regForm, setRegForm] = useState({
@@ -86,6 +101,260 @@ export default function MiaArea() {
     comuneResidenza: 'Naro',
     consensoDati: true
   });
+
+  // --- GOOGLE DRIVE STATES & ARCHIVE HELPERS ---
+  const [gdriveAccessToken, setGdriveAccessToken] = useState<string | null>(null);
+  const [gdriveFiles, setGdriveFiles] = useState<DriveFile[]>([]);
+  const [loadingDriveFiles, setLoadingDriveFiles] = useState(false);
+  const [driveError, setDriveError] = useState<string | null>(null);
+  const [searchDriveQuery, setSearchDriveQuery] = useState('');
+  const [dragActive, setDragActive] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<string | null>(null);
+  const [savingToDriveId, setSavingToDriveId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const loadDriveFilesList = async (tokenToUse?: string) => {
+    setLoadingDriveFiles(true);
+    setDriveError(null);
+    try {
+      const parsedTok = tokenToUse || gdriveAccessToken;
+      if (!parsedTok) return;
+      
+      let queryStr = "";
+      if (searchDriveQuery.trim()) {
+        queryStr = `name contains '${searchDriveQuery.replace(/'/g, "\\'")}'`;
+      }
+      
+      const files = await listDriveFiles(queryStr);
+      setGdriveFiles(files);
+    } catch (err: any) {
+      console.error(err);
+      setDriveError(err.message || "Errore nella lettura dei file da Google Drive.");
+    } finally {
+      setLoadingDriveFiles(false);
+    }
+  };
+
+  const handleGDriveLogin = async () => {
+    setLoadingDriveFiles(true);
+    setDriveError(null);
+    try {
+      const token = await googleSignInDrive();
+      setGdriveAccessToken(token);
+      await loadDriveFilesList(token);
+    } catch (err: any) {
+      console.error(err);
+      setDriveError(err.message || "Tentativo di accesso con account Google interrotto.");
+    } finally {
+      setLoadingDriveFiles(false);
+    }
+  };
+
+  const handleGDriveLogout = async () => {
+    await logoutDrive();
+    setGdriveAccessToken(null);
+    setGdriveFiles([]);
+  };
+
+  const handleDeleteFileGDrive = async (id: string, name: string) => {
+    const confirmed = window.confirm(
+      `Sei sicuro di voler eliminare definitivamente il file "${name}" da Google Drive? Questa operazione è irreversibile.`
+    );
+    if (!confirmed) return;
+    
+    setLoadingDriveFiles(true);
+    try {
+      await deleteDriveFile(id);
+      setGdriveFiles(prev => prev.filter(f => f.id !== id));
+    } catch (err: any) {
+      console.error(err);
+      alert(`Impossibile eliminare il file da Google Drive: ${err.message}`);
+    } finally {
+      setLoadingDriveFiles(false);
+    }
+  };
+
+  const handleFileUploadGDrive = async (file: File) => {
+    if (!file) return;
+    setUploadProgress(`Caricamento di ${file.name} in corso...`);
+    setDriveError(null);
+    try {
+      await uploadToDrive(file.name, file.type, file);
+      await loadDriveFilesList();
+      alert(`File "${file.name}" caricato correttamente nella cartella "AnimalHub Naro" di Google Drive!`);
+    } catch (err: any) {
+      console.error(err);
+      setDriveError(err.message || 'Errore durante il caricamento del file.');
+    } finally {
+      setUploadProgress(null);
+    }
+  };
+
+  const saveCertificateToDrive = async (animal: any) => {
+    setSavingToDriveId(animal.microchip);
+    try {
+      let tok = gdriveAccessToken;
+      if (!tok) {
+        const wantsGo = window.confirm("Per archiviare i documenti nel tuo Google Drive è necessario effettuare l'autenticazione con il tuo account Google. Vuoi procedere?");
+        if (!wantsGo) return;
+        tok = await googleSignInDrive();
+        setGdriveAccessToken(tok);
+      }
+      
+      const doc = new jsPDF();
+      doc.setFillColor(16, 27, 58); // #101b3a
+      doc.rect(0, 0, 210, 45, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(20);
+      doc.text('COMUNE DI NARO', 105, 20, { align: 'center' });
+      doc.setFontSize(10);
+      doc.text('SETTORE BENESSERE ANIMALE - UFFICIO ANAGRAFE CANINA COMUNALE', 105, 32, { align: 'center' });
+      
+      doc.setTextColor(30, 58, 95); // #1e3a5f
+      doc.setFontSize(14);
+      doc.text('ATTESTATO DI RICHIESTA ISCRIZIONE ANAGRAFICA', 105, 60, { align: 'center' });
+      doc.setDrawColor(220, 220, 220);
+      doc.line(20, 68, 190, 68);
+      
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(11);
+      
+      let currentY = 82;
+      const addRow = (label: string, value: string) => {
+        doc.setFont('Helvetica', 'bold');
+        doc.text(label, 30, currentY);
+        doc.setFont('Helvetica', 'normal');
+        doc.text(value, 95, currentY);
+        currentY += 10;
+      };
+
+      addRow('Codice Microchip (15 cifre):', animal.microchip);
+      addRow('Nome Animale:', animal.nome);
+      addRow('Specie / Tipo:', animal.specie === 'Cane' ? 'CANE (Canis lupus familiaris)' : animal.specie.toUpperCase());
+      addRow('Sesso:', animal.sesso === 'M' ? 'MASCHIO' : animal.sesso === 'F' ? 'FEMMINA' : animal.sesso);
+      addRow('Taglia dichiarata:', animal.taglia);
+      addRow('Colore / Mantello:', animal.colore || 'N/D');
+      addRow('Stato Sanitario:', animal.condizioni_sanitarie || 'Normale');
+      addRow('Proprietario (E-mail):', email);
+      addRow('Stato d\'Ufficio:', animal.stato === 'IN_ATTESA' ? 'IN ATTESA DI APPROVAZIONE PROTOCOLLO' : 'REGISTRATO CON SUCCESSO');
+      addRow('Data della richiesta:', new Date(animal.data_registrazione || animal.dataRegistrazione).toLocaleDateString('it-IT'));
+
+      doc.line(20, currentY + 5, 190, currentY + 5);
+
+      doc.setFontSize(8);
+      doc.setTextColor(140, 140, 140);
+      doc.text('Questa ricevuta attesta l\'invio telematico della pratica di iscrizione all\'Anagrafe Canina.', 105, currentY + 15, { align: 'center' });
+      doc.text('Il Comune verificherà la conformità del codice microchip e la documentazione allegata.', 105, currentY + 20, { align: 'center' });
+      doc.text('Generato in automatico tramite piattaforma AnimalHub PA - ID: ' + animal.id, 105, currentY + 25, { align: 'center' });
+
+      const pdfBlob = doc.output('blob');
+      const filename = `Attestato_Iscrizione_${animal.microchip}.pdf`;
+
+      await uploadToDrive(filename, 'application/pdf', pdfBlob);
+      if (activeTab === 'gdrive') {
+        loadDriveFilesList(tok);
+      }
+      alert(`Attestato di ${animal.nome} caricato con successo in Google Drive!`);
+    } catch (err: any) {
+      console.error(err);
+      alert(`Errore nel salvataggio su Drive: ${err.message}`);
+    } finally {
+      setSavingToDriveId(null);
+    }
+  };
+
+  const saveReceiptToDrive = async (report: Report) => {
+    setSavingToDriveId(report.code);
+    try {
+      let tok = gdriveAccessToken;
+      if (!tok) {
+        const wantsGo = window.confirm("Per archiviare i documenti nel tuo Google Drive è necessario effettuare l'autenticazione con il tuo account Google. Vuoi procedere?");
+        if (!wantsGo) return;
+        tok = await googleSignInDrive();
+        setGdriveAccessToken(tok);
+      }
+
+      const doc = new jsPDF();
+      doc.setFillColor(16, 27, 58); // #101b3a
+      doc.rect(0, 0, 210, 40, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(22);
+      doc.text('AnimalHub PA - Comune di Naro', 20, 25);
+      
+      doc.setTextColor(30, 58, 95); // #1e3a5f
+      doc.setFontSize(10);
+      doc.text(`RICEVUTA DI SEGNALAZIONE PROTOCOLLATA OGGI: ${new Date().toLocaleDateString('it-IT')}`, 20, 55);
+      
+      doc.setDrawColor(220, 220, 220);
+      doc.line(20, 60, 190, 60);
+      
+      doc.setFontSize(14);
+      doc.text(`Codice Pratica: ${report.code}`, 20, 75);
+      
+      doc.setFontSize(11);
+      doc.setTextColor(100, 100, 100);
+      doc.text('Dettagli Segnalazione:', 20, 90);
+      
+      doc.setTextColor(0, 0, 0);
+      doc.text(`• Descrizione: ${report.desc}`, 25, 100);
+      doc.text(`• Specie: ${report.specie}`, 25, 110);
+      doc.text(`• Località: ${report.location}`, 25, 120);
+      doc.text(`• Data Apertura: ${report.date}`, 25, 130);
+      doc.text(`• Stato Attuale: ${report.status}`, 25, 140);
+      
+      doc.setDrawColor(240, 240, 240);
+      doc.setFillColor(248, 250, 252);
+      doc.rect(20, 160, 170, 30, 'F');
+      doc.setFontSize(9);
+      doc.text('Questa ricevuta ha valore puramente informativo delle attività di protocollo digitale.', 30, 172);
+      doc.text('Comune di Naro (AG) - Servizio Benessere Animale.', 30, 180);
+
+      const pdfBlob = doc.output('blob');
+      const filename = `Ricevuta_${report.code}.pdf`;
+
+      await uploadToDrive(filename, 'application/pdf', pdfBlob);
+      if (activeTab === 'gdrive') {
+        loadDriveFilesList(tok);
+      }
+      alert(`Ricevuta ${report.code} salvata con successo in Google Drive!`);
+    } catch (err: any) {
+      console.error(err);
+      alert(`Errore nel salvataggio su Drive: ${err.message}`);
+    } finally {
+      setSavingToDriveId(null);
+    }
+  };
+
+  useEffect(() => {
+    initDriveAuth();
+    getDriveAccessToken().then(tok => {
+      if (tok) {
+        setGdriveAccessToken(tok);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    if (gdriveAccessToken && activeTab === 'gdrive') {
+      loadDriveFilesList();
+    }
+  }, [searchDriveQuery, activeTab, gdriveAccessToken]);
+
+  // Calcolo automatico del Codice Fiscale basato sui dati inseriti dall'utente
+  useEffect(() => {
+    if (profile) {
+      const computed = calculateFiscalCode({
+        nome: profile.nome || "",
+        cognome: profile.cognome || "",
+        sesso: profile.sesso === "M" || profile.sesso === "F" ? profile.sesso : "M",
+        dataNascita: profile.data_nascita || "",
+        comuneNascita: profile.comune_nascita || ""
+      });
+      if (computed && computed !== profile.codice_fiscale) {
+        setProfile((prev: any) => ({ ...prev, codice_fiscale: computed }));
+      }
+    }
+  }, [profile?.nome, profile?.cognome, profile?.sesso, profile?.data_nascita, profile?.comune_nascita]);
 
   useEffect(() => {
     checkAuth();
@@ -495,124 +764,32 @@ export default function MiaArea() {
                 className="max-w-md mx-auto w-full pt-12 text-left"
               >
                 <div className="bg-white p-8 rounded-2xl border border-slate-200/80 shadow-sm space-y-6">
-                  {/* METODO DI ACCESSO SELECTOR */}
-                  <div className="flex border-b border-slate-100 p-0.5 gap-2 bg-slate-50 rounded-xl">
-                    <button
-                      onClick={() => setLoginMethod('otp')}
-                      className={`flex-1 py-3.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer text-center ${
-                        loginMethod === 'otp'
-                          ? 'bg-[#15803d] text-white shadow-sm'
-                          : 'text-slate-500 hover:text-slate-800'
-                      }`}
-                    >
-                      🔑 ACCESSO OTP
-                    </button>
-                    <button
-                      onClick={() => setLoginMethod('spid')}
-                      className={`flex-1 py-3.5 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer text-center ${
-                        loginMethod === 'spid'
-                          ? 'bg-[#0066cc] text-white shadow-sm'
-                          : 'text-slate-500 hover:text-[#0066cc]'
-                      }`}
-                    >
-                      🇮🇹 ACCESSO SPID
-                    </button>
+                  <div className="text-center">
+                    <div className="bg-emerald-50 w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-xs">
+                      <Mail className="text-[#15803d] h-5 w-5" />
+                    </div>
+                    <h2 className="text-lg font-black text-[#101b3a] tracking-tight">Verifica la tua Identità</h2>
+                    <p className="text-slate-400 text-[10px] font-bold mt-1 uppercase tracking-wider">Inserisci la tua email per ricevere un codice provvisorio di accesso.</p>
                   </div>
 
-                  {loginMethod === 'otp' ? (
-                    <div className="space-y-6">
-                      <div className="text-center">
-                        <div className="bg-emerald-50 w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-xs">
-                          <Mail className="text-[#15803d] h-5 w-5" />
-                        </div>
-                        <h2 className="text-lg font-black text-[#101b3a] tracking-tight">Verifica la tua Identità</h2>
-                        <p className="text-slate-400 text-[10px] font-bold mt-1 uppercase tracking-wider">Inserisci la tua email per ricevere un codice provvisorio.</p>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Indirizzo Email</label>
-                        <input
-                          type="email"
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all placeholder:text-slate-300 text-sm"
-                          placeholder="la.tua@email.it"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                        />
-                      </div>
-                      {error && <p className="text-red-500 text-xs font-bold text-center">{error}</p>}
-                      <button
-                        disabled={!email || loading}
-                        onClick={handleSendOTP}
-                        className="w-full bg-[#15803d] text-white py-4 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-sm hover:bg-[#166534] transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
-                      >
-                        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Invia Codice Accesso &rarr;</>}
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-6">
-                      <div className="text-center">
-                        <div className="bg-blue-50 w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-xs">
-                          <ShieldCheck className="text-[#0066cc] h-5 w-5" />
-                        </div>
-                        <h2 className="text-lg font-black text-[#101b3a] tracking-tight">Accesso Certificato SPID</h2>
-                        <p className="text-slate-400 text-[10px] font-bold mt-1 uppercase tracking-wider">Accedi in modo sicuro tramite il tuo gestore d'identità.</p>
-                      </div>
-
-                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-2.5">
-                        <input
-                          type="checkbox"
-                          id="spid_professional"
-                          className="rounded text-blue-600 focus:ring-blue-500 cursor-pointer w-4 h-4 border-slate-300"
-                        />
-                        <label htmlFor="spid_professional" className="text-[10px] font-bold text-slate-600 uppercase tracking-wider cursor-pointer select-none">
-                          Utilizza SPID professionale
-                        </label>
-                      </div>
-
-                      <div className="relative">
-                        <button
-                          onClick={() => setIsSpidDropdownOpen(!isSpidDropdownOpen)}
-                          type="button"
-                          className="w-full bg-[#0066cc] text-white py-4 rounded-xl font-bold uppercase tracking-wider text-xs shadow-sm hover:bg-[#0052a3] transition-all flex items-center justify-center gap-3 cursor-pointer"
-                        >
-                          <span className="bg-white text-[#0066cc] px-1.5 py-0.5 rounded font-black text-[9px] tracking-tight uppercase">spid</span>
-                          <span>Entra con SPID</span>
-                          <ChevronDown className="h-4 w-4" />
-                        </button>
-
-                        {isSpidDropdownOpen && (
-                          <div className="absolute left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-150 p-3.5 z-[200] grid grid-cols-2 gap-2 max-h-72 overflow-y-auto">
-                            {SPID_PROVIDERS.map((p) => (
-                              <button
-                                key={p.id}
-                                onClick={() => {
-                                  setSelectedSpidProvider(p.name);
-                                  // Seed with a default demo credential that passes valid CF requirements
-                                  setSpidForm({
-                                    email: 'mario.rossi@poste.it',
-                                    username: 'mario.rossi.80',
-                                    password: '••••••••••••',
-                                    nome: 'Mario',
-                                    cognome: 'Rossi',
-                                    codiceFiscale: 'RSSMRA80A01H501U',
-                                    telefono: '3471234567',
-                                    indirizzo: 'Via Vittorio Emanuele 12',
-                                    comuneResidenza: 'Naro',
-                                    consensoDati: true
-                                  });
-                                  setShowSpidModal(true);
-                                  setIsSpidDropdownOpen(false);
-                                }}
-                                className={`flex items-center justify-center p-3 rounded-xl border font-black text-[10px] tracking-wide uppercase transition-all shadow-xs hover:scale-[1.03] cursor-pointer ${p.colorBg}`}
-                              >
-                                {p.logoText}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Indirizzo Email</label>
+                    <input
+                      type="email"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all placeholder:text-slate-300 text-sm"
+                      placeholder="la.tua@email.it"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                  {error && <p className="text-red-500 text-xs font-bold text-center">{error}</p>}
+                  <button
+                    disabled={!email || loading}
+                    onClick={handleSendOTP}
+                    className="w-full bg-[#15803d] text-white py-4 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-sm hover:bg-[#166534] transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Invia Codice Accesso &rarr;</>}
+                  </button>
                 </div>
                 <p className="text-center text-[9px] font-bold uppercase tracking-widest text-slate-400 mt-8 flex items-center justify-center gap-2">
                   <ShieldCheck className="h-3 w-3 text-emerald-600" /> Servizio di Sicurezza Certificato AGID
@@ -721,6 +898,16 @@ export default function MiaArea() {
                           }`}
                         >
                           Profilo Cittadino
+                        </button>
+                        <button
+                          onClick={() => setActiveTab('gdrive')}
+                          className={`pb-4 text-sm font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+                            activeTab === 'gdrive'
+                              ? 'border-[#15803d] text-[#15803d]'
+                              : 'border-transparent text-slate-400 hover:text-slate-600'
+                          }`}
+                        >
+                          ☁️ Archivio Cloud Google Drive
                         </button>
                       </div>
 
@@ -1055,6 +1242,13 @@ export default function MiaArea() {
                                         >
                                           <Download className="h-3.5 w-3.5" /> Scarica Attestato
                                         </button>
+                                        <button 
+                                          onClick={() => saveCertificateToDrive(anim)}
+                                          disabled={savingToDriveId === anim.microchip}
+                                          className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-[#15803d] transition-all px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider shadow-sm cursor-pointer ml-auto sm:ml-0 disabled:opacity-50"
+                                        >
+                                          <Cloud className="h-3.5 w-3.5" /> {savingToDriveId === anim.microchip ? 'Salvataggio...' : 'Salva su Drive'}
+                                        </button>
                                       </div>
                                     </div>
                                   ))}
@@ -1063,22 +1257,206 @@ export default function MiaArea() {
                             </div>
                           </div>
                         </div>
+                      ) : activeTab === 'gdrive' ? (
+                        <div className="bg-white p-6 sm:p-10 rounded-2xl border border-slate-200/80 shadow-sm space-y-8 text-left animate-fadeIn select-none">
+                          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-6 border-b border-slate-100">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="bg-[#101b3a] text-emerald-400 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded">
+                                  Google Workspace Integration
+                                </span>
+                                <h2 className="text-xl font-black text-[#101b3a] tracking-tight">Archivio Cloud Google Drive</h2>
+                              </div>
+                              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">
+                                Backup e gestione dei tuoi documenti ufficiali (Richieste, Certificati di microchip e Attestati di adozione) su cloud.
+                              </p>
+                            </div>
+                            
+                            {gdriveAccessToken && (
+                              <button
+                                onClick={handleGDriveLogout}
+                                className="flex items-center gap-1.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 transition-all px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer shadow-sm"
+                              >
+                                <LogOut className="h-4 w-4" /> Disconnetti GDrive
+                              </button>
+                            )}
+                          </div>
+
+                          {!gdriveAccessToken ? (
+                            <div className="flex flex-col items-center justify-center p-12 text-center bg-slate-50 rounded-2xl border border-slate-200 border-dashed max-w-2xl mx-auto space-y-6">
+                              <div className="w-16 h-16 bg-[#101b3a]/5 rounded-full flex items-center justify-center text-[#101b3a]">
+                                <Cloud className="h-8 w-8 text-[#15803d]" />
+                              </div>
+                              <div className="space-y-2">
+                                <h3 className="text-base font-black text-[#101b3a] uppercase tracking-wider">Collega il tuo Google Drive</h3>
+                                <p className="text-xs text-slate-500 font-semibold max-w-sm leading-relaxed">
+                                  Permetti ad AnimalHub PA di archiviare e consultare sul tuo spazio cloud personale i certificati anagrafici e i file di adozione in un'unica cartella organizzata.
+                                </p>
+                              </div>
+                              
+                              <button
+                                onClick={handleGDriveLogin}
+                                className="gsi-material-button text-xs font-bold hover:shadow-md transition-all border border-slate-250 rounded-xl"
+                                style={{ margin: '12px auto' }}
+                              >
+                                <div className="gsi-material-button-state"></div>
+                                <div className="gsi-material-button-content-wrapper flex items-center justify-center font-bold">
+                                  <div className="gsi-material-button-icon">
+                                    <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" style={{ display: 'block', width: '20px', height: '20px' }}>
+                                      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+                                      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+                                      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+                                      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+                                    </svg>
+                                  </div>
+                                  <span className="gsi-material-button-contents font-black uppercase text-[10px] tracking-wider text-slate-700 ml-2">Connetti Google Drive</span>
+                                </div>
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="space-y-8">
+                              {/* Sync Banner */}
+                              <div className="flex gap-4 items-center bg-emerald-50 text-emerald-800 p-5 rounded-2xl border border-emerald-100">
+                                <Database className="h-6 w-6 text-emerald-600 shrink-0" />
+                                <div className="space-y-0.5 text-left">
+                                  <h4 className="text-xs font-black uppercase tracking-wider text-emerald-950">Archivio Cloud Connesso con Successo</h4>
+                                  <p className="text-[11px] font-semibold text-slate-600 leading-normal">
+                                    I tuoi file vengono salvati automaticamente per tua comodità nella cartella dedicata <strong className="text-emerald-950">"AnimalHub Naro"</strong> sul tuo spazio Google Cloud.
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Search & Action bar */}
+                              <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-slate-50 border border-slate-200 p-4 rounded-2xl">
+                                <div className="relative w-full sm:max-w-md">
+                                  <input
+                                    type="text"
+                                    placeholder="Cerca documenti archiviati su GDrive..."
+                                    className="w-full bg-white border border-slate-200 focus:border-[#101b3a] outline-none rounded-xl py-2.5 pl-10 pr-4 text-xs font-bold text-slate-700 placeholder:text-slate-400"
+                                    value={searchDriveQuery}
+                                    onChange={(e) => setSearchDriveQuery(e.target.value)}
+                                  />
+                                  <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
+                                </div>
+
+                                <div className="flex gap-2 w-full sm:w-auto shrink-0 justify-end">
+                                  <button
+                                    onClick={() => loadDriveFilesList()}
+                                    disabled={loadingDriveFiles}
+                                    className="p-3 bg-white hover:bg-slate-100 ring-1 ring-slate-200 rounded-xl text-slate-600 transition-all cursor-pointer disabled:opacity-50 animate-fadeIn"
+                                    title="Aggiorna Archivio"
+                                  >
+                                    <RefreshCw className={`h-4 w-4 ${loadingDriveFiles ? 'animate-spin' : ''}`} />
+                                  </button>
+                                  <button
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={uploadProgress !== null}
+                                    className="bg-[#101b3a] hover:bg-slate-800 text-white px-4 py-2.5 rounded-xl font-black uppercase tracking-wider text-[10px] sm:text-xs transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 animate-fadeIn"
+                                  >
+                                    <Upload className="h-4 w-4" />
+                                    <span>{uploadProgress ? 'Caricamento...' : 'Carica Certificato'}</span>
+                                  </button>
+                                  <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) handleFileUploadGDrive(file);
+                                    }}
+                                    className="hidden"
+                                    accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Error / Upload Banner */}
+                              {driveError && (
+                                <div className="bg-red-50 border border-red-200 text-red-750 p-4 rounded-xl text-xs font-bold text-center">
+                                  🚨 {driveError}
+                                </div>
+                              )}
+                              
+                              {uploadProgress && (
+                                <div className="bg-blue-50 border border-blue-200 text-[#1e3a5f] p-4 rounded-xl text-xs font-bold text-center flex items-center justify-center gap-2">
+                                  <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                                  <span>{uploadProgress}</span>
+                                </div>
+                              )}
+
+                              {/* Files Grid List */}
+                              {loadingDriveFiles && gdriveFiles.length === 0 ? (
+                                <div className="py-16 text-center text-slate-400 font-bold text-xs flex flex-col items-center gap-3">
+                                  <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+                                  <span>Caricamento dei documenti in corso da Google Drive...</span>
+                                </div>
+                              ) : gdriveFiles.length === 0 ? (
+                                <div className="text-center py-16 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 space-y-3">
+                                  <FileText className="h-10 w-10 text-slate-300 mx-auto" />
+                                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest">Nessun file archiviato</h4>
+                                  <p className="text-[11px] leading-relaxed text-slate-400 font-bold max-w-sm mx-auto">
+                                    Nessun file trovato in "AnimalHub Naro". Puoi utilizzare i pulsanti "Salva su Drive" sopra i tuoi attestati per inviarli automaticamente qui.
+                                  </p>
+                                </div>
+                              ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                  {gdriveFiles.map(file => (
+                                    <div
+                                      key={file.id}
+                                      className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col justify-between hover:border-[#15803d]/40 hover:shadow-md transition-all text-left"
+                                    >
+                                      <div>
+                                        <div className="flex justify-between items-start gap-2 mb-3">
+                                          <div className="p-2.5 bg-slate-100 rounded-lg text-slate-600">
+                                            <FileText className="h-5 w-5 text-[#1e3a5f]" />
+                                          </div>
+                                          <button
+                                            onClick={() => handleDeleteFileGDrive(file.id, file.name)}
+                                            className="p-2 hover:bg-red-50 text-slate-400 hover:text-red-700 transition-colors rounded-lg cursor-pointer"
+                                            title="Elimina definitivo"
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </button>
+                                        </div>
+                                        <h4 className="text-xs font-black text-slate-800 line-clamp-2 leading-tight uppercase tracking-wide">
+                                          {file.name}
+                                        </h4>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1 font-mono">
+                                          {file.mimeType.split('/').pop()?.toUpperCase()} file
+                                        </p>
+                                      </div>
+
+                                      <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-4 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                                        <span>
+                                          {file.createdTime ? new Date(file.createdTime).toLocaleDateString('it-IT') : 'N/D'}
+                                        </span>
+                                        {file.webViewLink && (
+                                          <a
+                                            href={file.webViewLink}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-[#15803d] hover:text-[#166534] underline cursor-pointer hover:font-black transition-all"
+                                          >
+                                            Visualizza &rarr;
+                                          </a>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       ) : (
                         <div className="bg-white p-6 sm:p-10 rounded-2xl border border-slate-200/80 shadow-sm space-y-8 text-left animate-fadeIn">
                           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-6 border-b border-slate-100">
                             <div>
-                              <h2 className="text-xl font-black text-[#101b3a] tracking-tight">Dati Anagrafici Certificati</h2>
-                              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">Gestisci la tua identità e i dati anagrafici richiesti per legge.</p>
+                              <h2 className="text-xl font-black text-[#101b3a] tracking-tight">Dati Anagrafici dell'Utenza</h2>
+                              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">Gestisci i tuoi dati anagrafici per le pratiche comunali.</p>
                             </div>
-                            {profile?.is_spid_verified === 1 ? (
-                              <div className="flex items-center gap-2 bg-blue-50 text-blue-800 px-4 py-2.5 rounded-xl border border-blue-200 text-xs font-black uppercase tracking-wider">
-                                🔒 Connesso con SPID ({profile.identity_provider})
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2 bg-amber-50 text-amber-805 px-4 py-2.5 rounded-xl border border-amber-200 text-xs font-black uppercase tracking-wider">
-                                📧 Connesso con OTP (Email)
-                              </div>
-                            )}
+                            <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 px-4 py-2.5 rounded-xl border border-emerald-250 text-xs font-black uppercase tracking-wider">
+                              📧 Certificato con OTP (Email)
+                            </div>
                           </div>
 
                           {profileSuccess && (
@@ -1088,14 +1466,15 @@ export default function MiaArea() {
                           )}
 
                           <form onSubmit={handleUpdateProfile} className="space-y-6">
+                            {/* RIGA 1: Nome e Cognome */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                               <div className="space-y-1.5">
                                 <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Nome</label>
                                 <input
                                   type="text"
                                   required
-                                  disabled={profile?.is_spid_verified === 1}
-                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all text-sm disabled:opacity-60"
+                                  placeholder="Inserisci il tuo nome"
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all text-sm"
                                   value={profile?.nome || ''}
                                   onChange={(e) => setProfile(profile ? { ...profile, nome: e.target.value } : { nome: e.target.value })}
                                 />
@@ -1105,28 +1484,73 @@ export default function MiaArea() {
                                 <input
                                   type="text"
                                   required
-                                  disabled={profile?.is_spid_verified === 1}
-                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all text-sm disabled:opacity-60"
+                                  placeholder="Inserisci il tuo cognome"
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all text-sm"
                                   value={profile?.cognome || ''}
                                   onChange={(e) => setProfile(profile ? { ...profile, cognome: e.target.value } : { cognome: e.target.value })}
                                 />
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* RIGA 2: Sesso, Data di Nascita, Comune di Nascita */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                               <div className="space-y-1.5">
-                                <label className="text-[10px] font-black uppercase tracking-wider text-[#15803d] flex items-center gap-1.5 font-bold font-black">
-                                  Codice Fiscale <span className="text-[8px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-black">LEGGE</span>
-                                </label>
-                                <input
-                                  type="text"
+                                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Sesso</label>
+                                <select
                                   required
-                                  disabled={profile?.is_spid_verified === 1}
-                                  maxLength={16}
-                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all text-sm uppercase disabled:opacity-60 font-mono"
-                                  placeholder="RSSMRA80A01H501U"
-                                  value={profile?.codice_fiscale || ''}
-                                  onChange={(e) => setProfile(profile ? { ...profile, codice_fiscale: e.target.value.toUpperCase() } : { codice_fiscale: e.target.value.toUpperCase() })}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all text-sm cursor-pointer"
+                                  value={profile?.sesso || ''}
+                                  onChange={(e) => setProfile(profile ? { ...profile, sesso: e.target.value } : { sesso: e.target.value })}
+                                >
+                                  <option value="">Seleziona sesso</option>
+                                  <option value="M">Maschile (M)</option>
+                                  <option value="F">Femminile (F)</option>
+                                </select>
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Data di Nascita</label>
+                                <input
+                                  type="date"
+                                  required
+                                  max={new Date().toISOString().split('T')[0]}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all text-sm"
+                                  value={profile?.data_nascita || ''}
+                                  onChange={(e) => setProfile(profile ? { ...profile, data_nascita: e.target.value } : { data_nascita: e.target.value })}
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Comune di Nascita</label>
+                                <AutocompleteInput
+                                  type="comune"
+                                  placeholder="Es. NARO o AGRIGENTO"
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all text-sm uppercase"
+                                  value={profile?.comune_nascita || ''}
+                                  onChange={(val) => setProfile(profile ? { ...profile, comune_nascita: val.toUpperCase() } : { comune_nascita: val.toUpperCase() })}
+                                />
+                              </div>
+                            </div>
+
+                            {/* RIGA 3: Indirizzo di Residenza, Comune di Residenza, Telefono */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                              <div className="space-y-1.5">
+                                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Indirizzo di Residenza (Stradario)</label>
+                                <AutocompleteInput
+                                  type="via"
+                                  comuneContext={profile?.comune_residenza || "Naro"}
+                                  placeholder="Es. Via Sabella, 11"
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all text-sm"
+                                  value={profile?.indirizzo || ''}
+                                  onChange={(val) => setProfile(profile ? { ...profile, indirizzo: val } : { indirizzo: val })}
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Comune di Residenza</label>
+                                <AutocompleteInput
+                                  type="comune"
+                                  placeholder="Es. NARO"
+                                  className="w-full bg-slate-50 border border-slate-250 rounded-xl p-3.5 font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all text-sm place-holder:text-slate-350"
+                                  value={profile?.comune_residenza || ''}
+                                  onChange={(val) => setProfile(profile ? { ...profile, comune_residenza: val.toUpperCase() } : { comune_residenza: val.toUpperCase() })}
                                 />
                               </div>
                               <div className="space-y-1.5">
@@ -1135,38 +1559,51 @@ export default function MiaArea() {
                                   type="text"
                                   required
                                   className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all text-sm"
+                                  placeholder="Es. +39 333 1234567"
                                   value={profile?.telefono || ''}
                                   onChange={(e) => setProfile(profile ? { ...profile, telefono: e.target.value } : { telefono: e.target.value })}
                                 />
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                              <div className="space-y-1.5">
-                                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Indirizzo di Residenza</label>
-                                <input
-                                  type="text"
-                                  required
-                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all text-sm"
-                                  placeholder="Via Vittorio Emanuele, 12"
-                                  value={profile?.indirizzo || ''}
-                                  onChange={(e) => setProfile(profile ? { ...profile, indirizzo: e.target.value } : { indirizzo: e.target.value })}
-                                />
+                            {/* RIGA 4: Codice Fiscale (Automatico con Validazione) */}
+                            <div className="p-5 bg-slate-50/50 rounded-2xl border border-slate-200/60 space-y-4">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div>
+                                  <label className="text-[10px] font-black uppercase tracking-wider text-[#15803d] flex items-center gap-1.5 font-bold font-black">
+                                    Codice Fiscale
+                                  </label>
+                                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Viene calcolato automaticamente dai tuoi dati di nascita.</p>
+                                </div>
+                                <div className="flex items-center gap-1.5 animate-fadeIn">
+                                  {profile?.codice_fiscale && isValidFiscalCode(profile.codice_fiscale) ? (
+                                    <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 text-[9px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider flex items-center gap-1 shadow-sm">
+                                      🛡️ CODICE VALIDO
+                                    </span>
+                                  ) : profile?.codice_fiscale ? (
+                                    <span className="bg-red-50 text-red-800 border border-red-200 text-[9px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider flex items-center gap-1 shadow-sm animate-pulse">
+                                      ⚠️ CODICE NON VALIDO / INCOMPLETO
+                                    </span>
+                                  ) : (
+                                    <span className="bg-slate-100 text-slate-600 border border-slate-200 text-[9px] font-semibold px-2.5 py-1 rounded-lg uppercase tracking-wider">
+                                      Inserisci i dati personali
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                              <div className="space-y-1.5">
-                                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Comune di Residenza</label>
-                                <input
-                                  type="text"
-                                  required
-                                  className="w-full bg-slate-50 border border-slate-250 rounded-xl p-3.5 font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all text-sm"
-                                  value={profile?.comune_residenza || ''}
-                                  onChange={(e) => setProfile(profile ? { ...profile, comune_residenza: e.target.value } : { comune_residenza: e.target.value })}
-                                />
-                              </div>
+                              <input
+                                type="text"
+                                required
+                                maxLength={16}
+                                className="w-full bg-white border border-slate-200 rounded-xl p-3.5 font-black text-lg text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all uppercase font-mono tracking-widest text-center"
+                                placeholder="RSSMRA80A01H501U"
+                                value={profile?.codice_fiscale || ''}
+                                onChange={(e) => setProfile(profile ? { ...profile, codice_fiscale: e.target.value.toUpperCase() } : { codice_fiscale: e.target.value.toUpperCase() })}
+                              />
                             </div>
 
                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider leading-relaxed pt-2">
-                              ℹ️ Ai sensi del D.P.R. 445/2000 l'utente dichiara sotto la propria personale responsabilità che le informazioni fornite corrispondono al vero. I dati contrassegnati da SPID sono certificati e non modificabili autonomamente.
+                              ℹ️ Ai sensi del D.P.R. 445/2000 l'utente dichiara sotto la propria personale responsabilità che le informazioni fornite corrispondono al vero.
                             </p>
 
                             <div className="flex justify-end pt-4 gap-4">
@@ -1179,7 +1616,7 @@ export default function MiaArea() {
                               </button>
                               <button
                                 type="submit"
-                                disabled={savingProfile}
+                                disabled={savingProfile || (profile?.codice_fiscale && !isValidFiscalCode(profile.codice_fiscale))}
                                 className="bg-[#15803d] hover:bg-[#166534] text-white px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 cursor-pointer"
                               >
                                 {savingProfile ? 'Salvataggio in Corso...' : 'Salva Profilo'}
@@ -1204,6 +1641,13 @@ export default function MiaArea() {
                          className="flex items-center gap-2 px-4 py-2 bg-[#15803d] text-white rounded-lg hover:bg-[#166534] transition-all shadow-lg shadow-[#15803d]/20 text-[10px] font-bold uppercase tracking-widest"
                        >
                          <Download className="h-4 w-4" /> Stampa PDF
+                       </button>
+                       <button 
+                         onClick={() => selectedReport && saveReceiptToDrive(selectedReport)}
+                         disabled={savingToDriveId === selectedReport?.code}
+                         className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-[#1e3a5f] hover:bg-blue-100 rounded-lg transition-all shadow-md text-[10px] font-bold uppercase tracking-widest disabled:opacity-50"
+                       >
+                         <Cloud className="h-4 w-4 text-blue-600 animate-pulse" /> {savingToDriveId === selectedReport?.code ? 'Salvataggio...' : 'Archivia su Google Drive'}
                        </button>
                        <button className="p-3 bg-white border border-gray-100 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"><Activity className="h-5 w-5 text-gray-400" /></button>
                        <button className="p-3 bg-white border border-gray-100 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"><HelpCircle className="h-5 w-5 text-gray-400" /></button>
@@ -1327,167 +1771,7 @@ export default function MiaArea() {
         </div>
       </div>
 
-      {showSpidModal && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center z-[99999] p-4 text-left select-none">
-          <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-2xl w-full overflow-hidden flex flex-col md:flex-row animate-scaleIn">
-            {/* Left side: credentials */}
-            <div className="p-8 flex-1 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="bg-[#0066cc] text-white px-2 py-0.5 rounded font-black text-[10px] uppercase font-sans">spid</span>
-                  <span className="text-[10px] font-black text-slate-400 font-sans tracking-tight uppercase">Identità Digitale</span>
-                </div>
-                <span className="text-[9px] font-black text-[#0066cc] bg-blue-50/80 px-2.5 py-1 rounded-md border border-blue-200 uppercase font-sans">
-                  {selectedSpidProvider}
-                </span>
-              </div>
 
-              <div>
-                <h3 className="text-lg font-black text-[#101b3a] tracking-tight">Accedi con Credenziali SPID</h3>
-                <p className="text-slate-400 text-[10px] font-bold mt-1 uppercase tracking-wider">Verifica i dati forniti dall'Identity Provider {selectedSpidProvider}.</p>
-              </div>
-
-              <form onSubmit={handleSpidSubmit} className="space-y-4">
-                <div className="space-y-1">
-                  <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Username o Nome Utente</label>
-                  <input
-                    type="text"
-                    required
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-semibold text-sm text-[#101b3a] focus:bg-white focus:border-blue-600 outline-none transition-all"
-                    placeholder="mario.rossi.80"
-                    value={spidForm.username}
-                    onChange={(e) => setSpidForm({...spidForm, username: e.target.value})}
-                  />
-                </div>
-                
-                <div className="space-y-1">
-                  <label className="text-[9px] font-black uppercase tracking-wider text-slate-400">Password</label>
-                  <input
-                    type="password"
-                    required
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-semibold text-sm text-[#101b3a] focus:bg-white focus:border-blue-600 outline-none transition-all"
-                    value={spidForm.password}
-                    onChange={(e) => setSpidForm({...spidForm, password: e.target.value})}
-                  />
-                </div>
-
-                <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100/80 space-y-3">
-                  <span className="text-[9px] font-black text-[#0066cc] uppercase tracking-widest block font-sans">Dati Certificati Trasmessi all'Ente:</span>
-                  
-                  <div className="grid grid-cols-2 gap-3 text-[10px] font-bold text-slate-600">
-                    <div>
-                      <span className="text-slate-400 block text-[8px] uppercase tracking-wide">Nome</span>
-                      <input
-                        type="text"
-                        required
-                        className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:border-blue-500 outline-none font-bold mt-0.5 text-[#101b3a]"
-                        value={spidForm.nome}
-                        onChange={(e) => setSpidForm({...spidForm, nome: e.target.value})}
-                      />
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block text-[8px] uppercase tracking-wide">Cognome</span>
-                      <input
-                        type="text"
-                        required
-                        className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:border-blue-500 outline-none font-bold mt-0.5 text-[#101b3a]"
-                        value={spidForm.cognome}
-                        onChange={(e) => setSpidForm({...spidForm, cognome: e.target.value})}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 text-[10px] font-bold text-slate-600">
-                    <div>
-                      <span className="text-[#15803d] block text-[8px] uppercase tracking-wide flex items-center gap-1 font-bold">
-                        Codice Fiscale <span className="text-[7px] bg-red-100 text-red-650 px-1 rounded font-black">LEGGERA</span>
-                      </span>
-                      <input
-                        type="text"
-                        required
-                        maxLength={16}
-                        className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:border-blue-500 outline-none font-mono font-bold mt-0.5 uppercase text-[#101b3a]"
-                        value={spidForm.codiceFiscale}
-                        onChange={(e) => setSpidForm({...spidForm, codiceFiscale: e.target.value.toUpperCase()})}
-                      />
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block text-[8px] uppercase tracking-wide">Email</span>
-                      <input
-                        type="email"
-                        required
-                        className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:border-blue-500 outline-none font-bold mt-0.5 text-[#101b3a]"
-                        value={spidForm.email}
-                        onChange={(e) => setSpidForm({...spidForm, email: e.target.value})}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 text-[10px] font-bold text-slate-600">
-                    <div>
-                      <span className="text-slate-400 block text-[8px] uppercase tracking-wide font-sans">Telefono Cellulare</span>
-                      <input
-                        type="text"
-                        required
-                        className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:border-blue-500 outline-none font-bold mt-0.5 text-[#101b3a]"
-                        value={spidForm.telefono}
-                        onChange={(e) => setSpidForm({...spidForm, telefono: e.target.value})}
-                      />
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block text-[8px] uppercase tracking-wide">Comune di Residenza</span>
-                      <input
-                        type="text"
-                        required
-                        className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:border-blue-500 outline-none font-bold mt-0.5 text-[#101b3a]"
-                        value={spidForm.comuneResidenza}
-                        onChange={(e) => setSpidForm({...spidForm, comuneResidenza: e.target.value})}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex gap-2.5 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowSpidModal(false)}
-                    className="flex-1 border border-slate-200 hover:bg-slate-50 text-slate-500 py-3 rounded-xl font-bold uppercase tracking-wider text-[10px] text-center cursor-pointer font-sans"
-                  >
-                    Annulla
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 bg-[#0066cc] hover:bg-[#0052a3] text-white py-3 rounded-xl font-black uppercase tracking-wider text-[10px] shadow-md shadow-blue-500/10 flex items-center justify-center gap-1 cursor-pointer font-sans"
-                  >
-                    Autorizza e Accedi &rarr;
-                  </button>
-                </div>
-              </form>
-            </div>
-
-            {/* Right side: Mock QR code scanner */}
-            <div className="bg-slate-50 p-8 border-t md:border-t-0 md:border-l border-slate-200/60 w-full md:w-64 flex flex-col items-center justify-center text-center space-y-6">
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest font-sans">Oppure con App</span>
-              
-              <div className="relative p-3 bg-white border border-slate-200 rounded-2xl shadow-xs">
-                <div className="w-36 h-36 bg-slate-100 flex items-center justify-center rounded-xl overflow-hidden relative">
-                  {/* QR Core code bars drawing */}
-                  <svg className="w-28 h-28 text-slate-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M3 9h6V3H3v6zm0 12h6v-6H3v6zm12 0h6v-6h-6v6ZM15 3v6h6V3h-6zm-4 4h2V5h-2v2zm0 8h2v-2h-2v2zm0 4h2v-2h-2v2zm4-12h2V5h-2v2zm0 8h2v-2h-2v2zm4 4h2v-2h-2v2z" />
-                  </svg>
-                  {/* Glowing scanner red line */}
-                  <div className="absolute left-0 right-0 h-0.5 bg-red-500 shadow-lg shadow-red-500 animate-bounce top-2" />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-700 font-sans">Inquadra QR Code</p>
-                <p className="text-[9px] text-slate-450 font-semibold leading-normal font-sans">Accedi istantaneamente scansionando il codice con l'applicazione di {selectedSpidProvider} dal tuo cellulare.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       <Lightbox 
         isOpen={lightbox.isOpen} 

@@ -138,8 +138,25 @@ router.post("/", async (req, res) => {
       count = rows[0]?.count || 0;
     }
     
-    const numero = String(count + 1).padStart(4, "0");
-    const codiceTracking = `${prefix}-${anno}-${numero}`;
+    let numero = String(count + 1).padStart(4, "0");
+    let codiceTracking = `${prefix}-${anno}-${numero}`;
+
+    // Guarantee uniqueness
+    let isUnique = false;
+    let attempts = 0;
+    if (getIsMysqlHealthy() && pool) {
+      while (!isUnique && attempts < 50) {
+        const [existing]: any = await pool.query("SELECT id FROM segnalazioni WHERE codice_tracking = ?", [codiceTracking]);
+        if (existing && existing.length > 0) {
+          count++;
+          numero = String(count + 1).padStart(4, "0");
+          codiceTracking = `${prefix}-${anno}-${numero}`;
+          attempts++;
+        } else {
+          isUnique = true;
+        }
+      }
+    }
 
     const urgenza = (condizioni === "FERITO" || condizioni === "AGGRESSIVO") ? "ALTA" : "NORMALE";
     const fullName = `${nomeSegnalante} ${cognomeSegnalante}`.trim();

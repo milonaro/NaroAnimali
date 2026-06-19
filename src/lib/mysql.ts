@@ -542,12 +542,22 @@ export const poolWrapper = {
       }
 
       // Convert MySQL functions/syntax to SQLite equivalents
+      convertedSql = convertedSql.replace(/(\w+)\(\)\s*-\s*INTERVAL\s+(\d+)\s+(HOUR|DAY|MONTH|YEAR)S?/gi, (match, func, val, unit) => {
+        const u = unit.toLowerCase();
+        return `datetime('now', 'localtime', '-${val} ${u}s')`;
+      });
+      convertedSql = convertedSql.replace(/DATE_SUB\(([^,]+),\s*INTERVAL\s+(\d+)\s+(HOUR|DAY|MONTH|YEAR)S?\)/gi, (match, dateExpr, val, unit) => {
+        const d = dateExpr.trim().toLowerCase() === "curdate()" || dateExpr.trim().toLowerCase() === "now()" ? "'now', 'localtime'" : dateExpr;
+        const u = unit.toLowerCase();
+        return `datetime(${d}, '-${val} ${u}s')`;
+      });
       convertedSql = convertedSql.replace(/NOW\(\)/gi, "datetime('now', 'localtime')");
+      convertedSql = convertedSql.replace(/CURDATE\(\)/gi, "date('now', 'localtime')");
       convertedSql = convertedSql.replace(/CONCAT\(([^,]+),\s*([^)]+)\)/gi, "$1 || $2");
       convertedSql = convertedSql.replace(/INT AUTO_INCREMENT PRIMARY KEY/gi, "INTEGER PRIMARY KEY AUTOINCREMENT");
       convertedSql = convertedSql.replace(/INTEGER AUTO_INCREMENT PRIMARY KEY/gi, "INTEGER PRIMARY KEY AUTOINCREMENT");
-      convertedSql = convertedSql.replace(/YEAR\(([^)]+)\)/gi, "strftime('%Y', $1)");
-      convertedSql = convertedSql.replace(/MONTH\(([^)]+)\)/gi, "strftime('%m', $1)");
+      convertedSql = convertedSql.replace(/YEAR\(([^)]+)\)/gi, "CAST(strftime('%Y', $1) AS INTEGER)");
+      convertedSql = convertedSql.replace(/MONTH\(([^)]+)\)/gi, "CAST(strftime('%m', $1) AS INTEGER)");
       convertedSql = convertedSql.replace(/CREATE OR REPLACE VIEW/gi, "CREATE VIEW IF NOT EXISTS");
 
       try {
