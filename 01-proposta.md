@@ -105,7 +105,8 @@ Funzione anti-duplicato: il cittadino vede se un animale è già stato segnalato
 Modulo — La Mia Area (Cruscotto Cittadino)
 Accesso tramite codice OTP inviato via email — nessuna password da ricordare
 Visualizzazione dello stato di avanzamento di ogni propria segnalazione
-Timeline degli interventi effettuati dagli operatori sulla pratica
+Integrazione Google Drive Cloud: Archiviazione rapida delle ricevute di segnalazione e degli attestati di iscrizione in formato PDF direttamente nella cartella dell'utente ("AnimalHub Naro") su Google Drive. Caricamento file assistito tramite Drag-and-Drop o selettore manuale.
+Timeline interattiva degli interventi effettuati dagli operatori sulla pratica con notifiche automatiche.
 
 Ramo Operatori — Area Riservata
 Accessibile esclusivamente al personale autorizzato dell’Ente: operatori comunali, Polizia Locale, ASL Veterinaria, volontari accreditati.
@@ -130,10 +131,12 @@ Monitoraggio capienza massima e posti occupati aggiornato in tempo reale
 Alert automatico quando una struttura si avvicina alla capienza massima
 Contatti diretti per coordinamento immediato degli interventi sul campo
 
-Modulo — Configurazione Ente (White-Label)
-L’amministratore dell’Ente personalizza nome e logo istituzionale senza intervento tecnico
-Le modifiche si propagano dinamicamente su tutta l’interfaccia pubblica e privata
-Configurazione salvata nella tabella admin_config del database MySQL
+Modulo — Configurazione Ente (White-Label & CMS di Conformità)
+L’amministratore dell’Ente personalizza nome, logo istituzionale del Comune e stemma del brand AnimalHub in totale autonomia, senza alcun intervento tecnico.
+Consente la gestione dinamica dei testi legali e delle informative del portale (Informativa Privacy GDPR e Cookie Policy) direttamente dal pannello di controllo, con aggiornamenti in tempo reale.
+Possibilità di inserire note o descrizioni personalizzate visualizzate nel footer del sito.
+Pannello di configurazione protetto da credenziali solide custodite nel database centrale.
+Tutte le notifiche e i moduli applicativi ereditano automaticamente questi dettagli per garantire un'esperienza istituzionale coerente.
 
 
 4. Architettura Tecnologica
@@ -247,17 +250,17 @@ Comuni senza personale IT interno
 
 AnimalHub PA rispetta integralmente i requisiti obbligatori per l’acquisizione da parte di un Ente Locale italiano, secondo le Linee Guida AgID e il Codice dell’Amministrazione Digitale.
 
-5.1 — Accessibilità (Legge Stanca / WCAG 2.1 AA)
-Conforme alle WCAG 2.1 livello AA ai sensi della Legge 4/2004 e del D.Lgs. 106/2018. Dichiarazione di Accessibilità in formato AgID pubblicata sulla piattaforma.
+5.1 — Accessibilità ed Inclusione Digitale (Legge Stanca / WCAG 2.1 AA)
+Conforme alle specifiche tecniche WCAG 2.1 livello AA, ai sensi della Legge 4/2004 e del D.Lgs. 106/2018. La piattaforma integra una Suite di Accessibilità Avanzata (Accessibility Panel) permanente per garantire che nessun cittadino venga escluso:
 
-Contrasto cromatico minimo 4.5:1 su tutti i testi (WCAG 1.4.3)
-Touch target dimensionati per uso mobile corretto (WCAG 2.5.5 — Target Size)
-Tutti i form con label associate e attributi ARIA completi per screen reader
-Navigazione da tastiera con focus-visible sempre visibile
-Alternativa testuale alla mappa Leaflet per utenti con disabilità visiva
-Font Titillium Web (Design System Italia) per massima leggibilità istituzionale
-Skip link “Vai al contenuto principale” come primo elemento del layout
-Punteggio Lighthouse Accessibility ≥ 90/100 verificabile pubblicamente
+- **Sintesi Vocale Attiva (Screen Reader Integrato)**: Consente l'ascolto vocale immediato dei testi e del contenuto delle pagine, ideale per utenti con ipovisione o difficoltà di lettura.
+- **Supporto Dislessia (Font OpenDyslexic)**: Attivazione immediata del carattere tipografico specifico per facilitare la lettura agli utenti con disturbi dello spettro dislessico.
+- **Ruler di Lettura (Guida Visiva)**: Una linea di focus orizzontale dinamica che segue il cursore per agevolare la concentrazione riga per riga.
+- **Personalizzazione Contrasto & Dimensione del Testo**: Modifiche istantanee del contrasto cromatico (contrasto elevato minimo 4.5:1) e zoom dinamico delle dimensioni dei caratteri.
+- **Navigazione Completa da Tastiera**: Spostamento logico e sequenziale tramite tasto Tab, segnalato da focus visivi chiari e dall'uso obbligatorio dei tag semantici e attributi ARIA.
+- **Assistente Lettura PDF**: Strumento di rilettura facilitata per i certificati generati.
+- **Alternativa Testuale Completa**: Tutti gli elementi visivi strutturati e la mappa cartografica Leaflet integrano descrizioni testuali sostitutive chiare.
+- **Punteggio Lighthouse Accessibility**: Prestazioni monitorate costantemente con punteggi fissi ≥ 95/100.
 
 5.2 — Conformità GDPR
 Base giuridica: art. 6(1)(e) GDPR — esecuzione di compito di interesse pubblico

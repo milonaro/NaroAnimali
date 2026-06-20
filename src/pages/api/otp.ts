@@ -221,7 +221,9 @@ router.post("/logout", (req, res) => {
 
 router.get("/me", async (req, res) => {
   const token = req.cookies.citizen_token;
-  if (!token) return res.status(401).json({ error: "Non autenticato" });
+  if (!token) {
+    return res.json({ user: null, profile: null });
+  }
   
   try {
     const decoded: any = jwt.verify(token, JWT_SECRET);
@@ -249,7 +251,7 @@ router.get("/me", async (req, res) => {
     
     res.json({ user: decoded, profile });
   } catch (err) {
-    res.status(401).json({ error: "Token non valido o scaduto" });
+    res.json({ user: null, profile: null });
   }
 });
 

@@ -434,6 +434,21 @@ app.post("/api/admin/config", async (req, res) => {
   }
 });
 
+app.get("/api/admin/proposal", async (req, res) => {
+  try {
+    const filePath = path.join(process.cwd(), "01-proposta.md");
+    if (fs.existsSync(filePath)) {
+      const content = fs.readFileSync(filePath, "utf-8");
+      res.json({ content });
+    } else {
+      res.status(404).json({ error: "Proposta non trovata" });
+    }
+  } catch (err: any) {
+    console.error("Errore nel leggere 01-proposta.md:", err);
+    res.status(500).json({ error: "Errore di lettura proposta", details: err.message });
+  }
+});
+
 app.post("/api/admin/demo-switch", async (req, res) => {
   const { key } = req.body;
   if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });

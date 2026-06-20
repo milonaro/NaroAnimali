@@ -46,8 +46,13 @@ export default function Header() {
       const res = await fetch("/api/otp/me");
       if (res.ok) {
         const data = await res.json();
-        setCitizenEmail(data.user.email);
-        setCitizenProfile(data.profile);
+        if (data && data.user) {
+          setCitizenEmail(data.user.email);
+          setCitizenProfile(data.profile);
+        } else {
+          setCitizenEmail(null);
+          setCitizenProfile(null);
+        }
       } else {
         setCitizenEmail(null);
         setCitizenProfile(null);
@@ -119,6 +124,7 @@ export default function Header() {
 
   const [siteName, setSiteName] = useState("Comune di Naro");
   const [siteLogo, setSiteLogo] = useState("");
+  const [animalhubLogo, setAnimalhubLogo] = useState("");
 
   useEffect(() => {
     const fetchConfig = async () => {
@@ -128,6 +134,7 @@ export default function Header() {
           const config = await res.json();
           if (config.siteName) setSiteName(config.siteName);
           if (config.siteLogo) setSiteLogo(config.siteLogo);
+          if (config.animalhub_logo) setAnimalhubLogo(config.animalhub_logo);
         }
       } catch(e) {}
     };
@@ -176,9 +183,17 @@ export default function Header() {
               <div className="flex items-center gap-3.5">
                 {/* Brand Logo Group */}
                 <div className="flex items-center gap-2">
-                  <PawPrint className={`h-8 w-8 md:h-9 md:w-9 ${transparentHeader ? 'text-emerald-400' : 'text-[#15803d]'}`} />
+                  {animalhubLogo ? (
+                    <img 
+                      src={animalhubLogo} 
+                      alt="AnimalHub Logo" 
+                      className="h-8 md:h-10 w-auto object-contain drop-shadow-sm"
+                    />
+                  ) : (
+                    <PawPrint className={`h-8 w-8 md:h-9 md:w-9 ${transparentHeader ? 'text-emerald-400' : 'text-[#15803d]'}`} />
+                  )}
                   <div className="flex flex-col text-left">
-                    <span className="text-xl md:text-2xl font-black tracking-tight leading-none">AnimalHub PA</span>
+                    <span className="text-xl md:text-2xl font-black tracking-tight leading-none font-sans">AnimalHub PA</span>
                     <span className={`text-[8px] md:text-[9px] uppercase tracking-[0.2em] font-extrabold mt-1 leading-none ${transparentHeader ? 'text-white/85' : 'text-[#64748b]'}`}>{siteName}</span>
                   </div>
                 </div>
@@ -344,7 +359,6 @@ export default function Header() {
                 }`}
                 aria-label="Toggle language"
               >
-                <Globe className="h-3.5 w-3.5" />
                 <span className="flex items-center gap-1.5">{language === 'it' ? <><FlagIT /> IT</> : <><FlagEN /> EN</>}</span>
                 <ChevronDown className="h-3.5 w-3.5 opacity-60" />
               </button>

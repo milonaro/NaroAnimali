@@ -1,6 +1,36 @@
+import { useState, useEffect } from 'react';
 import ComplianceLayout from '@/src/components/layout/ComplianceLayout';
 
 export function PrivacyPolicy() {
+  const [customText, setCustomText] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const res = await fetch("/api/admin/config");
+        if (res.ok) {
+          const config = await res.json();
+          if (config.privacy_text) {
+            setCustomText(config.privacy_text);
+          }
+        }
+      } catch (e) {}
+    };
+    fetchConfig();
+  }, []);
+
+  if (customText) {
+    return (
+      <ComplianceLayout title="Informativa Privacy (Privacy Policy)">
+        <div className="space-y-6">
+          <div className="whitespace-pre-line text-slate-700 font-medium leading-relaxed bg-white p-6 rounded-xl border border-slate-150">
+            {customText}
+          </div>
+        </div>
+      </ComplianceLayout>
+    );
+  }
+
   return (
     <ComplianceLayout title="Informativa Privacy (Privacy Policy)">
       <div className="space-y-6">
@@ -172,6 +202,35 @@ export function Accessibilita() {
 }
 
 export function CookiePolicy() {
+  const [customText, setCustomText] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const res = await fetch("/api/admin/config");
+        if (res.ok) {
+          const config = await res.json();
+          if (config.cookie_text) {
+            setCustomText(config.cookie_text);
+          }
+        }
+      } catch (e) {}
+    };
+    fetchConfig();
+  }, []);
+
+  if (customText) {
+    return (
+      <ComplianceLayout title="Informativa sui Cookie (Cookie Policy)">
+        <div className="space-y-6">
+          <div className="whitespace-pre-line text-slate-700 font-medium leading-relaxed bg-white p-6 rounded-xl border border-slate-150">
+            {customText}
+          </div>
+        </div>
+      </ComplianceLayout>
+    );
+  }
+
   return (
     <ComplianceLayout title="Informativa sui Cookie (Cookie Policy)">
       <div className="space-y-6">

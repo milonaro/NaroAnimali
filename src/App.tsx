@@ -25,6 +25,7 @@ import { LanguageProvider } from './contexts/LanguageContext';
 import ChatOverlay from './components/chat/ChatOverlay';
 import BottomNavigation from './components/layout/BottomNavigation';
 import CookieBanner from './components/CookieBanner';
+import GlobalPopupModal from './components/GlobalPopupModal';
 import { useEffect } from 'react';
 
 function ScrollToTop() {
@@ -85,6 +86,7 @@ export default function App() {
             <BottomNavigation />
             <Footer />
             <CookieBanner />
+            <GlobalPopupModal />
           </div>
         </Router>
       </AccessibilityProvider>

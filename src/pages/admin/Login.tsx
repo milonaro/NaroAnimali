@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { UserCircle, Lock, ShieldCheck, Eye, EyeOff, KeyRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { popup } from '../../lib/popup';
 
 export default function AdminLogin() {
   const [username, setUsername] = useState('');
@@ -73,7 +74,7 @@ export default function AdminLogin() {
   };
 
   const handleForgotPassword = () => {
-    alert("Funzionalità di recupero password in fase di attivazione. Contatta l'amministratore di sistema in Comune.");
+    popup.info("Funzionalità di recupero password in fase di attivazione. Si prega di contattare direttamente l'Amministratore di Sistema incaricato presso gli uffici del Comune.", "Recupero Credenziali");
   };
 
   return (

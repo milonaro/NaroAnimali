@@ -38,14 +38,20 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
           <div className="col-span-1 md:col-span-2">
             <div className="flex items-center gap-3 mb-8">
-              <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center font-bold italic text-[#101b3a] shadow-lg">AH</div>
+              <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center font-bold italic text-[#101b3a] shadow-lg overflow-hidden">
+                {config.animalhub_logo ? (
+                  <img src={config.animalhub_logo} alt="AnimalHub Logo" className="w-full h-full object-contain p-1.5" />
+                ) : (
+                  "AH"
+                )}
+              </div>
               <div className="flex flex-col">
                  <span className="text-2xl font-bold tracking-tight text-white leading-none">AnimalHub PA</span>
                  <span className="text-[10px] uppercase tracking-widest text-[#94a3b8] font-medium">DEMO {config.siteName}</span>
               </div>
             </div>
-            <p className="text-sm font-medium text-[#94a3b8] max-w-sm leading-relaxed mb-8">
-              {t('footer.description')}
+            <p className="text-sm font-medium text-[#94a3b8] max-w-sm leading-relaxed mb-8 whitespace-pre-line">
+              {config.footer_text || t('footer.description')}
             </p>
             <div className="flex items-center gap-4">
                <div className="px-3 py-1 border border-white/20 rounded text-[9px] font-bold uppercase tracking-widest text-slate-300">Conforme GDPR</div>

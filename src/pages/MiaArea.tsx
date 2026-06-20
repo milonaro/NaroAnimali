@@ -6,18 +6,6 @@ import { jsPDF } from 'jspdf';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import Lightbox from '../components/ui/Lightbox';
 
-// Google Drive Integration
-import {
-  googleSignInDrive,
-  logoutDrive,
-  listDriveFiles,
-  uploadToDrive,
-  deleteDriveFile,
-  getDriveAccessToken,
-  initDriveAuth,
-  DriveFile
-} from '../lib/googleDrive';
-
 import { calculateFiscalCode, isValidFiscalCode } from '../lib/fiscalCode';
 import AutocompleteInput from '../components/AutocompleteInput';
 
@@ -62,8 +50,8 @@ export default function MiaArea() {
 
   const [reports, setReports] = useState<Report[]>([]);
   
-  // --- NUOVI STATI ANAGRAFE CANINA ---
-  const [activeTab, setActiveTab] = useState<'segnalazioni' | 'anagrafe' | 'profilo' | 'gdrive'>('segnalazioni');
+    // --- NUOVI STATI ANAGRAFE CANINA ---
+  const [activeTab, setActiveTab] = useState<'segnalazioni' | 'anagrafe' | 'profilo'>('segnalazioni');
   const [animals, setAnimals] = useState<any[]>([]);
   const [loadingAnimals, setLoadingAnimals] = useState(false);
   const [regForm, setRegForm] = useState({
@@ -101,244 +89,6 @@ export default function MiaArea() {
     comuneResidenza: 'Naro',
     consensoDati: true
   });
-
-  // --- GOOGLE DRIVE STATES & ARCHIVE HELPERS ---
-  const [gdriveAccessToken, setGdriveAccessToken] = useState<string | null>(null);
-  const [gdriveFiles, setGdriveFiles] = useState<DriveFile[]>([]);
-  const [loadingDriveFiles, setLoadingDriveFiles] = useState(false);
-  const [driveError, setDriveError] = useState<string | null>(null);
-  const [searchDriveQuery, setSearchDriveQuery] = useState('');
-  const [dragActive, setDragActive] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<string | null>(null);
-  const [savingToDriveId, setSavingToDriveId] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const loadDriveFilesList = async (tokenToUse?: string) => {
-    setLoadingDriveFiles(true);
-    setDriveError(null);
-    try {
-      const parsedTok = tokenToUse || gdriveAccessToken;
-      if (!parsedTok) return;
-      
-      let queryStr = "";
-      if (searchDriveQuery.trim()) {
-        queryStr = `name contains '${searchDriveQuery.replace(/'/g, "\\'")}'`;
-      }
-      
-      const files = await listDriveFiles(queryStr);
-      setGdriveFiles(files);
-    } catch (err: any) {
-      console.error(err);
-      setDriveError(err.message || "Errore nella lettura dei file da Google Drive.");
-    } finally {
-      setLoadingDriveFiles(false);
-    }
-  };
-
-  const handleGDriveLogin = async () => {
-    setLoadingDriveFiles(true);
-    setDriveError(null);
-    try {
-      const token = await googleSignInDrive();
-      setGdriveAccessToken(token);
-      await loadDriveFilesList(token);
-    } catch (err: any) {
-      console.error(err);
-      setDriveError(err.message || "Tentativo di accesso con account Google interrotto.");
-    } finally {
-      setLoadingDriveFiles(false);
-    }
-  };
-
-  const handleGDriveLogout = async () => {
-    await logoutDrive();
-    setGdriveAccessToken(null);
-    setGdriveFiles([]);
-  };
-
-  const handleDeleteFileGDrive = async (id: string, name: string) => {
-    const confirmed = window.confirm(
-      `Sei sicuro di voler eliminare definitivamente il file "${name}" da Google Drive? Questa operazione è irreversibile.`
-    );
-    if (!confirmed) return;
-    
-    setLoadingDriveFiles(true);
-    try {
-      await deleteDriveFile(id);
-      setGdriveFiles(prev => prev.filter(f => f.id !== id));
-    } catch (err: any) {
-      console.error(err);
-      alert(`Impossibile eliminare il file da Google Drive: ${err.message}`);
-    } finally {
-      setLoadingDriveFiles(false);
-    }
-  };
-
-  const handleFileUploadGDrive = async (file: File) => {
-    if (!file) return;
-    setUploadProgress(`Caricamento di ${file.name} in corso...`);
-    setDriveError(null);
-    try {
-      await uploadToDrive(file.name, file.type, file);
-      await loadDriveFilesList();
-      alert(`File "${file.name}" caricato correttamente nella cartella "AnimalHub Naro" di Google Drive!`);
-    } catch (err: any) {
-      console.error(err);
-      setDriveError(err.message || 'Errore durante il caricamento del file.');
-    } finally {
-      setUploadProgress(null);
-    }
-  };
-
-  const saveCertificateToDrive = async (animal: any) => {
-    setSavingToDriveId(animal.microchip);
-    try {
-      let tok = gdriveAccessToken;
-      if (!tok) {
-        const wantsGo = window.confirm("Per archiviare i documenti nel tuo Google Drive è necessario effettuare l'autenticazione con il tuo account Google. Vuoi procedere?");
-        if (!wantsGo) return;
-        tok = await googleSignInDrive();
-        setGdriveAccessToken(tok);
-      }
-      
-      const doc = new jsPDF();
-      doc.setFillColor(16, 27, 58); // #101b3a
-      doc.rect(0, 0, 210, 45, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(20);
-      doc.text('COMUNE DI NARO', 105, 20, { align: 'center' });
-      doc.setFontSize(10);
-      doc.text('SETTORE BENESSERE ANIMALE - UFFICIO ANAGRAFE CANINA COMUNALE', 105, 32, { align: 'center' });
-      
-      doc.setTextColor(30, 58, 95); // #1e3a5f
-      doc.setFontSize(14);
-      doc.text('ATTESTATO DI RICHIESTA ISCRIZIONE ANAGRAFICA', 105, 60, { align: 'center' });
-      doc.setDrawColor(220, 220, 220);
-      doc.line(20, 68, 190, 68);
-      
-      doc.setTextColor(0, 0, 0);
-      doc.setFontSize(11);
-      
-      let currentY = 82;
-      const addRow = (label: string, value: string) => {
-        doc.setFont('Helvetica', 'bold');
-        doc.text(label, 30, currentY);
-        doc.setFont('Helvetica', 'normal');
-        doc.text(value, 95, currentY);
-        currentY += 10;
-      };
-
-      addRow('Codice Microchip (15 cifre):', animal.microchip);
-      addRow('Nome Animale:', animal.nome);
-      addRow('Specie / Tipo:', animal.specie === 'Cane' ? 'CANE (Canis lupus familiaris)' : animal.specie.toUpperCase());
-      addRow('Sesso:', animal.sesso === 'M' ? 'MASCHIO' : animal.sesso === 'F' ? 'FEMMINA' : animal.sesso);
-      addRow('Taglia dichiarata:', animal.taglia);
-      addRow('Colore / Mantello:', animal.colore || 'N/D');
-      addRow('Stato Sanitario:', animal.condizioni_sanitarie || 'Normale');
-      addRow('Proprietario (E-mail):', email);
-      addRow('Stato d\'Ufficio:', animal.stato === 'IN_ATTESA' ? 'IN ATTESA DI APPROVAZIONE PROTOCOLLO' : 'REGISTRATO CON SUCCESSO');
-      addRow('Data della richiesta:', new Date(animal.data_registrazione || animal.dataRegistrazione).toLocaleDateString('it-IT'));
-
-      doc.line(20, currentY + 5, 190, currentY + 5);
-
-      doc.setFontSize(8);
-      doc.setTextColor(140, 140, 140);
-      doc.text('Questa ricevuta attesta l\'invio telematico della pratica di iscrizione all\'Anagrafe Canina.', 105, currentY + 15, { align: 'center' });
-      doc.text('Il Comune verificherà la conformità del codice microchip e la documentazione allegata.', 105, currentY + 20, { align: 'center' });
-      doc.text('Generato in automatico tramite piattaforma AnimalHub PA - ID: ' + animal.id, 105, currentY + 25, { align: 'center' });
-
-      const pdfBlob = doc.output('blob');
-      const filename = `Attestato_Iscrizione_${animal.microchip}.pdf`;
-
-      await uploadToDrive(filename, 'application/pdf', pdfBlob);
-      if (activeTab === 'gdrive') {
-        loadDriveFilesList(tok);
-      }
-      alert(`Attestato di ${animal.nome} caricato con successo in Google Drive!`);
-    } catch (err: any) {
-      console.error(err);
-      alert(`Errore nel salvataggio su Drive: ${err.message}`);
-    } finally {
-      setSavingToDriveId(null);
-    }
-  };
-
-  const saveReceiptToDrive = async (report: Report) => {
-    setSavingToDriveId(report.code);
-    try {
-      let tok = gdriveAccessToken;
-      if (!tok) {
-        const wantsGo = window.confirm("Per archiviare i documenti nel tuo Google Drive è necessario effettuare l'autenticazione con il tuo account Google. Vuoi procedere?");
-        if (!wantsGo) return;
-        tok = await googleSignInDrive();
-        setGdriveAccessToken(tok);
-      }
-
-      const doc = new jsPDF();
-      doc.setFillColor(16, 27, 58); // #101b3a
-      doc.rect(0, 0, 210, 40, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(22);
-      doc.text('AnimalHub PA - Comune di Naro', 20, 25);
-      
-      doc.setTextColor(30, 58, 95); // #1e3a5f
-      doc.setFontSize(10);
-      doc.text(`RICEVUTA DI SEGNALAZIONE PROTOCOLLATA OGGI: ${new Date().toLocaleDateString('it-IT')}`, 20, 55);
-      
-      doc.setDrawColor(220, 220, 220);
-      doc.line(20, 60, 190, 60);
-      
-      doc.setFontSize(14);
-      doc.text(`Codice Pratica: ${report.code}`, 20, 75);
-      
-      doc.setFontSize(11);
-      doc.setTextColor(100, 100, 100);
-      doc.text('Dettagli Segnalazione:', 20, 90);
-      
-      doc.setTextColor(0, 0, 0);
-      doc.text(`• Descrizione: ${report.desc}`, 25, 100);
-      doc.text(`• Specie: ${report.specie}`, 25, 110);
-      doc.text(`• Località: ${report.location}`, 25, 120);
-      doc.text(`• Data Apertura: ${report.date}`, 25, 130);
-      doc.text(`• Stato Attuale: ${report.status}`, 25, 140);
-      
-      doc.setDrawColor(240, 240, 240);
-      doc.setFillColor(248, 250, 252);
-      doc.rect(20, 160, 170, 30, 'F');
-      doc.setFontSize(9);
-      doc.text('Questa ricevuta ha valore puramente informativo delle attività di protocollo digitale.', 30, 172);
-      doc.text('Comune di Naro (AG) - Servizio Benessere Animale.', 30, 180);
-
-      const pdfBlob = doc.output('blob');
-      const filename = `Ricevuta_${report.code}.pdf`;
-
-      await uploadToDrive(filename, 'application/pdf', pdfBlob);
-      if (activeTab === 'gdrive') {
-        loadDriveFilesList(tok);
-      }
-      alert(`Ricevuta ${report.code} salvata con successo in Google Drive!`);
-    } catch (err: any) {
-      console.error(err);
-      alert(`Errore nel salvataggio su Drive: ${err.message}`);
-    } finally {
-      setSavingToDriveId(null);
-    }
-  };
-
-  useEffect(() => {
-    initDriveAuth();
-    getDriveAccessToken().then(tok => {
-      if (tok) {
-        setGdriveAccessToken(tok);
-      }
-    });
-  }, []);
-
-  useEffect(() => {
-    if (gdriveAccessToken && activeTab === 'gdrive') {
-      loadDriveFilesList();
-    }
-  }, [searchDriveQuery, activeTab, gdriveAccessToken]);
 
   // Calcolo automatico del Codice Fiscale basato sui dati inseriti dall'utente
   useEffect(() => {
@@ -386,13 +136,15 @@ export default function MiaArea() {
       const res = await fetch("/api/otp/me");
       if (res.ok) {
         const data = await res.json();
-        setEmail(data.user.email);
-        setProfile(data.profile);
-        await Promise.all([
-          loadReports(data.user.email),
-          loadAnimals()
-        ]);
-        setStep(3);
+        if (data && data.user) {
+          setEmail(data.user.email);
+          setProfile(data.profile);
+          await Promise.all([
+            loadReports(data.user.email),
+            loadAnimals()
+          ]);
+          setStep(3);
+        }
       }
     } catch (e) {
       // Not authenticated
@@ -899,16 +651,6 @@ export default function MiaArea() {
                         >
                           Profilo Cittadino
                         </button>
-                        <button
-                          onClick={() => setActiveTab('gdrive')}
-                          className={`pb-4 text-sm font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
-                            activeTab === 'gdrive'
-                              ? 'border-[#15803d] text-[#15803d]'
-                              : 'border-transparent text-slate-400 hover:text-slate-600'
-                          }`}
-                        >
-                          ☁️ Archivio Cloud Google Drive
-                        </button>
                       </div>
 
                       {activeTab === 'segnalazioni' ? (
@@ -1242,13 +984,6 @@ export default function MiaArea() {
                                         >
                                           <Download className="h-3.5 w-3.5" /> Scarica Attestato
                                         </button>
-                                        <button 
-                                          onClick={() => saveCertificateToDrive(anim)}
-                                          disabled={savingToDriveId === anim.microchip}
-                                          className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-[#15803d] transition-all px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider shadow-sm cursor-pointer ml-auto sm:ml-0 disabled:opacity-50"
-                                        >
-                                          <Cloud className="h-3.5 w-3.5" /> {savingToDriveId === anim.microchip ? 'Salvataggio...' : 'Salva su Drive'}
-                                        </button>
                                       </div>
                                     </div>
                                   ))}
@@ -1256,196 +991,6 @@ export default function MiaArea() {
                               )}
                             </div>
                           </div>
-                        </div>
-                      ) : activeTab === 'gdrive' ? (
-                        <div className="bg-white p-6 sm:p-10 rounded-2xl border border-slate-200/80 shadow-sm space-y-8 text-left animate-fadeIn select-none">
-                          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-6 border-b border-slate-100">
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="bg-[#101b3a] text-emerald-400 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded">
-                                  Google Workspace Integration
-                                </span>
-                                <h2 className="text-xl font-black text-[#101b3a] tracking-tight">Archivio Cloud Google Drive</h2>
-                              </div>
-                              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">
-                                Backup e gestione dei tuoi documenti ufficiali (Richieste, Certificati di microchip e Attestati di adozione) su cloud.
-                              </p>
-                            </div>
-                            
-                            {gdriveAccessToken && (
-                              <button
-                                onClick={handleGDriveLogout}
-                                className="flex items-center gap-1.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 transition-all px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer shadow-sm"
-                              >
-                                <LogOut className="h-4 w-4" /> Disconnetti GDrive
-                              </button>
-                            )}
-                          </div>
-
-                          {!gdriveAccessToken ? (
-                            <div className="flex flex-col items-center justify-center p-12 text-center bg-slate-50 rounded-2xl border border-slate-200 border-dashed max-w-2xl mx-auto space-y-6">
-                              <div className="w-16 h-16 bg-[#101b3a]/5 rounded-full flex items-center justify-center text-[#101b3a]">
-                                <Cloud className="h-8 w-8 text-[#15803d]" />
-                              </div>
-                              <div className="space-y-2">
-                                <h3 className="text-base font-black text-[#101b3a] uppercase tracking-wider">Collega il tuo Google Drive</h3>
-                                <p className="text-xs text-slate-500 font-semibold max-w-sm leading-relaxed">
-                                  Permetti ad AnimalHub PA di archiviare e consultare sul tuo spazio cloud personale i certificati anagrafici e i file di adozione in un'unica cartella organizzata.
-                                </p>
-                              </div>
-                              
-                              <button
-                                onClick={handleGDriveLogin}
-                                className="gsi-material-button text-xs font-bold hover:shadow-md transition-all border border-slate-250 rounded-xl"
-                                style={{ margin: '12px auto' }}
-                              >
-                                <div className="gsi-material-button-state"></div>
-                                <div className="gsi-material-button-content-wrapper flex items-center justify-center font-bold">
-                                  <div className="gsi-material-button-icon">
-                                    <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" style={{ display: 'block', width: '20px', height: '20px' }}>
-                                      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
-                                      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
-                                      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
-                                      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
-                                    </svg>
-                                  </div>
-                                  <span className="gsi-material-button-contents font-black uppercase text-[10px] tracking-wider text-slate-700 ml-2">Connetti Google Drive</span>
-                                </div>
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="space-y-8">
-                              {/* Sync Banner */}
-                              <div className="flex gap-4 items-center bg-emerald-50 text-emerald-800 p-5 rounded-2xl border border-emerald-100">
-                                <Database className="h-6 w-6 text-emerald-600 shrink-0" />
-                                <div className="space-y-0.5 text-left">
-                                  <h4 className="text-xs font-black uppercase tracking-wider text-emerald-950">Archivio Cloud Connesso con Successo</h4>
-                                  <p className="text-[11px] font-semibold text-slate-600 leading-normal">
-                                    I tuoi file vengono salvati automaticamente per tua comodità nella cartella dedicata <strong className="text-emerald-950">"AnimalHub Naro"</strong> sul tuo spazio Google Cloud.
-                                  </p>
-                                </div>
-                              </div>
-
-                              {/* Search & Action bar */}
-                              <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-slate-50 border border-slate-200 p-4 rounded-2xl">
-                                <div className="relative w-full sm:max-w-md">
-                                  <input
-                                    type="text"
-                                    placeholder="Cerca documenti archiviati su GDrive..."
-                                    className="w-full bg-white border border-slate-200 focus:border-[#101b3a] outline-none rounded-xl py-2.5 pl-10 pr-4 text-xs font-bold text-slate-700 placeholder:text-slate-400"
-                                    value={searchDriveQuery}
-                                    onChange={(e) => setSearchDriveQuery(e.target.value)}
-                                  />
-                                  <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
-                                </div>
-
-                                <div className="flex gap-2 w-full sm:w-auto shrink-0 justify-end">
-                                  <button
-                                    onClick={() => loadDriveFilesList()}
-                                    disabled={loadingDriveFiles}
-                                    className="p-3 bg-white hover:bg-slate-100 ring-1 ring-slate-200 rounded-xl text-slate-600 transition-all cursor-pointer disabled:opacity-50 animate-fadeIn"
-                                    title="Aggiorna Archivio"
-                                  >
-                                    <RefreshCw className={`h-4 w-4 ${loadingDriveFiles ? 'animate-spin' : ''}`} />
-                                  </button>
-                                  <button
-                                    onClick={() => fileInputRef.current?.click()}
-                                    disabled={uploadProgress !== null}
-                                    className="bg-[#101b3a] hover:bg-slate-800 text-white px-4 py-2.5 rounded-xl font-black uppercase tracking-wider text-[10px] sm:text-xs transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 animate-fadeIn"
-                                  >
-                                    <Upload className="h-4 w-4" />
-                                    <span>{uploadProgress ? 'Caricamento...' : 'Carica Certificato'}</span>
-                                  </button>
-                                  <input
-                                    type="file"
-                                    ref={fileInputRef}
-                                    onChange={(e) => {
-                                      const file = e.target.files?.[0];
-                                      if (file) handleFileUploadGDrive(file);
-                                    }}
-                                    className="hidden"
-                                    accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
-                                  />
-                                </div>
-                              </div>
-
-                              {/* Error / Upload Banner */}
-                              {driveError && (
-                                <div className="bg-red-50 border border-red-200 text-red-750 p-4 rounded-xl text-xs font-bold text-center">
-                                  🚨 {driveError}
-                                </div>
-                              )}
-                              
-                              {uploadProgress && (
-                                <div className="bg-blue-50 border border-blue-200 text-[#1e3a5f] p-4 rounded-xl text-xs font-bold text-center flex items-center justify-center gap-2">
-                                  <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                                  <span>{uploadProgress}</span>
-                                </div>
-                              )}
-
-                              {/* Files Grid List */}
-                              {loadingDriveFiles && gdriveFiles.length === 0 ? (
-                                <div className="py-16 text-center text-slate-400 font-bold text-xs flex flex-col items-center gap-3">
-                                  <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
-                                  <span>Caricamento dei documenti in corso da Google Drive...</span>
-                                </div>
-                              ) : gdriveFiles.length === 0 ? (
-                                <div className="text-center py-16 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 space-y-3">
-                                  <FileText className="h-10 w-10 text-slate-300 mx-auto" />
-                                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest">Nessun file archiviato</h4>
-                                  <p className="text-[11px] leading-relaxed text-slate-400 font-bold max-w-sm mx-auto">
-                                    Nessun file trovato in "AnimalHub Naro". Puoi utilizzare i pulsanti "Salva su Drive" sopra i tuoi attestati per inviarli automaticamente qui.
-                                  </p>
-                                </div>
-                              ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                  {gdriveFiles.map(file => (
-                                    <div
-                                      key={file.id}
-                                      className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col justify-between hover:border-[#15803d]/40 hover:shadow-md transition-all text-left"
-                                    >
-                                      <div>
-                                        <div className="flex justify-between items-start gap-2 mb-3">
-                                          <div className="p-2.5 bg-slate-100 rounded-lg text-slate-600">
-                                            <FileText className="h-5 w-5 text-[#1e3a5f]" />
-                                          </div>
-                                          <button
-                                            onClick={() => handleDeleteFileGDrive(file.id, file.name)}
-                                            className="p-2 hover:bg-red-50 text-slate-400 hover:text-red-700 transition-colors rounded-lg cursor-pointer"
-                                            title="Elimina definitivo"
-                                          >
-                                            <Trash2 className="h-4 w-4" />
-                                          </button>
-                                        </div>
-                                        <h4 className="text-xs font-black text-slate-800 line-clamp-2 leading-tight uppercase tracking-wide">
-                                          {file.name}
-                                        </h4>
-                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1 font-mono">
-                                          {file.mimeType.split('/').pop()?.toUpperCase()} file
-                                        </p>
-                                      </div>
-
-                                      <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-4 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                                        <span>
-                                          {file.createdTime ? new Date(file.createdTime).toLocaleDateString('it-IT') : 'N/D'}
-                                        </span>
-                                        {file.webViewLink && (
-                                          <a
-                                            href={file.webViewLink}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-[#15803d] hover:text-[#166534] underline cursor-pointer hover:font-black transition-all"
-                                          >
-                                            Visualizza &rarr;
-                                          </a>
-                                        )}
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )}
                         </div>
                       ) : (
                         <div className="bg-white p-6 sm:p-10 rounded-2xl border border-slate-200/80 shadow-sm space-y-8 text-left animate-fadeIn">
@@ -1642,13 +1187,7 @@ export default function MiaArea() {
                        >
                          <Download className="h-4 w-4" /> Stampa PDF
                        </button>
-                       <button 
-                         onClick={() => selectedReport && saveReceiptToDrive(selectedReport)}
-                         disabled={savingToDriveId === selectedReport?.code}
-                         className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-[#1e3a5f] hover:bg-blue-100 rounded-lg transition-all shadow-md text-[10px] font-bold uppercase tracking-widest disabled:opacity-50"
-                       >
-                         <Cloud className="h-4 w-4 text-blue-600 animate-pulse" /> {savingToDriveId === selectedReport?.code ? 'Salvataggio...' : 'Archivia su Google Drive'}
-                       </button>
+
                        <button className="p-3 bg-white border border-gray-100 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"><Activity className="h-5 w-5 text-gray-400" /></button>
                        <button className="p-3 bg-white border border-gray-100 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"><HelpCircle className="h-5 w-5 text-gray-400" /></button>
                     </div>

@@ -1,12 +1,19 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Building, MapPin, CheckCircle2, ShieldCheck, Lock, Unlock, Mail, Phone, HelpCircle } from 'lucide-react';
+import { Building, MapPin, CheckCircle2, ShieldCheck, Lock, Unlock, Mail, Phone, HelpCircle, FileText, Globe, RefreshCw } from 'lucide-react';
 import { COMUNI } from '@/src/lib/geofence';
+import { showPopup, popup } from '../../lib/popup';
 
 export default function Config() {
   const [siteLogo, setSiteLogo] = useState<string>("");
   const [siteName, setSiteName] = useState<string>("Comune di Naro");
   const [role, setRole] = useState<string | null>(null);
   const [checkingRole, setCheckingRole] = useState(true);
+
+  // New CMS States for customized logos & compliance
+  const [animalhubLogo, setAnimalhubLogo] = useState<string>("");
+  const [privacyText, setPrivacyText] = useState<string>("");
+  const [cookieText, setCookieText] = useState<string>("");
+  const [footerText, setFooterText] = useState<string>("");
 
   // Superadmin States
   const [superPasswordInput, setSuperPasswordInput] = useState("");
@@ -53,7 +60,11 @@ export default function Config() {
         comune_provincia: comuneProvincia,
         comune_email: comuneEmail,
         comune_telefono: comuneTelefono,
-        comune_pec: comunePec
+        comune_pec: comunePec,
+        animalhub_logo: animalhubLogo,
+        privacy_text: privacyText,
+        cookie_text: cookieText,
+        footer_text: footerText,
       };
 
       const res = await fetch("/api/admin/config", {
@@ -63,16 +74,35 @@ export default function Config() {
       });
       if (res.ok) {
         localStorage.setItem('active_comune', activeComune.toLowerCase());
-        alert("Impostazioni salvate nel database con successo.");
-        window.location.reload();
+        showPopup({
+          type: 'success',
+          title: "Configurazione Salvata",
+          message: "Le impostazioni del portale e dei testi delle conformità del CMS sono state memorizzate con successo nel database ed applicate in tempo reale.",
+          confirmLabel: "Ok, ricarica",
+          onConfirm: () => {
+            window.location.reload();
+          }
+        });
       } else {
         const errData = await res.json();
-        alert(errData.error || "Errore durante il salvataggio.");
+        showPopup({
+          type: 'error',
+          title: "Salvataggio Fallito",
+          message: errData.error || "Si è verificato un errore durante l'aggiornamento.",
+          confirmLabel: "Ok"
+        });
       }
     } catch(err) {
-      alert("Errore salvataggio");
+      showPopup({
+        type: 'error',
+        title: "Errore di Rete",
+        message: "Impossibile stabilire una connessione stabile con il server di configurazione.",
+        confirmLabel: "Ok"
+      });
     }
   };
+
+
 
   useEffect(() => {
     const fetchMe = async () => {
@@ -105,6 +135,10 @@ export default function Config() {
           if (config.comune_email) setComuneEmail(config.comune_email);
           if (config.comune_telefono) setComuneTelefono(config.comune_telefono);
           if (config.comune_pec) setComunePec(config.comune_pec);
+          if (config.animalhub_logo) setAnimalhubLogo(config.animalhub_logo);
+          if (config.privacy_text) setPrivacyText(config.privacy_text);
+          if (config.cookie_text) setCookieText(config.cookie_text);
+          if (config.footer_text) setFooterText(config.footer_text);
           if (config.activeComune) {
             const lowKey = config.activeComune.toLowerCase();
             setActiveComune(lowKey);
@@ -378,6 +412,71 @@ export default function Config() {
                 </div>
               </div>
 
+              {/* BRANDING PERSONALIZZATO & TESTI FOOTER (CMS) */}
+              <div className="space-y-4 pt-4 border-t border-slate-100 text-left">
+                <h3 className="text-sm font-bold uppercase text-slate-400 border-b border-slate-100 pb-2 flex items-center gap-1.5">
+                  <Globe className="h-4 w-4 text-emerald-600" />
+                  Personalizzazione Brand AnimalHub
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1.5">URL Logo Proprietario AnimalHub (PNG o SVG)</label>
+                    <input 
+                      type="url" 
+                      value={animalhubLogo}
+                      placeholder="https://upload.wikimedia.org/.../AnimalHub_logo.png"
+                      onChange={(e) => setAnimalhubLogo(e.target.value)}
+                      className="w-full p-3.5 border border-slate-200 rounded-xl text-sm font-bold text-[#1e3a5f] bg-white outline-none focus:border-emerald-500"
+                    />
+                    <span className="text-[10px] text-slate-400 mt-1 block">Lascia vuoto per utilizzare l'icona e stemma predefiniti.</span>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1.5">Descrizione Footer (Sotto il logo di sinistra)</label>
+                    <textarea 
+                      rows={2}
+                      value={footerText}
+                      placeholder="Inserisci la descrizione o disclaimer da mostrare nel footer..."
+                      onChange={(e) => setFooterText(e.target.value)}
+                      className="w-full p-3.5 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 bg-white outline-none focus:border-emerald-500 font-sans"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* TESTI LEGALI E INFORMATIVE (SUPER-CMS) */}
+              <div className="space-y-4 pt-4 border-t border-slate-100 text-left">
+                <h3 className="text-sm font-bold uppercase text-slate-400 border-b border-slate-100 pb-2 flex items-center gap-1.5">
+                  <FileText className="h-4 w-4 text-emerald-600" />
+                  Testi Informativi Privacy & Cookie (CMS)
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1.5">Testo Informativa Privacy (Supporta caratteri multiline)</label>
+                    <textarea 
+                      rows={6}
+                      value={privacyText}
+                      placeholder="Scrivi qui il testo personalizzato per la pagina Privacy Policy..."
+                      onChange={(e) => setPrivacyText(e.target.value)}
+                      className="w-full p-3.5 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 bg-white outline-none focus:border-emerald-500 font-sans"
+                    />
+                    <span className="text-[10px] text-slate-400 mt-1 block">Se vuoto, il sistema caricherà il testo standard conforme al GDPR.</span>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1.5">Testo Informativa Cookie (Supporta caratteri multiline)</label>
+                    <textarea 
+                      rows={6}
+                      value={cookieText}
+                      placeholder="Scrivi qui il testo personalizzato per la pagina Cookie Policy..."
+                      onChange={(e) => setCookieText(e.target.value)}
+                      className="w-full p-3.5 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 bg-white outline-none focus:border-emerald-500 font-sans"
+                    />
+                    <span className="text-[10px] text-slate-400 mt-1 block">Se vuoto, il sistema caricherà la descrizione tecnica predefinita.</span>
+                  </div>
+                </div>
+              </div>
+
               {/* Logo Preview block */}
               {siteLogo && (
                 <div className="p-4 border border-dashed border-emerald-300 bg-emerald-50/20 rounded-xl flex items-center justify-between">
@@ -409,6 +508,8 @@ export default function Config() {
             </form>
           </div>
         )}
+
+
 
       </div>
     </div>
