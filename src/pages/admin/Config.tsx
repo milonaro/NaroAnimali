@@ -1,7 +1,64 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Building, MapPin, CheckCircle2, ShieldCheck, Lock, Unlock, Mail, Phone, HelpCircle, FileText, Globe, RefreshCw } from 'lucide-react';
+import { Building, MapPin, CheckCircle2, ShieldCheck, Lock, Unlock, Mail, Phone, HelpCircle, FileText, Globe, RefreshCw, Plus, Trash2, Copy, Edit3, Layers, Eye, X, Sliders } from 'lucide-react';
 import { COMUNI } from '@/src/lib/geofence';
 import { showPopup, popup } from '../../lib/popup';
+import AdvancedPolicyEditor from '../../components/admin/AdvancedPolicyEditor';
+import { DEFAULT_PRIVACY_TEXT, DEFAULT_COOKIE_TEXT } from '../../lib/defaultTexts';
+
+const DEFAULT_SLIDERS = [
+  {
+    id: 1,
+    badge_it: "TUTELA & BENESSERE ANIMALE",
+    badge_en: "ANIMAL WELFARE & CARE",
+    title_it: "Proteggi e segnala il randagismo",
+    title_en: "Protect and report stray animals",
+    desc_it: "Attraverso la piattaforma ufficiale del Comune puoi avviare segnalazioni, geolocalizzare animali e monitorare lo stato di salute dei randagi.",
+    desc_en: "Through the official municipal platform, you can initiate reports, geolocate animals, and monitor the health of stray animals.",
+    icon: "PawPrint",
+    color_theme: "emerald",
+    tab_title_it: "Tutela & Soccorso",
+    tab_title_en: "Care & Assistance",
+    tab_step_it: "Modulo A",
+    tab_step_en: "Module A",
+    tab_desc_it: "Gestione randagismo, soccorso ordinario/urgente ed affidamenti digitali.",
+    tab_desc_en: "Stray animal management, urgent/ordinary rescue, and digital custody tracking.",
+    btn1_label_it: "Segnala Animale",
+    btn1_label_en: "Report Animal",
+    btn1_link: "/segnala",
+    btn1_style: "primary",
+    btn2_label_it: "Verifica Segnalazione",
+    btn2_label_en: "Check Status",
+    btn2_link: "/mia-area",
+    btn2_style: "secondary",
+    image_url: "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&q=80&w=2000"
+  },
+  {
+    id: 2,
+    badge_it: "Polizia e Controllo Sanitario",
+    badge_en: "Police & Health Control",
+    title_it: "Salvaguardia della biodiversità urbana",
+    title_en: "Safeguard of urban biodiversity",
+    desc_it: "Strumenti innovativi integrati negli uffici comunali per la convivenza serena e coordinata tra cittadini, fauna locale e territori rurali.",
+    desc_en: "Innovative tools integrated into municipal safety offices for serene and coordinated coexistence between citizens, local fauna, and rural fields.",
+    icon: "ShieldCheck",
+    color_theme: "amber",
+    tab_title_it: "Sicurezza Urbana",
+    tab_title_en: "Urban Security",
+    tab_step_it: "Modulo B",
+    tab_step_en: "Module B",
+    tab_desc_it: "Monitoraggio biodiversità, presidi di controllo fitti e pianificazioni.",
+    tab_desc_en: "Urban biodiversity monitoring, dense checkpoints, and tactical safety planning.",
+    btn1_label_it: "Segnala Animale",
+    btn1_label_en: "Report Animal",
+    btn1_link: "/segnala",
+    btn1_style: "primary",
+    btn2_label_it: "Verifica Segnalazione",
+    btn2_label_en: "Check Status",
+    btn2_link: "/mia-area",
+    btn2_style: "secondary",
+    image_url: "https://images.unsplash.com/photo-1543852786-1cf6624b9987?auto=format&fit=crop&q=80&w=2000"
+  }
+];
 
 export default function Config() {
   const [siteLogo, setSiteLogo] = useState<string>("");
@@ -15,6 +72,36 @@ export default function Config() {
   const [cookieText, setCookieText] = useState<string>("");
   const [footerText, setFooterText] = useState<string>("");
 
+  // Home Sliders Dynamic Management
+  const [sliders, setSliders] = useState<any[]>([]);
+  const [editingSliderId, setEditingSliderId] = useState<number | 'new' | null>(null);
+  const [sliderForm, setSliderForm] = useState({
+    id: 0,
+    badge_it: "",
+    badge_en: "",
+    title_it: "",
+    title_en: "",
+    desc_it: "",
+    desc_en: "",
+    icon: "PawPrint",
+    color_theme: "emerald",
+    tab_title_it: "",
+    tab_title_en: "",
+    tab_step_it: "Modulo C",
+    tab_step_en: "Module C",
+    tab_desc_it: "",
+    tab_desc_en: "",
+    btn1_label_it: "Segnala Animale",
+    btn1_label_en: "Report Animal",
+    btn1_link: "/segnala",
+    btn1_style: "primary",
+    btn2_label_it: "Verifica",
+    btn2_label_en: "Verify",
+    btn2_link: "/mia-area",
+    btn2_style: "secondary",
+    image_url: ""
+  });
+
   // Superadmin States
   const [superPasswordInput, setSuperPasswordInput] = useState("");
   const [isSuperUnlocked, setIsSuperUnlocked] = useState(false);
@@ -27,6 +114,11 @@ export default function Config() {
   const [comuneEmail, setComuneEmail] = useState("protocollo@comune.naro.ag.it");
   const [comuneTelefono, setComuneTelefono] = useState("0922 941111");
   const [comunePec, setComunePec] = useState("protocollo@pec.comune.naro.ag.it");
+
+  // New CMS States for emergency/urgent contacts in Mappa.tsx
+  const [emergencyVeterinario, setEmergencyVeterinario] = useState("0922 941122");
+  const [emergencyPolizia, setEmergencyPolizia] = useState("0922 941111");
+  const [emergencyVolontari, setEmergencyVolontari] = useState("0922 956100");
   
   const [demoLoading, setDemoLoading] = useState(false);
   const [demoSuccess, setDemoSuccess] = useState<string | null>(null);
@@ -65,6 +157,10 @@ export default function Config() {
         privacy_text: privacyText,
         cookie_text: cookieText,
         footer_text: footerText,
+        emergency_veterinario: emergencyVeterinario,
+        emergency_polizia: emergencyPolizia,
+        emergency_volontari: emergencyVolontari,
+        home_sliders: JSON.stringify(sliders),
       };
 
       const res = await fetch("/api/admin/config", {
@@ -139,6 +235,23 @@ export default function Config() {
           if (config.privacy_text) setPrivacyText(config.privacy_text);
           if (config.cookie_text) setCookieText(config.cookie_text);
           if (config.footer_text) setFooterText(config.footer_text);
+          if (config.emergency_veterinario) setEmergencyVeterinario(config.emergency_veterinario);
+          if (config.emergency_polizia) setEmergencyPolizia(config.emergency_polizia);
+          if (config.emergency_volontari) setEmergencyVolontari(config.emergency_volontari);
+          if (config.home_sliders) {
+            try {
+              const parsed = JSON.parse(config.home_sliders);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setSliders(parsed);
+              } else {
+                setSliders([...DEFAULT_SLIDERS]);
+              }
+            } catch (e) {
+              setSliders([...DEFAULT_SLIDERS]);
+            }
+          } else {
+            setSliders([...DEFAULT_SLIDERS]);
+          }
           if (config.activeComune) {
             const lowKey = config.activeComune.toLowerCase();
             setActiveComune(lowKey);
@@ -412,6 +525,50 @@ export default function Config() {
                 </div>
               </div>
 
+              {/* NUMERI DI PRONTO INTERVENTO (CMS) */}
+              <div className="space-y-4 pt-4 border-t border-slate-100 text-left">
+                <h3 className="text-sm font-bold uppercase text-slate-400 border-b border-slate-100 pb-2 flex items-center gap-1.5 font-sans">
+                  <Phone className="h-4 w-4 text-emerald-600 font-sans" />
+                  Numeri Telefonici Pronto Intervento (Mappa del Territorio)
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1.5">Veterinario Convenzionato</label>
+                    <input 
+                      type="text" 
+                      required
+                      value={emergencyVeterinario}
+                      placeholder="0922 941122"
+                      onChange={(e) => setEmergencyVeterinario(e.target.value)}
+                      className="w-full p-3.5 border border-slate-200 rounded-xl text-sm font-bold text-[#1e3a5f] bg-white outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1.5">Polizia Municipale</label>
+                    <input 
+                      type="text" 
+                      required
+                      value={emergencyPolizia}
+                      placeholder="0922 941111"
+                      onChange={(e) => setEmergencyPolizia(e.target.value)}
+                      className="w-full p-3.5 border border-slate-200 rounded-xl text-sm font-bold text-[#1e3a5f] bg-white outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1.5">Volontari ed Associazioni</label>
+                    <input 
+                      type="text" 
+                      required
+                      value={emergencyVolontari}
+                      placeholder="0922 956100"
+                      onChange={(e) => setEmergencyVolontari(e.target.value)}
+                      className="w-full p-3.5 border border-slate-200 rounded-xl text-sm font-bold text-[#1e3a5f] bg-white outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* BRANDING PERSONALIZZATO & TESTI FOOTER (CMS) */}
               <div className="space-y-4 pt-4 border-t border-slate-100 text-left">
                 <h3 className="text-sm font-bold uppercase text-slate-400 border-b border-slate-100 pb-2 flex items-center gap-1.5">
@@ -444,36 +601,502 @@ export default function Config() {
                 </div>
               </div>
 
+              {/* GESTIONE SLIDER IN EVIDENZA SULLA HOME */}
+              <div className="space-y-6 pt-6 border-t border-slate-100 text-left">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-3">
+                  <h3 className="text-sm font-bold uppercase text-[#101b3a] flex items-center gap-1.5 tracking-tight font-sans">
+                    <Sliders className="h-4 w-4 text-emerald-600" />
+                    Gestione Slider in Evidenza sulla Home Page ({sliders.length})
+                  </h3>
+                  {editingSliderId === null && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newId = sliders.length > 0 ? Math.max(...sliders.map(s => s.id || 0)) + 1 : 1;
+                        setSliderForm({
+                          id: newId,
+                          badge_it: "NUOVO MODULO",
+                          badge_en: "NEW MODULE",
+                          title_it: "Nuovo servizio per i cittadini",
+                          title_en: "New citizen service available",
+                          desc_it: "Attraverso questa sezione puoi descrivere le nuove funzionalità e i link rapidi del portale della pubblica amministrazione.",
+                          desc_en: "Use this section to describe the new features and quick links of the municipal portal.",
+                          icon: "PawPrint",
+                          color_theme: "sky",
+                          tab_title_it: "Nuovo Servizio",
+                          tab_title_en: "New Service",
+                          tab_step_it: "Modulo C",
+                          tab_step_en: "Module C",
+                          tab_desc_it: "Compila i moduli dedicati comodamente da casa e segui l'avanzamento online.",
+                          tab_desc_en: "Fill out the forms online and monitor real-time approval stages.",
+                          btn1_label_it: "Apri Modulo",
+                          btn1_label_en: "Open Form",
+                          btn1_link: "/segnala",
+                          btn1_style: "primary",
+                          btn2_label_it: "Guida d'Uso",
+                          btn2_label_en: "User Guide",
+                          btn2_link: "/guida",
+                          btn2_style: "secondary",
+                          image_url: "https://images.unsplash.com/photo-1541599540903-216a46ca1dd0?auto=format&fit=crop&q=80&w=2000"
+                        });
+                        setEditingSliderId('new');
+                      }}
+                      className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-lg text-xs uppercase tracking-wider transition-all cursor-pointer font-sans"
+                    >
+                      <Plus className="h-4 w-4" /> Aggiungi Slider
+                    </button>
+                  )}
+                </div>
+
+                {/* MODULO DI MODIFICA / CREAZIONE SLIDER INLINE */}
+                {editingSliderId !== null && (
+                  <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-6">
+                    <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                      <h4 className="text-xs font-black uppercase text-slate-705 tracking-wider flex items-center gap-2 font-sans">
+                        <Edit3 className="h-4 w-4 text-emerald-600" />
+                        {editingSliderId === 'new' ? 'Aggiungi Nuovo Slider' : `Modifica Slider ID #${editingSliderId}`}
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={() => setEditingSliderId(null)}
+                        className="text-slate-450 hover:text-slate-600 p-1 bg-white hover:bg-slate-100 rounded-lg border border-slate-200 cursor-pointer"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* ITALIANO */}
+                      <div className="bg-white p-4 rounded-xl border border-slate-200/85 space-y-4">
+                        <span className="text-[9px] font-black tracking-widest text-[#15803d] uppercase bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100 block w-max font-mono">DATI IN ITALIANO</span>
+                        
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500 block mb-1 font-sans">Badge Superiore (Es: TUTELA & BENESSERE)</label>
+                          <input
+                            type="text"
+                            required
+                            value={sliderForm.badge_it}
+                            onChange={(e) => setSliderForm({ ...sliderForm, badge_it: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500 font-sans"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500 block mb-1 font-sans">Titolo Principale Slider</label>
+                          <input
+                            type="text"
+                            required
+                            value={sliderForm.title_it}
+                            onChange={(e) => setSliderForm({ ...sliderForm, title_it: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500 font-sans"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500 block mb-1 font-sans">Descrizione Slider / Sottotitolo</label>
+                          <textarea
+                            rows={3}
+                            required
+                            value={sliderForm.desc_it}
+                            onChange={(e) => setSliderForm({ ...sliderForm, desc_it: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500 font-sans"
+                          />
+                        </div>
+
+                        <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 space-y-3">
+                          <span className="text-[8px] font-black uppercase tracking-wider text-slate-400 block font-mono">CONFIGURAZIONE TAB LATERALE (IT)</span>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-[8px] font-bold uppercase text-slate-500 block mb-0.5 font-sans font-sans">Etichetta Step (Es: Modulo A)</label>
+                              <input
+                                type="text"
+                                required
+                                value={sliderForm.tab_step_it}
+                                onChange={(e) => setSliderForm({ ...sliderForm, tab_step_it: e.target.value })}
+                                className="w-full p-2 border border-slate-200 rounded text-xs font-sans"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[8px] font-bold uppercase text-slate-500 block mb-0.5 font-sans">Titolo Breve Tab (Es: Tutela)</label>
+                              <input
+                                type="text"
+                                required
+                                value={sliderForm.tab_title_it}
+                                onChange={(e) => setSliderForm({ ...sliderForm, tab_title_it: e.target.value })}
+                                className="w-full p-2 border border-slate-200 rounded text-xs font-sans"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-[8px] font-bold uppercase text-slate-500 block mb-0.5 font-sans">Sintesi Informativa Tab</label>
+                            <input
+                              type="text"
+                              required
+                              value={sliderForm.tab_desc_it}
+                              onChange={(e) => setSliderForm({ ...sliderForm, tab_desc_it: e.target.value })}
+                              className="w-full p-2 border border-slate-200 rounded text-xs font-sans"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[9px] font-bold uppercase text-slate-500 block mb-1 font-sans">Testo Bottone 1</label>
+                            <input
+                              type="text"
+                              required
+                              value={sliderForm.btn1_label_it}
+                              onChange={(e) => setSliderForm({ ...sliderForm, btn1_label_it: e.target.value })}
+                              className="w-full p-2 border border-slate-200 rounded text-xs font-sans"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9px] font-bold uppercase text-slate-500 block mb-1 font-sans">Testo Bottone 2</label>
+                            <input
+                              type="text"
+                              required
+                              value={sliderForm.btn2_label_it}
+                              onChange={(e) => setSliderForm({ ...sliderForm, btn2_label_it: e.target.value })}
+                              className="w-full p-2 border border-slate-200 rounded text-xs font-sans"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* INGLESE */}
+                      <div className="bg-white p-4 rounded-xl border border-slate-200/85 space-y-4">
+                        <span className="text-[9px] font-black tracking-widest text-[#9a3412] uppercase bg-orange-50 px-2.5 py-1 rounded-full border border-orange-100 block w-max font-mono">DATI IN INGLESE</span>
+                        
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500 block mb-1 font-sans">Badge Superiore EN</label>
+                          <input
+                            type="text"
+                            required
+                            value={sliderForm.badge_en}
+                            onChange={(e) => setSliderForm({ ...sliderForm, badge_en: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:border-amber-500 font-sans"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500 block mb-1 font-sans">Titolo Principale Slider EN</label>
+                          <input
+                            type="text"
+                            required
+                            value={sliderForm.title_en}
+                            onChange={(e) => setSliderForm({ ...sliderForm, title_en: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:border-amber-500 font-sans"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500 block mb-1 font-sans">Descrizione Slider / Sottotitolo EN</label>
+                          <textarea
+                            rows={3}
+                            required
+                            value={sliderForm.desc_en}
+                            onChange={(e) => setSliderForm({ ...sliderForm, desc_en: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:border-amber-500 font-sans"
+                          />
+                        </div>
+
+                        <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 space-y-3">
+                          <span className="text-[8px] font-black uppercase tracking-wider text-slate-400 block font-mono">CONFIGURAZIONE TAB LATERALE (EN)</span>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-[8px] font-bold uppercase text-slate-500 block mb-0.5 font-sans">Etichetta Step EN (Es: Module A)</label>
+                              <input
+                                type="text"
+                                required
+                                value={sliderForm.tab_step_en}
+                                onChange={(e) => setSliderForm({ ...sliderForm, tab_step_en: e.target.value })}
+                                className="w-full p-2 border border-slate-200 rounded text-xs font-sans"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[8px] font-bold uppercase text-slate-500 block mb-0.5 font-sans font-sans">Titolo Breve Tab EN (Es: Assistance)</label>
+                              <input
+                                type="text"
+                                required
+                                value={sliderForm.tab_title_en}
+                                onChange={(e) => setSliderForm({ ...sliderForm, tab_title_en: e.target.value })}
+                                className="w-full p-2 border border-slate-200 rounded text-xs font-sans"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-[8px] font-bold uppercase text-slate-500 block mb-0.5 font-sans">Sintesi Informativa Tab EN</label>
+                            <input
+                              type="text"
+                              required
+                              value={sliderForm.tab_desc_en}
+                              onChange={(e) => setSliderForm({ ...sliderForm, tab_desc_en: e.target.value })}
+                              className="w-full p-2 border border-slate-200 rounded text-xs font-sans"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[9px] font-bold uppercase text-slate-500 block mb-1 font-sans">Testo Bottone 1 EN</label>
+                            <input
+                              type="text"
+                              required
+                              value={sliderForm.btn1_label_en}
+                              onChange={(e) => setSliderForm({ ...sliderForm, btn1_label_en: e.target.value })}
+                              className="w-full p-2 border border-slate-200 rounded text-xs font-sans"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9px] font-bold uppercase text-slate-500 block mb-1 font-sans">Testo Bottone 2 EN</label>
+                            <input
+                              type="text"
+                              required
+                              value={sliderForm.btn2_label_en}
+                              onChange={(e) => setSliderForm({ ...sliderForm, btn2_label_en: e.target.value })}
+                              className="w-full p-2 border border-slate-200 rounded text-xs font-sans"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* CONFIGURAZIONI COMUNI (ICONE, TEMI, LINK, IMMAGINE) */}
+                    <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4 text-left">
+                      <span className="text-[9px] font-black tracking-widest text-[#1e3a5f] uppercase bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200 block w-max font-mono">CONFIGURAZIONI DI SISTEMA E LAYOUT</span>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500 block mb-1 font-sans">Tema Cromatico (Color Theme)</label>
+                          <select
+                            value={sliderForm.color_theme}
+                            onChange={(e) => setSliderForm({ ...sliderForm, color_theme: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs bg-white font-sans"
+                          >
+                            <option value="emerald">Emerald (Verde)</option>
+                            <option value="amber">Amber (Arancione)</option>
+                            <option value="sky">Sky (Azzurro)</option>
+                            <option value="purple">Purple (Viola)</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500 block mb-1 font-sans">Icona Lucide Decorativa</label>
+                          <select
+                            value={sliderForm.icon}
+                            onChange={(e) => setSliderForm({ ...sliderForm, icon: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs bg-white font-sans"
+                          >
+                            <option value="PawPrint">Zampa (PawPrint)</option>
+                            <option value="ShieldCheck">Scudo Spuntato (ShieldCheck)</option>
+                            <option value="AlertTriangle">Triangolo Allerta (AlertTriangle)</option>
+                            <option value="Heart">Cuore (Heart)</option>
+                            <option value="Info">Info (Info)</option>
+                            <option value="HelpCircle">Punto Interrogativo (HelpCircle)</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500 block mb-1 font-sans">URL Immagine di Copertina</label>
+                          <input
+                            type="url"
+                            required
+                            placeholder="https://images.unsplash.com/..."
+                            value={sliderForm.image_url}
+                            onChange={(e) => setSliderForm({ ...sliderForm, image_url: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 font-sans"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500 block mb-1 font-sans">Link di Destinazione Bottone 1</label>
+                          <input
+                            type="text"
+                            required
+                            value={sliderForm.btn1_link}
+                            onChange={(e) => setSliderForm({ ...sliderForm, btn1_link: e.target.value })}
+                            className="w-full p-2 border border-slate-200 rounded text-xs font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500 block mb-1 font-sans">Link di Destinazione Bottone 2</label>
+                          <input
+                            type="text"
+                            required
+                            value={sliderForm.btn2_link}
+                            onChange={(e) => setSliderForm({ ...sliderForm, btn2_link: e.target.value })}
+                            className="w-full p-2 border border-slate-200 rounded text-xs font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="pt-4 flex justify-end gap-3 border-t border-slate-100">
+                        <button
+                          type="button"
+                          onClick={() => setEditingSliderId(null)}
+                          className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold px-4 py-2 rounded-lg text-xs uppercase cursor-pointer"
+                        >
+                          Annulla
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!sliderForm.badge_it || !sliderForm.title_it || !sliderForm.desc_it || !sliderForm.image_url) {
+                              showPopup({
+                                type: 'error',
+                                title: "Campi Mancanti",
+                                message: "Assicurati di inserire badge, titolo, descrizione e immagine copertina prima di confermare.",
+                                confirmLabel: "Ok"
+                              });
+                              return;
+                            }
+                            if (editingSliderId === 'new') {
+                              setSliders([...sliders, sliderForm]);
+                            } else {
+                              setSliders(sliders.map(s => s.id === editingSliderId ? sliderForm : s));
+                            }
+                            setEditingSliderId(null);
+                          }}
+                          className="bg-[#15803d] hover:bg-[#166534] text-white font-bold px-5 py-2 rounded-lg text-xs uppercase cursor-pointer"
+                        >
+                          Conferma Modifiche Slider
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* LISTA SLIDER ATTIVI */}
+                {editingSliderId === null && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {sliders.map((slider) => {
+                      return (
+                        <div key={slider.id} className="border border-slate-200 bg-white rounded-xl shadow-sm overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow">
+                          {/* Banner immagine copertina */}
+                          <div className="h-32 w-full bg-slate-100 relative">
+                            {slider.image_url ? (
+                              <img src={slider.image_url} alt={slider.title_it} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-slate-100 text-slate-300">
+                                Nessuna immagine
+                              </div>
+                            )}
+                            <div className="absolute top-2 left-2 bg-slate-900/80 backdrop-blur text-white px-2.5 py-0.5 rounded-md text-[9px] font-black uppercase font-mono">
+                              ID: #{slider.id}
+                            </div>
+                            <div className="absolute top-2 right-2 flex items-center gap-1.5 text-[8px] font-black uppercase text-[#15803d] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 font-mono">
+                              {slider.color_theme || 'emerald'}
+                            </div>
+                          </div>
+
+                          {/* Dettagli slider */}
+                          <div className="p-4 flex-1 text-left space-y-2">
+                            <div>
+                              <span className="text-[9px] font-black uppercase text-[#15853d] tracking-wide block font-sans">{slider.badge_it}</span>
+                              <h4 className="text-sm font-extrabold text-[#1e3a5f] leading-snug line-clamp-1 mt-0.5 font-sans">{slider.title_it}</h4>
+                              <p className="text-xs text-slate-500 line-clamp-2 mt-1 leading-relaxed font-sans">{slider.desc_it}</p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-100 text-[10px]">
+                              <div>
+                                <span className="text-[8px] font-bold text-slate-400 uppercase block font-sans">Step Tab</span>
+                                <span className="font-bold text-slate-700 font-sans">{slider.tab_step_it}</span>
+                              </div>
+                              <div>
+                                <span className="text-[8px] font-bold text-slate-400 uppercase block font-sans">Titolo Tab</span>
+                                <span className="font-bold text-slate-700 font-sans">{slider.tab_title_it}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Pulsanti azioni */}
+                          <div className="p-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const nextId = sliders.length > 0 ? Math.max(...sliders.map(s => s.id || 0)) + 1 : 1;
+                                const cloned = {
+                                  ...slider,
+                                  id: nextId,
+                                  title_it: `${slider.title_it} (Copia)`,
+                                  title_en: `${slider.title_en} (Clone)`,
+                                  tab_step_it: `${slider.tab_step_it} (Copia)`,
+                                  tab_step_en: `${slider.tab_step_en} (Clone)`
+                                };
+                                setSliders([...sliders, cloned]);
+                              }}
+                              className="flex-1 inline-flex items-center justify-center gap-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer font-sans"
+                            >
+                              <Copy className="h-3.5 w-3.5" /> Clona
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSliderForm({ ...slider });
+                                setEditingSliderId(slider.id);
+                              }}
+                              className="flex-1 inline-flex items-center justify-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer font-sans"
+                            >
+                              <Edit3 className="h-3.5 w-3.5" /> Modifica
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (sliders.length <= 1) {
+                                  showPopup({
+                                    type: 'error',
+                                    title: "Impossibile Eliminare",
+                                    message: "Il sistema richiede almeno uno slider attivo sulla Home Page per poter funzionare correttamente.",
+                                    confirmLabel: "Ok"
+                                  });
+                                  return;
+                                }
+                                setSliders(sliders.filter(s => s.id !== slider.id));
+                              }}
+                              className="inline-flex items-center justify-center bg-rose-50 hover:bg-rose-100 text-rose-600 p-2 rounded-lg transition-all cursor-pointer"
+                              title="Elimina"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               {/* TESTI LEGALI E INFORMATIVE (SUPER-CMS) */}
-              <div className="space-y-4 pt-4 border-t border-slate-100 text-left">
-                <h3 className="text-sm font-bold uppercase text-slate-400 border-b border-slate-100 pb-2 flex items-center gap-1.5">
+              <div className="space-y-6 pt-6 border-t border-slate-100 text-left">
+                <h3 className="text-sm font-bold uppercase text-[#101b3a] border-b border-slate-100 pb-2.5 flex items-center gap-1.5 tracking-tight">
                   <FileText className="h-4 w-4 text-emerald-600" />
-                  Testi Informativi Privacy & Cookie (CMS)
+                  Editor Avanzato Testi Informativi & Conformità (CMS)
                 </h3>
+                <p className="text-xs text-slate-500 font-medium leading-relaxed max-w-3xl">
+                  Personalizza i testi legali visibili sul portale usando l'editor di testo avanzato con formattazione Markdown e anteprima live in tempo reale. Se decidi di non personalizzarli, verranno riprodotti automaticamente i testi ministeriali standard.
+                </p>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1.5">Testo Informativa Privacy (Supporta caratteri multiline)</label>
-                    <textarea 
-                      rows={6}
-                      value={privacyText}
-                      placeholder="Scrivi qui il testo personalizzato per la pagina Privacy Policy..."
-                      onChange={(e) => setPrivacyText(e.target.value)}
-                      className="w-full p-3.5 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 bg-white outline-none focus:border-emerald-500 font-sans"
-                    />
-                    <span className="text-[10px] text-slate-400 mt-1 block">Se vuoto, il sistema caricherà il testo standard conforme al GDPR.</span>
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1.5">Testo Informativa Cookie (Supporta caratteri multiline)</label>
-                    <textarea 
-                      rows={6}
-                      value={cookieText}
-                      placeholder="Scrivi qui il testo personalizzato per la pagina Cookie Policy..."
-                      onChange={(e) => setCookieText(e.target.value)}
-                      className="w-full p-3.5 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 bg-white outline-none focus:border-emerald-500 font-sans"
-                    />
-                    <span className="text-[10px] text-slate-400 mt-1 block">Se vuoto, il sistema caricherà la descrizione tecnica predefinita.</span>
-                  </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <AdvancedPolicyEditor
+                    label="Testo dell'Informativa Privacy"
+                    value={privacyText}
+                    onChange={setPrivacyText}
+                    defaultFallbackText={DEFAULT_PRIVACY_TEXT}
+                    placeholder="Scrivi qui l'informativa sulla privacy..."
+                    description="Supporta formattazione avanzata: Titoli (H1, H2, H3), Grassetto, Corsivo, Liste ed Hyperlink."
+                  />
+                  <AdvancedPolicyEditor
+                    label="Testo dell'Informativa Cookie"
+                    value={cookieText}
+                    onChange={setCookieText}
+                    defaultFallbackText={DEFAULT_COOKIE_TEXT}
+                    placeholder="Scrivi qui l'informativa sui cookie..."
+                    description="Supporta formattazione avanzata: Titoli (H1, H2, H3), Grassetto, Corsivo, Liste ed Hyperlink."
+                  />
                 </div>
               </div>
 

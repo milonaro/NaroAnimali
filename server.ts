@@ -628,13 +628,21 @@ app.get("/api/registro", requireAuth(["ADMIN", "POLIZIA_LOCALE", "CANILE_SANITAR
 app.post("/api/registro", requireAuth(["ADMIN", "POLIZIA_LOCALE", "CANILE_SANITARIO"]), async (req, res) => {
   const data = req.body;
   if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
-  const [activeRow]: any = await mysqlPool.execute("SELECT value_data FROM admin_config WHERE key_name = 'activeComune'");
-  const comune = activeRow[0]?.value_data || 'naro';
-  
-  await mysqlPool.execute("INSERT INTO registro_anagrafica (microchip, comune_key, nome, specie, sesso, taglia, colore, condizioni_sanitarie, stato, foto_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-    [data.microchip, comune, data.nome, data.specie, data.sesso, data.taglia, data.colore, data.condizioniSanitarie, data.stato, data.fotoUrl]
-  );
-  res.json({ success: true });
+  try {
+    const [activeRow]: any = await mysqlPool.execute("SELECT value_data FROM admin_config WHERE key_name = 'activeComune'");
+    const comune = activeRow[0]?.value_data || 'naro';
+    
+    const [result]: any = await mysqlPool.execute("INSERT INTO registro_anagrafica (microchip, comune_key, nome, specie, sesso, taglia, colore, condizioni_sanitarie, stato, foto_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [data.microchip, comune, data.nome, data.specie, data.sesso, data.taglia, data.colore, data.condizioniSanitarie, data.stato, data.fotoUrl]
+    );
+    res.json({ success: true, id: result.insertId || Date.now() });
+  } catch (err: any) {
+    console.error("Errore inserimento animale registro:", err.message);
+    if (err.message.includes("Duplicate entry") || err.message.includes("UNIQUE") || err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ error: "Questo codice microchip risulta già registrato nel sistema." });
+    }
+    res.status(500).json({ error: "Errore durante l'inserimento nel registro dell'Anagrafe Canina." });
+  }
 });
 
 app.put("/api/registro/:id", requireAuth(["ADMIN", "POLIZIA_LOCALE", "CANILE_SANITARIO"]), async (req, res) => {

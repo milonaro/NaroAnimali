@@ -8,6 +8,7 @@ import {
 import AppMap from '@/src/components/map/Map';
 import { AnimalSpecie, SegnalazioneStato, Segnalazione } from '../types';
 import GestioneOperatoriTab from '@/src/components/GestioneOperatoriTab';
+import { popup } from '../lib/popup';
 
 // Removed mock data variables
 interface RegistroAnimale {
@@ -125,38 +126,48 @@ export default function Operatori() {
     }
   };
 
-  const handleDeleteAdoption = async (id: number) => {
-    if (!window.confirm("Sei sicuro di voler eliminare definitivamente questa richiesta di adozione dal registro?")) return;
-    try {
-      const res = await fetch(`/api/adozioni/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        alert("Richiesta di adozione eliminata.");
-        fetchAdozioni();
-        fetchAdozioniLogs();
-      } else {
-        const err = await res.json();
-        alert(err.error || "Errore durante l'eliminazione.");
-      }
-    } catch (e) {
-      alert("Errore imprevisto.");
-    }
+  const handleDeleteAdoption = (id: number) => {
+    popup.confirm(
+      "Sei sicuro di voler eliminare definitivamente questa richiesta di adozione dal registro?",
+      async () => {
+        try {
+          const res = await fetch(`/api/adozioni/${id}`, { method: 'DELETE' });
+          if (res.ok) {
+            popup.success("Richiesta di adozione eliminata.");
+            fetchAdozioni();
+            fetchAdozioniLogs();
+          } else {
+            const err = await res.json();
+            popup.error(err.error || "Errore durante l'eliminazione.");
+          }
+        } catch (e) {
+          popup.error("Errore imprevisto.");
+        }
+      },
+      "Eliminazione Adozione"
+    );
   };
 
-  const handleCloneAdoption = async (id: number) => {
-    if (!window.confirm("Sei sicuro di voler clonare questa richiesta di adozione? Verrà creata una nuova copia nello stato iniziale.")) return;
-    try {
-      const res = await fetch(`/api/adozioni/${id}/clona`, { method: 'POST' });
-      if (res.ok) {
-        alert("Richiesta di adozione clonata con successo!");
-        fetchAdozioni();
-        fetchAdozioniLogs();
-      } else {
-        const err = await res.json();
-        alert(err.error || "Errore durante la clonazione.");
-      }
-    } catch (e) {
-      alert("Errore imprevisto.");
-    }
+  const handleCloneAdoption = (id: number) => {
+    popup.confirm(
+      "Sei sicuro di voler clonare questa richiesta di adozione? Verrà creata una nuova copia nello stato iniziale.",
+      async () => {
+        try {
+          const res = await fetch(`/api/adozioni/${id}/clona`, { method: 'POST' });
+          if (res.ok) {
+            popup.success("Richiesta di adozione clonata con successo!");
+            fetchAdozioni();
+            fetchAdozioniLogs();
+          } else {
+            const err = await res.json();
+            popup.error(err.error || "Errore durante la clonazione.");
+          }
+        } catch (e) {
+          popup.error("Errore imprevisto.");
+        }
+      },
+      "Clonazione Adozione"
+    );
   };
 
   const handleEditAdoptionSubmit = async (e: React.FormEvent) => {
@@ -169,16 +180,16 @@ export default function Operatori() {
         body: JSON.stringify(editingAdozione)
       });
       if (res.ok) {
-        alert("Pratica di adozione modificata con successo!");
+        popup.success("Pratica di adozione modificata con successo!");
         setEditingAdozione(null);
         fetchAdozioni();
         fetchAdozioniLogs();
       } else {
         const err = await res.json();
-        alert(err.error || "Errore durante il salvataggio.");
+        popup.error(err.error || "Errore durante il salvataggio.");
       }
     } catch (e) {
-      alert("Errore imprevisto durante il salvataggio.");
+      popup.error("Errore imprevisto durante il salvataggio.");
     }
   };
 
@@ -200,14 +211,14 @@ export default function Operatori() {
         body: JSON.stringify({ stato: 'APPROVATA', esito: 'CANDIDATO_IDONEO', note: 'Certificato approvato dall\'ente comunale.' })
       });
       if (res.ok) {
-        alert("Adozione approvata con successo!");
+        popup.success("Adozione approvata con successo!");
         fetchAdozioni();
         // Reload registry list to sync updated states
         const regRes = await fetch('/api/registro');
         if (regRes.ok) setRegistro(await regRes.json());
       }
     } catch(e) {
-      alert("Errore nell'approvazione");
+      popup.error("Errore nell'approvazione");
     }
   };
 
@@ -219,18 +230,18 @@ export default function Operatori() {
         body: JSON.stringify({ stato: 'RIFIUTATA', esito: 'NON_SUPPORTATO', note: 'Richiesta respinta dall\'operatore.' })
       });
       if (res.ok) {
-        alert("Adozione rifiutata.");
+        popup.success("Adozione rifiutata.");
         fetchAdozioni();
       }
     } catch(e) {
-      alert("Errore nel rifiuto");
+      popup.error("Errore nel rifiuto");
     }
   };
 
   const handleCreaAdozione = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formAdozione.registroId) {
-      alert("Seleziona prima un animale dal registro!");
+      popup.error("Seleziona prima un animale dal registro!");
       return;
     }
     try {
@@ -247,13 +258,13 @@ export default function Operatori() {
         })
       });
       if (res.ok) {
-        alert("Richiesta di adozione salvata con successo!");
+        popup.success("Richiesta di adozione salvata con successo!");
         setFormAdozione({ registroId: '', nome: '', cf: '', tel: '', email: '', note: '' });
         setShowNuovaAdozioneModal(false);
         fetchAdozioni();
       }
     } catch (e) {
-      alert("Errore durante il salvataggio.");
+      popup.error("Errore durante il salvataggio.");
     }
   };
 
@@ -273,13 +284,13 @@ export default function Operatori() {
         })
       });
       if (res.ok) {
-        alert("Nuova struttura convenzionata registrata!");
+        popup.success("Nuova struttura convenzionata registrata!");
         setFormStruttura({ nome: '', tipo: 'CANILE', indirizzo: '', telefono: '', capacitaMax: 100 });
         setShowNuovaStrutturaModal(false);
         fetchStrutture();
       }
     } catch(e) {
-      alert("Errore durante l'inserimento.");
+      popup.error("Errore durante l'inserimento.");
     }
   };
 
@@ -298,13 +309,13 @@ export default function Operatori() {
         })
       });
       if (res.ok) {
-        alert("Fattura registrata con successo!");
+        popup.success("Fattura registrata con successo!");
         setFormFattura({ fornitore: '', numero: '', data: '', importo: '', stato: 'DA_PAGARE' });
         setShowNuovaFatturaModal(false);
         fetchFatture();
       }
     } catch(e) {
-      alert("Errore durante l'inserimento.");
+      popup.error("Errore durante l'inserimento.");
     }
   };
 
@@ -324,13 +335,13 @@ export default function Operatori() {
         })
       });
       if (res.ok) {
-        alert("Nuova convenzione registrata con successo!");
+        popup.success("Nuova convenzione registrata con successo!");
         setFormConvenzione({ strutturaId: '', tipoServizio: '', dataInizio: '', dataFine: '', importoAnnuo: '', stato: 'ATTIVA' });
         setShowNuovaConvenzioneModal(false);
         fetchConvenzioni();
       }
     } catch(e) {
-      alert("Errore durante la creazione.");
+      popup.error("Errore durante la creazione.");
     }
   };
 
@@ -517,7 +528,7 @@ export default function Operatori() {
     e.preventDefault();
     if (!selectedReport) return;
     if (!opSign.trim() || !opComment.trim()) {
-      alert("Inserire sia la firma dell'operatore che la nota dell'intervento.");
+      popup.error("Inserire sia la firma dell'operatore che la nota dell'intervento.");
       return;
     }
 
@@ -572,7 +583,7 @@ export default function Operatori() {
     }
 
     setOpComment("");
-    alert("Aggiornamento salvato con successo e firmato dall'operatore!");
+    popup.success("Aggiornamento salvato con successo e firmato dall'operatore!");
   };
 
   // Change individual report status directly
@@ -603,7 +614,7 @@ export default function Operatori() {
         setSelectedReport(updatedSel);
       }
     } catch (e) {
-      alert("Errore durante l'aggiornamento dello stato.");
+      popup.error("Errore durante l'aggiornamento dello stato.");
     }
   };
 
@@ -618,7 +629,7 @@ export default function Operatori() {
     });
 
     if (filtered.length === 0) {
-      alert("Nessun record corrispondente ai filtri per l'esportazione.");
+      popup.error("Nessun record corrispondente ai filtri per l'esportazione.");
       return;
     }
 
@@ -645,12 +656,19 @@ export default function Operatori() {
   // Add new animal to regional database
   const handleAddSoggettoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newSoggetto.microchip || newSoggetto.microchip.length !== 15) {
-      alert("Il codice microchip deve contenere esattamente 15 cifre conformi agli standard nazionali.");
+    if (!newSoggetto.microchip || !/^\d{15}$/.test(newSoggetto.microchip)) {
+      popup.error("Il codice microchip deve contenere esattamente 15 cifre numeriche conforme agli standard nazionali.");
       return;
     }
     if (!newSoggetto.colore) {
-      alert("Specificare il colore del mantello.");
+      popup.error("Specificare il colore del mantello.");
+      return;
+    }
+
+    // Microchip local duplication check
+    const microchipExists = registro.some(r => r.microchip === newSoggetto.microchip);
+    if (microchipExists) {
+      popup.error(`Errore di validazione: Il codice microchip ${newSoggetto.microchip} risulta già registrato in questo archivio comunale.`);
       return;
     }
 
@@ -692,12 +710,13 @@ export default function Operatori() {
           notes: "",
           fotoUrl: "https://images.unsplash.com/photo-1544568100-847a948585b9?auto=format&fit=crop&q=80&w=300"
         });
-        alert("Soggetto iscritto con successo nell'Archivio Anagrafico ed esportato nel database della Regione Siciliana!");
+        popup.success("Soggetto iscritto con successo nell'Archivio Anagrafico ed esportato nel database della Regione Siciliana!");
       } else {
-        alert("Errore durante la registrazione.");
+        const errorData = await res.json().catch(() => ({}));
+        popup.error(errorData.error || "Errore durante la registrazione.");
       }
     } catch (e) {
-      alert("Errore di rete.");
+      popup.error("Errore di rete.");
     }
   };
 
@@ -716,12 +735,12 @@ export default function Operatori() {
       if (res.ok) {
         setRegistro(registro.map(r => r.id === editingSoggetto.id ? { ...editingSoggetto, dataSincronizzazione: new Date().toLocaleString("it-IT") } : r));
         setEditingSoggetto(null);
-        alert("Anagrafica aggiornata con successo.");
+        popup.success("Anagrafica aggiornata con successo.");
       } else {
-        alert("Errore durante l'aggiornamento.");
+        popup.error("Errore durante l'aggiornamento.");
       }
     } catch (e) {
-      alert("Errore di rete.");
+      popup.error("Errore di rete.");
     }
   };
 
@@ -1240,249 +1259,252 @@ export default function Operatori() {
         ) : activeTab === 'modulo-c' ? (
           /* ================= MODULO C: ARCHIVIO ANAGRAFICO DIGITALE ================= */
           <div className="space-y-8">
-            
-            {/* Tool Bar & Quick Sinc Badge */}
-            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
-              
-              {/* Search Bar */}
-              <div className="relative w-full md:w-96">
-                <input 
-                  type="text" 
-                  placeholder="Cerca per codice microchip, nome o colore..." 
-                  value={searchMicrochip}
-                  onChange={(e) => setSearchMicrochip(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-lg text-xs font-bold text-[#1e3a5f] outline-none focus:border-[#15803d]"
-                />
-                <Search className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
-              </div>
-
-              {/* Badges & Actions */}
-              <div className="flex flex-wrap items-center gap-4">
-                <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 text-emerald-700 px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap">
-                  <Star className="h-4 w-4 text-emerald-600 animate-pulse" /> Sincronizzato con Anagrafe Canina Regione Siciliana
-                </div>
-
-                {currentUser?.role === 'Volontario' ? (
-                  <div className="flex items-center gap-2 bg-amber-50 border border-amber-100 text-amber-700 px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap uppercase tracking-wider">
-                    <ShieldAlert className="h-4 w-4 text-amber-600" /> Sola Lettura (Volontario)
-                  </div>
-                ) : (
-                  <>
-                    <div className="relative">
-                      <button 
-                        className="flex items-center gap-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 font-bold text-xs px-5 py-3 rounded-lg shadow-sm transition-all uppercase tracking-wider relative overflow-hidden"
-                      >
-                        <FileSpreadsheet className="h-4 w-4" /> Importa da CSV
-                        <input 
-                          type="file" 
-                          accept=".csv" 
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            try {
-                              const text = await file.text();
-                              const rows = text.split('\n').map(r => r.trim()).filter(r => r);
-                              let c = 0;
-                              for(let i = 1; i<rows.length; i++) {
-                                const cols = rows[i].split(',');
-                                if(cols.length>=6) {
-                                  const rec = {
-                                    microchip: cols[0].trim(),
-                                    nome: cols[1].trim(),
-                                    specie: cols[2].trim(),
-                                    sesso: cols[3].trim(),
-                                    taglia: cols[4].trim(),
-                                    colore: cols[5].trim(),
-                                    condizioniSanitarie: "Sano",
-                                    stato: "LIBERO"
-                                  };
-                                  await fetch('/api/registro', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(rec) });
-                                  c++;
-                                }
-                              }
-                              alert(`Caricati con successo ${c} record! Ricaricare la pagina.`);
-                            } catch(err) {
-                               alert("Errore caricamento CSV");
-                            }
-                          }}
-                          className="absolute inset-0 opacity-0 cursor-pointer" 
-                        />
-                      </button>
-                    </div>
-                    <button 
-                      onClick={() => setShowAddSoggetto(true)}
-                      className="flex items-center gap-2 bg-[#15803d] hover:bg-[#166534] text-white font-bold text-xs px-5 py-3 rounded-lg shadow-lg shadow-[#15803d]/20 transition-all uppercase tracking-wider"
-                    >
-                      <Plus className="h-4 w-4" /> Registra Nuovo Soggetto standard
-                    </button>
-                  </>
-                )}
-              </div>
-
-            </div>
-
-            {/* Modal popup to add a new subject to regional dogs database */}
-            {showAddSoggetto && (
-              <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                <div className="bg-white rounded-xl shadow-2xl border border-slate-100 max-w-2xl w-full max-h-[90vh] overflow-y-auto p-8 space-y-6">
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-                    <h3 className="text-xl font-bold text-[#1e3a5f] flex items-center gap-2">
-                      <Star className="h-5 w-5 text-emerald-500" /> Nuova Iscrizione Anagrafe Canina/Felina Sicilia
+            {showAddSoggetto ? (
+              /* DEDICATED FULL-PAGE INLINE CARD VIEW FOR INSERTION INSTEAD OF OVERLAY */
+              <div className="bg-white p-8 md:p-10 rounded-2xl border border-slate-200 shadow-md space-y-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-6">
+                  <div>
+                    <span className="text-[10px] bg-emerald-50 border border-emerald-100 text-emerald-800 font-extrabold uppercase px-2.5 py-1 rounded-md tracking-wider">
+                      Nuova Registrazione Anagrafica
+                    </span>
+                    <h3 className="text-2xl font-black text-[#1e3a5f] uppercase tracking-wide flex items-center gap-2 pt-1.5">
+                      <Star className="h-6 w-6 text-emerald-500 animate-spin-slow" /> Iscrizione Anagrafe Canina/Felina Sicilia
                     </h3>
-                    <button 
-                      onClick={() => setShowAddSoggetto(false)}
-                      className="text-slate-400 hover:text-slate-600 font-bold"
-                    >
-                      Chiudi
-                    </button>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Compila i dati ministeriali per registrare un nuovo soggetto sul territorio regionale.
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => setShowAddSoggetto(false)}
+                    className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 hover:border-slate-300 text-slate-500 hover:text-slate-700 bg-white hover:bg-slate-50 rounded-xl text-xs font-bold uppercase transition-all"
+                  >
+                    ← Torna all'elenco
+                  </button>
+                </div>
+
+                <form onSubmit={handleAddSoggettoSubmit} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Name */}
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Nome Soggetto</label>
+                      <input 
+                        type="text" 
+                        placeholder="es. Bobby"
+                        value={newSoggetto.nome}
+                        onChange={(e) => setNewSoggetto({...newSoggetto, nome: e.target.value})}
+                        className="w-full p-3 border border-slate-200 rounded text-xs outline-none focus:border-[#15803d]"
+                      />
+                    </div>
+
+                    {/* Microchip Code standard 15 chars */}
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Numero Microchip (Standard 15 cifre) *</label>
+                      <input 
+                        type="text" 
+                        required
+                        maxLength={15}
+                        placeholder="es. 380260000123456"
+                        value={newSoggetto.microchip}
+                        onChange={(e) => setNewSoggetto({...newSoggetto, microchip: e.target.value.replace(/\D/g, "")})}
+                        className="w-full p-3 border border-slate-200 rounded text-xs font-mono font-bold tracking-widest text-[#1e3a5f] outline-none focus:border-[#15803d]"
+                      />
+                    </div>
+
+                    {/* Specie dropdown */}
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Specie</label>
+                      <select 
+                        value={newSoggetto.specie}
+                        onChange={(e) => setNewSoggetto({...newSoggetto, specie: e.target.value as AnimalSpecie})}
+                        className="w-full p-3 border border-slate-200 rounded text-xs text-slate-700 bg-slate-50"
+                      >
+                        <option value={AnimalSpecie.CANE}>Cane</option>
+                        <option value={AnimalSpecie.GATTO}>Gatto</option>
+                        <option value={AnimalSpecie.ALTRO}>Altro</option>
+                      </select>
+                    </div>
+
+                    {/* Sesso */}
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Sesso</label>
+                      <select 
+                        value={newSoggetto.sesso}
+                        onChange={(e) => setNewSoggetto({...newSoggetto, sesso: e.target.value as any})}
+                        className="w-full p-3 border border-slate-200 rounded text-xs text-slate-700 bg-slate-50"
+                      >
+                        <option value="M">Maschio (M)</option>
+                        <option value="F">Femmina (F)</option>
+                      </select>
+                    </div>
+
+                    {/* Taglia */}
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Taglia</label>
+                      <select 
+                        value={newSoggetto.taglia}
+                        onChange={(e) => setNewSoggetto({...newSoggetto, taglia: e.target.value as any})}
+                        className="w-full p-3 border border-slate-200 rounded text-xs text-slate-700 bg-slate-50"
+                      >
+                        <option value="PICCOLA">Piccola (Fino a 10kg)</option>
+                        <option value="MEDIA">Media (10-25kg)</option>
+                        <option value="GRANDE">Grande (Oltre 25kg)</option>
+                      </select>
+                    </div>
+
+                    {/* Colore mantello */}
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Colore Mantello *</label>
+                      <input 
+                        type="text" 
+                        required
+                        placeholder="es. Fulvo focato, nero pezzato"
+                        value={newSoggetto.colore}
+                        onChange={(e) => setNewSoggetto({...newSoggetto, colore: e.target.value})}
+                        className="w-full p-3 border border-slate-200 rounded text-xs outline-none focus:border-[#15803d]"
+                      />
+                    </div>
+
+                    {/* Condizioni Sanitarie */}
+                    <div className="col-span-2">
+                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Stato Sanitario / Note Sanitarie</label>
+                      <input 
+                        type="text" 
+                        placeholder="es. Sano, sterilizzato il 12/03/2026 presso ASP AG Clinica"
+                        value={newSoggetto.condizioniSanitarie}
+                        onChange={(e) => setNewSoggetto({...newSoggetto, condizioniSanitarie: e.target.value})}
+                        className="w-full p-3 border border-slate-200 rounded text-xs outline-none focus:border-[#15803d]"
+                      />
+                    </div>
+
+                    {/* Life/Sopralluogo Status */}
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Stato Clinico/Iscrizione</label>
+                      <select 
+                        value={newSoggetto.stato}
+                        onChange={(e) => setNewSoggetto({...newSoggetto, stato: e.target.value as any})}
+                        className="w-full p-3 border border-slate-200 rounded text-xs text-slate-700 bg-slate-50"
+                      >
+                        <option value="LIBERO">Libero sul territorio</option>
+                        <option value="CATTURATO">Catturato (in fase di sottomissione)</option>
+                        <option value="IN_CANILE">In canile convenzionato</option>
+                        <option value="ADOTTATO">Adottato in famiglia</option>
+                        <option value="STERILIZZATO">Sterilizzato e reimmesso</option>
+                        <option value="DECEDUTO">Deceduto</option>
+                      </select>
+                    </div>
+
+                    {/* Photo url mock or real */}
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Link Foto / Unsplash</label>
+                      <input 
+                        type="text" 
+                        placeholder="Link ad immagine"
+                        value={newSoggetto.fotoUrl}
+                        onChange={(e) => setNewSoggetto({...newSoggetto, fotoUrl: e.target.value})}
+                        className="w-full p-3 border border-slate-200 rounded text-xs outline-none focus:border-[#15803d]"
+                      />
+                    </div>
                   </div>
 
-                  <form onSubmit={handleAddSoggettoSubmit} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Name */}
-                      <div>
-                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Nome Soggetto</label>
-                        <input 
-                          type="text" 
-                          placeholder="es. Bobby"
-                          value={newSoggetto.nome}
-                          onChange={(e) => setNewSoggetto({...newSoggetto, nome: e.target.value})}
-                          className="w-full p-3 border border-slate-200 rounded text-xs outline-none focus:border-[#15803d]"
-                        />
-                      </div>
-
-                      {/* Microchip Code standard 15 chars */}
-                      <div>
-                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Numero Microchip (Standard 15 cifre) *</label>
-                        <input 
-                          type="text" 
-                          required
-                          maxLength={15}
-                          placeholder="es. 380260000123456"
-                          value={newSoggetto.microchip}
-                          onChange={(e) => setNewSoggetto({...newSoggetto, microchip: e.target.value.replace(/\D/g, "")})}
-                          className="w-full p-3 border border-slate-200 rounded text-xs font-mono font-bold tracking-widest text-[#1e3a5f] outline-none focus:border-[#15803d]"
-                        />
-                      </div>
-
-                      {/* Specie dropdown */}
-                      <div>
-                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Specie</label>
-                        <select 
-                          value={newSoggetto.specie}
-                          onChange={(e) => setNewSoggetto({...newSoggetto, specie: e.target.value as AnimalSpecie})}
-                          className="w-full p-3 border border-slate-200 rounded text-xs text-slate-700 bg-slate-50"
-                        >
-                          <option value={AnimalSpecie.CANE}>Cane</option>
-                          <option value={AnimalSpecie.GATTO}>Gatto</option>
-                          <option value={AnimalSpecie.ALTRO}>Altro</option>
-                        </select>
-                      </div>
-
-                      {/* Sesso */}
-                      <div>
-                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Sesso</label>
-                        <select 
-                          value={newSoggetto.sesso}
-                          onChange={(e) => setNewSoggetto({...newSoggetto, sesso: e.target.value as any})}
-                          className="w-full p-3 border border-slate-200 rounded text-xs text-slate-700 bg-slate-50"
-                        >
-                          <option value="M">Maschio (M)</option>
-                          <option value="F">Femmina (F)</option>
-                        </select>
-                      </div>
-
-                      {/* Taglia */}
-                      <div>
-                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Taglia</label>
-                        <select 
-                          value={newSoggetto.taglia}
-                          onChange={(e) => setNewSoggetto({...newSoggetto, taglia: e.target.value as any})}
-                          className="w-full p-3 border border-slate-200 rounded text-xs text-slate-700 bg-slate-50"
-                        >
-                          <option value="PICCOLA">Piccola (Fino a 10kg)</option>
-                          <option value="MEDIA">Media (10-25kg)</option>
-                          <option value="GRANDE">Grande (Oltre 25kg)</option>
-                        </select>
-                      </div>
-
-                      {/* Colore mantello */}
-                      <div>
-                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Colore Mantello *</label>
-                        <input 
-                          type="text" 
-                          required
-                          placeholder="es. Fulvo focato, nero pezzato"
-                          value={newSoggetto.colore}
-                          onChange={(e) => setNewSoggetto({...newSoggetto, colore: e.target.value})}
-                          className="w-full p-3 border border-slate-200 rounded text-xs outline-none focus:border-[#15803d]"
-                        />
-                      </div>
-
-                      {/* Condizioni Sanitarie */}
-                      <div className="col-span-2">
-                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Stato Sanitario / Note Sanitarie</label>
-                        <input 
-                          type="text" 
-                          placeholder="es. Sano, sterilizzato il 12/03/2026 presso ASP AG Clinica"
-                          value={newSoggetto.condizioniSanitarie}
-                          onChange={(e) => setNewSoggetto({...newSoggetto, condizioniSanitarie: e.target.value})}
-                          className="w-full p-3 border border-slate-200 rounded text-xs outline-none focus:border-[#15803d]"
-                        />
-                      </div>
-
-                      {/* Life/Sopralluogo Status */}
-                      <div>
-                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Stato Clinico/Iscrizione</label>
-                        <select 
-                          value={newSoggetto.stato}
-                          onChange={(e) => setNewSoggetto({...newSoggetto, stato: e.target.value as any})}
-                          className="w-full p-3 border border-slate-200 rounded text-xs text-slate-700 bg-slate-50"
-                        >
-                          <option value="LIBERO">Libero sul territorio</option>
-                          <option value="CATTURATO">Catturato (in fase di sottomissione)</option>
-                          <option value="IN_CANILE">In canile convenzionato</option>
-                          <option value="ADOTTATO">Adottato in famiglia</option>
-                          <option value="STERILIZZATO">Sterilizzato e reimmesso</option>
-                          <option value="DECEDUTO">Deceduto</option>
-                        </select>
-                      </div>
-
-                      {/* Photo url mock or real */}
-                      <div>
-                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Link Foto / Unsplash</label>
-                        <input 
-                          type="text" 
-                          placeholder="Link ad immagine"
-                          value={newSoggetto.fotoUrl}
-                          onChange={(e) => setNewSoggetto({...newSoggetto, fotoUrl: e.target.value})}
-                          className="w-full p-3 border border-slate-200 rounded text-xs outline-none focus:border-[#15803d]"
-                        />
-                      </div>
-
-                    </div>
-
-                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                      <button 
-                        type="button" 
-                        onClick={() => setShowAddSoggetto(false)}
-                        className="px-4 py-2 border border-slate-200 rounded text-xs font-semibold text-slate-500 hover:bg-slate-100 bg-white"
-                      >
-                        Annulla
-                      </button>
-                      <button 
-                        type="submit" 
-                        className="px-6 py-2 bg-[#15803d] text-white rounded font-bold text-xs uppercase hover:bg-[#166534]"
-                      >
-                        Registra e Sincronizza
-                      </button>
-                    </div>
-                  </form>
-                </div>
+                  <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
+                    <button 
+                      type="button" 
+                      onClick={() => setShowAddSoggetto(false)}
+                      className="px-5 py-2.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-500 hover:bg-slate-100 bg-white"
+                    >
+                      Annulla e Torna
+                    </button>
+                    <button 
+                      type="submit" 
+                      className="px-6 py-2.5 bg-[#15803d] text-white rounded-lg font-bold text-xs uppercase hover:bg-[#166534]"
+                    >
+                      Registra e Sincronizza
+                    </button>
+                  </div>
+                </form>
               </div>
-            )}
+            ) : (
+              /* REGULAR DATABASE VIEW */
+              <>
+                {/* Tool Bar & Quick Sinc Badge */}
+                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+                  {/* Search Bar */}
+                  <div className="relative w-full md:w-96">
+                    <input 
+                      type="text" 
+                      placeholder="Cerca per codice microchip, nome o colore..." 
+                      value={searchMicrochip}
+                      onChange={(e) => setSearchMicrochip(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-lg text-xs font-bold text-[#1e3a5f] outline-none focus:border-[#15803d]"
+                    />
+                    <Search className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
+                  </div>
 
-            {/* Database Animals Grid display */}
+                  {/* Badges & Actions */}
+                  <div className="flex flex-wrap items-center gap-4">
+                    <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 text-emerald-700 px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap">
+                      <Star className="h-4 w-4 text-emerald-600 animate-pulse" /> Sincronizzato con Anagrafe Canina Regione Siciliana
+                    </div>
+
+                    {currentUser?.role === 'Volontario' ? (
+                      <div className="flex items-center gap-2 bg-amber-50 border border-amber-100 text-amber-700 px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap uppercase tracking-wider">
+                        <ShieldAlert className="h-4 w-4 text-amber-600" /> Sola Lettura (Volontario)
+                      </div>
+                    ) : (
+                      <>
+                        <div className="relative">
+                          <button 
+                            className="flex items-center gap-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 font-bold text-xs px-5 py-3 rounded-lg shadow-sm transition-all uppercase tracking-wider relative overflow-hidden"
+                          >
+                            <FileSpreadsheet className="h-4 w-4" /> Importa da CSV
+                            <input 
+                              type="file" 
+                              accept=".csv" 
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                try {
+                                  const text = await file.text();
+                                  const rows = text.split('\n').map(r => r.trim()).filter(r => r);
+                                  let c = 0;
+                                  for(let i = 1; i<rows.length; i++) {
+                                    const cols = rows[i].split(',');
+                                    if(cols.length>=6) {
+                                      const rec = {
+                                        microchip: cols[0].trim(),
+                                        nome: cols[1].trim(),
+                                        specie: cols[2].trim(),
+                                        sesso: cols[3].trim(),
+                                        taglia: cols[4].trim(),
+                                        colore: cols[5].trim(),
+                                        condizioniSanitarie: "Sano",
+                                        stato: "LIBERO"
+                                      };
+                                      await fetch('/api/registro', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(rec) });
+                                      c++;
+                                    }
+                                  }
+                                  popup.success(`Caricati con successo ${c} record!`);
+                                } catch(err) {
+                                  popup.error("Errore caricamento CSV");
+                                }
+                              }}
+                              className="absolute inset-0 opacity-0 cursor-pointer" 
+                            />
+                          </button>
+                        </div>
+                        <button 
+                          onClick={() => setShowAddSoggetto(true)}
+                          className="flex items-center gap-2 bg-[#15803d] hover:bg-[#166534] text-white font-bold text-xs px-5 py-3 rounded-lg shadow-lg shadow-[#15803d]/20 transition-all uppercase tracking-wider"
+                        >
+                          <Plus className="h-4 w-4" /> Registra Nuovo Soggetto
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Database Animals Grid display */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {filteredRegistro.length === 0 ? (
                 <div className="col-span-full p-12 text-center text-slate-400 bg-white rounded-xl border border-slate-200 font-medium font-sans">
@@ -1612,6 +1634,9 @@ export default function Operatori() {
                   </form>
                 </div>
               </div>
+            )}
+
+              </>
             )}
 
           </div>

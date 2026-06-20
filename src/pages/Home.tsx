@@ -46,10 +46,116 @@ function StepTooltip({ content, isVisible }: { content: string; isVisible: boole
   );
 }
 
+export const DEFAULT_SLIDERS = [
+  {
+    id: 1,
+    badge_it: "TUTELA & BENESSERE ANIMALE",
+    badge_en: "ANIMAL WELFARE & CARE",
+    title_it: "Proteggi e segnala il randagismo",
+    title_en: "Protect and report stray animals",
+    desc_it: "Attraverso la piattaforma ufficiale del Comune puoi avviare segnalazioni, geolocalizzare animali e monitorare lo stato di salute dei randagi.",
+    desc_en: "Through the official municipal platform, you can initiate reports, geolocate animals, and monitor the health of stray animals.",
+    icon: "PawPrint",
+    color_theme: "emerald",
+    tab_title_it: "Tutela & Soccorso",
+    tab_title_en: "Care & Assistance",
+    tab_step_it: "Modulo A",
+    tab_step_en: "Module A",
+    tab_desc_it: "Gestione randagismo, soccorso ordinario/urgente ed affidamenti digitali.",
+    tab_desc_en: "Stray animal management, urgent/ordinary rescue, and digital custody tracking.",
+    btn1_label_it: "Segnala Animale",
+    btn1_label_en: "Report Animal",
+    btn1_link: "/segnala",
+    btn1_style: "primary",
+    btn2_label_it: "Verifica Segnalazione",
+    btn2_label_en: "Check Status",
+    btn2_link: "/mia-area",
+    btn2_style: "secondary",
+    image_url: "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&q=80&w=2000"
+  },
+  {
+    id: 2,
+    badge_it: "Polizia e Controllo Sanitario",
+    badge_en: "Police & Health Control",
+    title_it: "Salvaguardia della biodiversità urbana",
+    title_en: "Safeguard of urban biodiversity",
+    desc_it: "Strumenti innovativi integrati negli uffici comunali per la convivenza serena e coordinata tra cittadini, fauna locale e territori rurali.",
+    desc_en: "Innovative tools integrated into municipal safety offices for serene and coordinated coexistence between citizens, local fauna, and rural fields.",
+    icon: "ShieldCheck",
+    color_theme: "amber",
+    tab_title_it: "Sicurezza Urbana",
+    tab_title_en: "Urban Security",
+    tab_step_it: "Modulo B",
+    tab_step_en: "Module B",
+    tab_desc_it: "Monitoraggio biodiversità, presidi di controllo fitti e pianificazioni.",
+    tab_desc_en: "Urban biodiversity monitoring, dense checkpoints, and tactical safety planning.",
+    btn1_label_it: "Segnala Animale",
+    btn1_label_en: "Report Animal",
+    btn1_link: "/segnala",
+    btn1_style: "primary",
+    btn2_label_it: "Verifica Segnalazione",
+    btn2_label_en: "Check Status",
+    btn2_link: "/mia-area",
+    btn2_style: "secondary",
+    image_url: "https://images.unsplash.com/photo-1543852786-1cf6624b9987?auto=format&fit=crop&q=80&w=2000"
+  }
+];
+
+export const getSliderIcon = (iconName: string) => {
+  switch (iconName) {
+    case 'ShieldCheck': return <ShieldCheck className="w-5 h-5 animate-pulse shrink-0" />;
+    case 'AlertCircle': return <AlertCircle className="w-5 h-5 animate-pulse shrink-0" />;
+    case 'Heart': return <Heart className="w-5 h-5 animate-pulse shrink-0" />;
+    case 'Info': return <Info className="w-5 h-5 animate-pulse shrink-0" />;
+    case 'HelpCircle': return <HelpCircle className="w-5 h-5 animate-pulse shrink-0" />;
+    case 'PawPrint':
+    default: return <PawPrint className="w-5 h-5 animate-pulse shrink-0" />;
+  }
+};
+
+export const getThemeColors = (color: string) => {
+  switch (color) {
+    case 'amber':
+      return {
+        badgeBg: 'bg-amber-500/15 border-amber-500/30 text-amber-300',
+        titleHighlights: 'from-amber-400 to-amber-600',
+        activeBg: 'bg-amber-950/40 border-amber-500/60 text-white shadow-xl shadow-amber-950/40',
+        tagIconBg: 'bg-amber-50 text-slate-950 shadow-md',
+        tabHighlight: 'from-amber-500/10 to-amber-500/20'
+      };
+    case 'sky':
+      return {
+        badgeBg: 'bg-sky-500/15 border-sky-500/30 text-sky-300',
+        titleHighlights: 'from-sky-400 to-sky-600',
+        activeBg: 'bg-sky-950/40 border-sky-500/60 text-white shadow-xl shadow-sky-950/40',
+        tagIconBg: 'bg-indigo-50 text-slate-950 shadow-md',
+        tabHighlight: 'from-sky-500/10 to-sky-500/20'
+      };
+    case 'purple':
+      return {
+        badgeBg: 'bg-purple-500/15 border-purple-500/30 text-purple-300',
+        titleHighlights: 'from-purple-400 to-purple-600',
+        activeBg: 'bg-purple-950/40 border-purple-500/60 text-white shadow-xl shadow-purple-950/40',
+        tagIconBg: 'bg-purple-50 text-slate-950 shadow-md',
+        tabHighlight: 'from-purple-500/10 to-purple-500/20'
+      };
+    case 'emerald':
+    default:
+      return {
+        badgeBg: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300',
+        titleHighlights: 'from-emerald-400 to-[#15803d]',
+        activeBg: 'bg-emerald-950/40 border-emerald-500/60 text-white shadow-xl shadow-emerald-950/40',
+        tagIconBg: 'bg-[#15803d] text-white shadow-md',
+        tabHighlight: 'from-emerald-500/10 to-emerald-500/20'
+      };
+  }
+};
+
 export default function Home() {
   const { language, t } = useLanguage();
   const [siteName, setSiteName] = useState("Comune di Naro");
   const [activeComune, setActiveComune] = useState(() => (localStorage.getItem('active_comune') || 'naro').toLowerCase());
+  const [sliders, setSliders] = useState<any[]>(DEFAULT_SLIDERS);
 
   useEffect(() => {
     const fetchConfig = async () => {
@@ -62,6 +168,16 @@ export default function Home() {
             const lowKey = config.activeComune.toLowerCase();
             localStorage.setItem('active_comune', lowKey);
             setActiveComune(lowKey);
+          }
+          if (config.home_sliders) {
+            try {
+              const parsed = JSON.parse(config.home_sliders);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setSliders(parsed);
+              }
+            } catch (err) {
+              console.error("Errore parsing home_sliders:", err);
+            }
           }
         }
       } catch(e) {}
@@ -78,6 +194,17 @@ export default function Home() {
 
   const [runTour, setRunTour] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
+
+  const activeSlideIdx = useMemo(() => {
+    if (!sliders || sliders.length === 0) return 0;
+    return currentSlide % sliders.length;
+  }, [currentSlide, sliders]);
+
+  const activeSlide = useMemo(() => {
+    if (!sliders || sliders.length === 0) return DEFAULT_SLIDERS[0];
+    return sliders[activeSlideIdx] || DEFAULT_SLIDERS[0];
+  }, [sliders, activeSlideIdx]);
+
   const [showScrollTop, setShowScrollTop] = useState(false);
   const navigate = useNavigate();
   
@@ -141,11 +268,12 @@ export default function Home() {
   }, [comuneSegnalazioni, language]);
 
   useEffect(() => {
+    if (sliders.length <= 1) return;
     const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % 2);
+      setCurrentSlide((prev) => (prev + 1) % sliders.length);
     }, 6000);
     return () => clearInterval(timer);
-  }, []);
+  }, [sliders]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -293,45 +421,24 @@ export default function Home() {
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#101b3a] to-transparent pointer-events-none z-20" />
 
         <AnimatePresence mode="wait">
-          {currentSlide === 0 ? (
-            <motion.div
-              key="slide1"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.8 }}
-              className="absolute inset-0"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-transparent z-10" />
-              <motion.img
-                initial={{ scale: 1.12, filter: "blur(2px)" }}
-                animate={{ scale: 1, filter: "blur(0px)" }}
-                transition={{ duration: 8 }}
-                src="https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&q=80&w=2000"
-                alt="Tutela Animali"
-                className="absolute inset-0 w-full h-full object-cover opacity-70"
-              />
-            </motion.div>
-          ) : (
-            <motion.div
-              key="slide2"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.8 }}
-              className="absolute inset-0"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-transparent z-10" />
-              <motion.img
-                initial={{ scale: 1.12, filter: "blur(2px)" }}
-                animate={{ scale: 1, filter: "blur(0px)" }}
-                transition={{ duration: 8 }}
-                src="https://images.unsplash.com/photo-1543852786-1cf6624b9987?auto=format&fit=crop&q=80&w=2000"
-                alt="Monitoraggio Territorio"
-                className="absolute inset-0 w-full h-full object-cover opacity-70"
-              />
-            </motion.div>
-          )}
+          <motion.div
+            key={`slide-${activeSlideIdx}`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8 }}
+            className="absolute inset-0"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-transparent z-10" />
+            <motion.img
+              initial={{ scale: 1.12, filter: "blur(2px)" }}
+              animate={{ scale: 1, filter: "blur(0px)" }}
+              transition={{ duration: 8 }}
+              src={activeSlide.image_url || "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&q=80&w=2000"}
+              alt="Tutela Territorio"
+              className="absolute inset-0 w-full h-full object-cover opacity-70"
+            />
+          </motion.div>
         </AnimatePresence>
 
         <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
@@ -340,118 +447,101 @@ export default function Home() {
             {/* Left Col: Dynamic text content */}
             <div className="lg:col-span-7 text-left">
               <AnimatePresence mode="wait">
-                {currentSlide === 0 ? (
-                  <motion.div
-                    key="content1"
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -30 }}
-                    transition={{ duration: 0.5, ease: "easeOut" }}
-                    className="space-y-6"
-                  >
-                    <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 bg-emerald-500/15 border border-emerald-500/30 rounded-xl backdrop-blur-md">
-                      <PawPrint className="h-5 w-5 text-emerald-400 fill-emerald-400/20" />
-                      <span className="text-emerald-300 font-extrabold uppercase tracking-[0.25em] text-[10px]">{t('home.hero_badge')}</span>
-                    </div>
-                    <h1 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold text-white tracking-tight leading-[1.05] drop-shadow-md">
-                      {language === 'it' ? <>Proteggi e <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-[#15803d]">segnala il randagismo</span></> : <>Protect and <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-[#15803d]">report stray animals</span></>}
-                    </h1>
-                    <p className="text-slate-300 text-base sm:text-lg leading-relaxed max-w-xl font-medium">
-                      {t('home.hero_desc')}
-                    </p>
-                    <div className="flex flex-wrap gap-4 pt-4">
+                <motion.div
+                  key={`content-${activeSlideIdx}`}
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -30 }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
+                  className="space-y-6"
+                >
+                  <div className={`inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl backdrop-blur-md border ${getThemeColors(activeSlide.color_theme).badgeBg}`}>
+                    {getSliderIcon(activeSlide.icon)}
+                    <span className="font-extrabold uppercase tracking-[0.25em] text-[10px]">
+                      {language === 'it' ? activeSlide.badge_it : activeSlide.badge_en}
+                    </span>
+                  </div>
+                  
+                  <h1 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold text-white tracking-tight leading-[1.05] drop-shadow-md">
+                    {language === 'it' 
+                      ? activeSlide.title_it 
+                      : activeSlide.title_en}
+                  </h1>
+                  
+                  <p className="text-slate-300 text-base sm:text-lg leading-relaxed max-w-xl font-medium">
+                    {language === 'it' ? activeSlide.desc_it : activeSlide.desc_en}
+                  </p>
+                  
+                  <div className="flex flex-wrap gap-4 pt-4">
+                    {activeSlide.btn1_label_it && (
                       <Link 
                         id="segnala-step" 
-                        to="/segnala" 
-                        className="bg-[#15803d] text-white px-8 py-4 rounded-xl font-extrabold text-base hover:bg-[#166534] transition-all flex items-center gap-3 shadow-xl hover:shadow-emerald-900/30 hover:-translate-y-0.5 cursor-pointer"
+                        to={activeSlide.btn1_link || "/segnala"} 
+                        className={`text-white px-8 py-4 rounded-xl font-extrabold text-base transition-all flex items-center gap-3 shadow-xl hover:-translate-y-0.5 cursor-pointer ${
+                          activeSlide.btn1_style === 'secondary' 
+                            ? 'bg-white/10 hover:bg-white/15 border border-white/20 backdrop-blur-md' 
+                            : 'bg-[#15803d] hover:bg-[#166534] hover:shadow-emerald-950/30'
+                        }`}
                       >
-                        <MapPin className="h-5 w-5" /> {t('home.btn_report')}
+                        <MapPin className="h-5 w-5" /> {language === 'it' ? activeSlide.btn1_label_it : activeSlide.btn1_label_en}
                       </Link>
+                    )}
+                    {activeSlide.btn2_label_it && (
                       <Link 
-                        to="/mia-area" 
-                        className="bg-white/10 hover:bg-white/15 text-white px-8 py-4 rounded-xl font-bold text-base transition-all flex items-center gap-3 border border-white/20 backdrop-blur-md hover:-translate-y-0.5 cursor-pointer"
+                        to={activeSlide.btn2_link || "/mia-area"} 
+                        className={`text-white px-8 py-4 rounded-xl font-bold text-base transition-all flex items-center gap-3 border backdrop-blur-md hover:-translate-y-0.5 cursor-pointer ${
+                          activeSlide.btn2_style === 'primary' 
+                            ? 'bg-[#15803d] hover:bg-[#166534] border-transparent' 
+                            : 'bg-white/10 hover:bg-white/15 border-white/20'
+                        }`}
                       >
-                        <Search className="h-5 w-5 text-emerald-400" /> {t('home.btn_check')}
+                        <Search className="h-5 w-5 text-emerald-400" /> {language === 'it' ? activeSlide.btn2_label_it : activeSlide.btn2_label_en}
                       </Link>
-                    </div>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="content2"
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -30 }}
-                    transition={{ duration: 0.5, ease: "easeOut" }}
-                    className="space-y-6"
-                  >
-                    <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 bg-amber-500/15 border border-amber-500/30 rounded-xl backdrop-blur-md">
-                      <ShieldCheck className="h-5 w-5 text-amber-400 fill-amber-400/20" />
-                      <span className="text-amber-300 font-extrabold uppercase tracking-[0.25em] text-[10px]">
-                        {language === 'it' ? 'Polizia e Controllo Sanitario' : 'Police & Health Control'}
-                      </span>
-                    </div>
-                    <h1 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold text-white tracking-tight leading-[1.05] drop-shadow-md">
-                      {language === 'it' ? <>Salvaguardia della <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-600">biodiversità urbana</span></> : <>Safeguard of <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-600">urban biodiversity</span></>}
-                    </h1>
-                    <p className="text-slate-300 text-base sm:text-lg leading-relaxed max-w-xl font-medium">
-                      {language === 'it' 
-                        ? 'Strumenti innovativi integrati negli uffici comunali per la convivenza serena e coordinata tra cittadini, fauna locale e territori rurali.'
-                        : 'Innovative tools integrated into municipal safety offices for serene and coordinated coexistence between citizens, fauna, and rural fields.'}
-                    </p>
-                    <div className="flex flex-wrap gap-4 pt-4">
-                      <Link 
-                        to="/segnala" 
-                        className="bg-[#15803d] text-white px-8 py-4 rounded-xl font-extrabold text-base hover:bg-[#166534] transition-all flex items-center gap-3 shadow-xl hover:shadow-emerald-950/20 hover:-translate-y-0.5 cursor-pointer"
-                      >
-                        <MapPin className="h-5 w-5" /> {t('home.btn_report')}
-                      </Link>
-                      <Link 
-                        to="/mia-area" 
-                        className="bg-white/10 hover:bg-white/15 text-white px-8 py-4 rounded-xl font-bold text-base transition-all flex items-center gap-3 border border-white/20 backdrop-blur-md hover:-translate-y-0.5 cursor-pointer"
-                      >
-                        <Search className="h-5 w-5 text-amber-400" /> {t('home.btn_check')}
-                      </Link>
-                    </div>
-                  </motion.div>
-                )}
+                    )}
+                  </div>
+                </motion.div>
               </AnimatePresence>
             </div>
 
             {/* Right Col: High-fidelity Custom Tab controls */}
             <div className="lg:col-span-5 flex flex-col sm:flex-row lg:flex-col gap-4 w-full pt-6 lg:pt-0">
-              {[
-                { id: 0, title: language === 'it' ? "Tutela & Soccorso" : "Care & Assistance", step: "Modulo A", desc: language === 'it' ? "Gestione randagismo, soccorso ordinario/urgente ed affidamenti digitali." : "Stray animal management, urgent/ordinary rescue, and digital custody tracking.", highlight: "from-emerald-500/10 to-emerald-500/20", activeBg: 'bg-emerald-950/40 border-emerald-500/60 text-white shadow-xl shadow-emerald-950/40' },
-                { id: 1, title: language === 'it' ? "Sicurezza Urbana" : "Urban Security", step: "Modulo B", desc: language === 'it' ? "Monitoraggio biodiversità, presidi di controllo fitti e pianificazioni." : "Urban biodiversity monitoring, dense checkpoints, and tactical safety planning.", highlight: "from-amber-500/10 to-amber-500/20", activeBg: 'bg-amber-950/40 border-amber-500/60 text-white shadow-xl shadow-amber-950/40' }
-              ].map((tab) => {
-                const isActive = currentSlide === tab.id;
+              {sliders.map((tab, idx) => {
+                const isActive = activeSlideIdx === idx;
+                const colors = getThemeColors(tab.color_theme);
                 return (
                   <button
-                    key={tab.id}
-                    onClick={() => setCurrentSlide(tab.id)}
+                    key={tab.id || idx}
+                    onClick={() => setCurrentSlide(idx)}
                     className={`flex-1 text-left p-6 rounded-2xl cursor-pointer border transition-all duration-300 relative group flex items-start gap-4 backdrop-blur-md overflow-hidden ${
                       isActive 
-                        ? tab.activeBg
+                        ? colors.activeBg
                         : 'bg-[#101b3a]/40 hover:bg-[#101b3a]/65 border-white/10 text-slate-400 hover:text-white hover:border-white/20 hover:scale-[1.01]'
                     }`}
                   >
                     {isActive && (
-                      <div className={`absolute inset-0 bg-gradient-to-br ${tab.highlight} pointer-events-none opacity-40 z-0`} />
+                      <div className={`absolute inset-0 bg-gradient-to-br ${colors.tabHighlight} pointer-events-none opacity-40 z-0`} />
                     )}
                     
                     <div className="relative z-10 flex flex-col items-center">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs transition-colors shrink-0 ${
                         isActive 
-                          ? tab.id === 0 ? 'bg-[#15803d] text-white shadow-md' : 'bg-amber-50 text-slate-950 shadow-md'
+                          ? colors.tagIconBg
                           : 'bg-white/10 text-slate-300'
                       }`}>
-                        {tab.id === 0 ? <PawPrint className="w-5 h-5 animate-pulse" /> : <ShieldCheck className="w-5 h-5 animate-pulse" />}
+                        {getSliderIcon(tab.icon)}
                       </div>
-                      <span className="text-[9px] font-black uppercase tracking-wider block mt-2 text-center text-slate-400 leading-none shrink-0">{tab.step}</span>
+                      <span className="text-[9px] font-black uppercase tracking-wider block mt-2 text-center text-slate-400 leading-none shrink-0">
+                        {language === 'it' ? tab.tab_step_it : tab.tab_step_en}
+                      </span>
                     </div>
 
                     <div className="relative z-10 space-y-1">
-                      <p className="text-sm font-black tracking-tight leading-none pt-1">{tab.title}</p>
-                      <p className="text-xs text-slate-300/80 leading-relaxed font-semibold">{tab.desc}</p>
+                      <p className="text-sm font-black tracking-tight leading-none pt-1">
+                        {language === 'it' ? tab.tab_title_it : tab.tab_title_en}
+                      </p>
+                      <p className="text-xs text-slate-300/80 leading-relaxed font-semibold">
+                        {language === 'it' ? tab.tab_desc_it : tab.tab_desc_en}
+                      </p>
                       {isActive && (
                         <div className="flex items-center gap-1.5 pt-1">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />

@@ -19,21 +19,6 @@ interface Report {
   image?: string;
 }
 
-const SPID_PROVIDERS = [
-  { id: 'poste', name: 'PosteID', logoText: 'Poste id', colorBg: 'bg-[#ffcc00] text-[#003366] border-[#ffcc00]' },
-  { id: 'aruba', name: 'ArubaID', logoText: 'Aruba id', colorBg: 'bg-[#ef6b00] text-white border-[#f37c1d]' },
-  { id: 'infocert', name: 'InfoCert ID', logoText: 'InfoCert ID', colorBg: 'bg-[#005c99] text-white border-[#0070b8]' },
-  { id: 'lepida', name: 'Lepida', logoText: 'Lepida', colorBg: 'bg-[#e21b1b] text-white border-[#eb3030]' },
-  { id: 'namirial', name: 'Namirial ID', logoText: 'Namirial ID', colorBg: 'bg-[#3b0066] text-white border-[#4d0085]' },
-  { id: 'tim', name: 'TIM id', logoText: 'TIM id', colorBg: 'bg-[#002e7a] text-white border-[#003ca3]' },
-  { id: 'sielte', name: 'SIELTE id', logoText: 'SIELTE id', colorBg: 'bg-[#008fcc] text-white border-[#00a3e8]' },
-  { id: 'spiditalia', name: 'SpidItalia', logoText: 'SpidItalia', colorBg: 'bg-[#333399] text-white border-[#4040a1]' },
-  { id: 'intesi', name: 'INTESI GROUP', logoText: 'Intesi Group', colorBg: 'bg-[#1a1a1a] text-white border-[#2b2b2b]' },
-  { id: 'teamsystem', name: 'TeamSystem ID', logoText: 'TeamSystem ID', colorBg: 'bg-[#00a896] text-white border-[#05c4ae]' },
-  { id: 'infocamere', name: 'InfoCamere', logoText: 'InfoCamere', colorBg: 'bg-[#3d7a5a] text-white border-[#4d946e]' },
-  { id: 'etnaid', name: 'etnaID', logoText: 'etnaID', colorBg: 'bg-[#f4511e] text-white border-[#ff6d3f]' }
-];
-
 export default function MiaArea() {
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
@@ -67,28 +52,10 @@ export default function MiaArea() {
   const [regError, setRegError] = useState<string | null>(null);
   const [regSuccess, setRegSuccess] = useState(false);
 
-  // --- NUOVI STATI PROFILO & SPID PER LEGGE ---
-  const [loginMethod, setLoginMethod] = useState<'otp' | 'spid'>('otp');
-  const [isSpidDropdownOpen, setIsSpidDropdownOpen] = useState(false);
-  const [selectedSpidProvider, setSelectedSpidProvider] = useState<string | null>(null);
-  const [showSpidModal, setShowSpidModal] = useState(false);
+  // --- NUOVI STATI PROFILO PER LEGGE ---
   const [profile, setProfile] = useState<any>(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState(false);
-
-  // Simulated SPID Credentials Form
-  const [spidForm, setSpidForm] = useState({
-    email: '',
-    username: '',
-    password: '',
-    nome: '',
-    cognome: '',
-    codiceFiscale: '',
-    telefono: '',
-    indirizzo: '',
-    comuneResidenza: 'Naro',
-    consensoDati: true
-  });
 
   // Calcolo automatico del Codice Fiscale basato sui dati inseriti dall'utente
   useEffect(() => {
@@ -175,45 +142,6 @@ export default function MiaArea() {
       setError("Errore durante il salvataggio dei dati.");
     } finally {
       setSavingProfile(false);
-    }
-  };
-
-  const handleSpidSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!spidForm.email || !spidForm.codiceFiscale) {
-      setError("Email e Codice Fiscale sono richiesti ai fini SPID.");
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/otp/spid-login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          provider: selectedSpidProvider,
-          email: spidForm.email,
-          nome: spidForm.nome,
-          cognome: spidForm.cognome,
-          codice_fiscale: spidForm.codiceFiscale,
-          telefono: spidForm.telefono,
-          indirizzo: spidForm.indirizzo,
-          comune_residenza: spidForm.comuneResidenza
-        })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Errore login SPID.");
-      
-      setShowSpidModal(false);
-      setSelectedSpidProvider(null);
-      setIsSpidDropdownOpen(false);
-      
-      setEmail(spidForm.email);
-      await checkAuth();
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -497,7 +425,7 @@ export default function MiaArea() {
               <div className="flex flex-wrap items-center gap-3">
                 <div className="px-3 border border-slate-200/60 rounded-xl flex items-center gap-2 h-9 bg-slate-50/50">
                   <span className="w-2 h-2 rounded-full bg-[#15803d]" />
-                  <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Accesso Sicuro OTP / SPID</span>
+                  <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Accesso Sicuro OTP</span>
                 </div>
               </div>
             </div>

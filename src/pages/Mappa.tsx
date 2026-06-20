@@ -19,6 +19,11 @@ export default function Mappa() {
   const [siteName, setSiteName] = useState("Comune di Naro");
   const [activeComune, setActiveComune] = useState("naro");
 
+  // CMS dynamic emergency contacts
+  const [emergencyVeterinario, setEmergencyVeterinario] = useState("0922 941122");
+  const [emergencyPolizia, setEmergencyPolizia] = useState("0922 941111");
+  const [emergencyVolontari, setEmergencyVolontari] = useState("0922 956100");
+
   const formatReportDate = (createdAt: any) => {
     if (!createdAt) return 'Non specificato';
     if (typeof createdAt.toDate === 'function') {
@@ -39,6 +44,9 @@ export default function Mappa() {
           const config = await res.json();
           if (config.siteName) setSiteName(config.siteName);
           if (config.activeComune) setActiveComune(config.activeComune);
+          if (config.emergency_veterinario) setEmergencyVeterinario(config.emergency_veterinario);
+          if (config.emergency_polizia) setEmergencyPolizia(config.emergency_polizia);
+          if (config.emergency_volontari) setEmergencyVolontari(config.emergency_volontari);
         }
       } catch(e) {}
     };
@@ -515,14 +523,18 @@ export default function Mappa() {
               <p className="text-[#94a3b8] text-[10px] leading-relaxed">
                 In caso di animali feriti gravemente sul suolo pubblico, pericolo imminente o randagismo aggressivo sul territorio, contatta immediatamente:
               </p>
-              <div className="flex flex-col gap-1 text-[11px] font-bold text-slate-200">
+              <div className="flex flex-col gap-1.5 text-[11px] font-bold text-slate-200">
                 <p className="flex items-center justify-between">
                   <span>Veterinario Convenzionato:</span>
-                  <span className="text-[#22c55e]">0922 941122</span>
+                  <span className="text-[#22c55e]">{emergencyVeterinario}</span>
                 </p>
-                <p className="flex items-center justify-between border-t border-white/5 pt-1">
+                <p className="flex items-center justify-between border-t border-white/5 pt-1.5">
                   <span>Polizia Municipale {cityName}:</span>
-                  <span className="text-[#22c55e]">0922 941111</span>
+                  <span className="text-[#22c55e]">{emergencyPolizia}</span>
+                </p>
+                <p className="flex items-center justify-between border-t border-white/5 pt-1.5">
+                  <span>Volontari e Associazioni:</span>
+                  <span className="text-[#22c55e]">{emergencyVolontari}</span>
                 </p>
               </div>
             </div>

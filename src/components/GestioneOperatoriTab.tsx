@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Users, UserPlus, Trash2, Edit, Shield, CheckSquare, Square, Lock, RefreshCw } from 'lucide-react';
+import { popup } from '../lib/popup';
 
 interface Operator {
   id: number;
@@ -142,31 +143,33 @@ export default function GestioneOperatoriTab({ currentUser }: { currentUser: any
     }
   };
 
-  const handleDelete = async (targetId: number, targetName: string) => {
+  const handleDelete = (targetId: number, targetName: string) => {
     if (targetName === 'admin') {
-      alert('Non è possibile eliminare l\'amministratore principale di sistema.');
+      popup.error('Non è possibile eliminare l\'amministratore principale di sistema.');
       return;
     }
-    if (!confirm(`Sei sicuro di voler revocare l'accesso ed eliminare l'operatore "${targetName}"?`)) {
-      return;
-    }
-
-    try {
-      setError('');
-      setSuccess('');
-      const res = await fetch(`/api/admin/users/${targetId}`, {
-        method: 'DELETE'
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setSuccess(`Operatore "${targetName}" eliminato con successo.`);
-        fetchOperators();
-      } else {
-        setError(data.error || 'Errore nella cancellazione dell\'utente.');
-      }
-    } catch (e) {
-      setError('Errore di connessione.');
-    }
+    popup.confirm(
+      `Sei sicuro di voler revocare l'accesso ed eliminare l'operatore "${targetName}"?`,
+      async () => {
+        try {
+          setError('');
+          setSuccess('');
+          const res = await fetch(`/api/admin/users/${targetId}`, {
+            method: 'DELETE'
+          });
+          const data = await res.json();
+          if (res.ok) {
+            setSuccess(`Operatore "${targetName}" eliminato con successo.`);
+            fetchOperators();
+          } else {
+            setError(data.error || 'Errore nella cancellazione dell\'utente.');
+          }
+        } catch (e) {
+          setError('Errore di connessione.');
+        }
+      },
+      "Revoca Operatore"
+    );
   };
 
   return (

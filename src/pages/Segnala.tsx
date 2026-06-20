@@ -66,7 +66,23 @@ export default function Segnala() {
   const [photo, setPhoto] = useState<File | null>(null);
   const [isOfflineMode, setIsOfflineMode] = useState(false);
 
+  // Dynamic CMS configurations 
+  const [siteName, setSiteName] = useState("Comune di Naro");
+  const [activeComune, setActiveComune] = useState("naro");
+
   useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const res = await fetch("/api/admin/config");
+        if (res.ok) {
+          const config = await res.json();
+          if (config.siteName) setSiteName(config.siteName);
+          if (config.activeComune) setActiveComune(config.activeComune);
+        }
+      } catch (e) {}
+    };
+    fetchConfig();
+
     const handleSync = async () => {
       if (!navigator.onLine) return;
       const pending = OfflineStore.getAll();
@@ -308,53 +324,6 @@ export default function Segnala() {
     <div className="bg-gray-50 flex flex-col pt-28 pb-16 min-h-screen" style={{ borderWidth: '0px', paddingTop: '110px' }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex flex-col gap-6 flex-1">
         
-        {/* Modern Header block */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-sm flex flex-col gap-5 transition-all">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15803d]">Protocollo Civico Digitale</span>
-              <h1 className="text-2xl sm:text-3xl font-black text-[#101b3a] tracking-tight mt-0.5">Nuova Segnalazione</h1>
-              <p className="text-xs text-slate-500 font-bold uppercase mt-1 tracking-wider text-left">
-                Modulo controllato A per la tutela di fauna e animali vaganti a <span className="text-[#101b3a] font-extrabold">Naro</span>.
-              </p>
-            </div>
-            
-            {/* Quick stats / safety indicators */}
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="px-3 border border-slate-200/60 rounded-xl flex items-center gap-2 h-9 bg-slate-50/50">
-                <span className="w-2 h-2 rounded-full bg-[#15803d]" />
-                <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Connessione SSL</span>
-              </div>
-              <div className="px-3 border border-amber-200/60 rounded-xl flex items-center gap-2 h-9 bg-amber-50/50">
-                <span className="w-2 h-2 rounded-full bg-amber-500" />
-                <span className="text-[10px] font-black uppercase text-amber-700 tracking-wider">Validità DPR 445/2000</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Progress Stepper */}
-        <div className="flex flex-wrap justify-center items-center gap-4 mb-4 px-4 bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm w-full">
-        {steps.map((s, i) => (
-          <React.Fragment key={s.id}>
-            <div className="flex items-center gap-3">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold transition-all ${
-                step === s.id ? 'bg-[#15803d] text-white shadow-lg shadow-[#15803d]/20 scale-110' : 
-                step > s.id ? 'bg-[#15803d] text-white' : 'bg-gray-200 text-gray-500'
-              }`}>
-                {step > s.id ? <CheckCircle2 className="h-5 w-5" /> : s.id}
-              </div>
-              <span className={`text-[11px] font-bold uppercase tracking-widest ${step === s.id ? 'text-[#15803d]' : 'text-gray-400'}`}>
-                {s.label}
-              </span>
-            </div>
-            {i < steps.length - 1 && (
-              <div className={`h-1 w-12 md:w-20 rounded-full ${step > s.id ? 'bg-[#15803d]' : 'bg-gray-200'}`} />
-            )}
-          </React.Fragment>
-        ))}
-        </div>
-
       <AnimatePresence mode="wait">
         <motion.div 
           key={step} 
@@ -363,28 +332,58 @@ export default function Segnala() {
           exit={{ opacity: 0, x: -20 }}
           className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden min-h-[600px] flex flex-col w-full"
         >
+          {/* Header integrato per ottimizzazione degli spazi */}
+          <div className="bg-slate-900 text-white p-6 md:px-10 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800">
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#22c55e]">Protocollo Civico Digitale</span>
+              <h1 className="text-xl md:text-2xl font-black text-white tracking-tight mt-0.5">Nuova Segnalazione</h1>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">
+                Comune di {siteName.replace(/^Comune di\s+/i, "")}
+              </p>
+            </div>
+            
+            {/* Step indicator compatto orizzontale */}
+            <div className="flex flex-wrap items-center gap-2 bg-[#0d1527] border border-slate-800 p-2 px-3 rounded-xl max-w-full">
+              {steps.map((s, i) => (
+                <React.Fragment key={s.id}>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black transition-all ${
+                      step === s.id ? 'bg-[#22c55e] text-slate-950 shadow-md shadow-[#22c55e]/20 scale-105' : 
+                      step > s.id ? 'bg-[#22c55e] text-slate-950' : 'bg-slate-800 text-slate-400'
+                    }`}>
+                      {step > s.id ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> : s.id}
+                    </div>
+                    <span className={`text-[9px] font-extrabold uppercase tracking-widest ${step === s.id ? 'text-[#22c55e]' : 'text-slate-400'}`}>
+                      {s.label}
+                    </span>
+                  </div>
+                  {i < steps.length - 1 && (
+                    <div className={`h-[1px] w-4 md:w-8 rounded-full ${step > s.id ? 'bg-[#22c55e]' : 'bg-slate-800'}`} />
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+
           {/* Visual Progress Bar and Percentage Tracker */}
-          <div className="bg-slate-50/50 border-b border-gray-100 p-6">
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-[10px] font-black text-[#15803d] uppercase tracking-widest flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                Stato Compilazione
+          <div className="bg-slate-50 border-b border-gray-100 px-6 py-4 md:px-10">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-[9px] font-black text-[#15803d] uppercase tracking-widest flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Progresso Compilazione
               </span>
-              <span className="text-xs font-black text-[#101b3a] bg-emerald-50/80 px-3 py-1 rounded-full border border-emerald-100">
+              <span className="text-[10px] font-black text-[#101b3a] bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100">
                 {Math.round((step / steps.length) * 100)}% Completato
               </span>
             </div>
-            <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden border border-gray-200/40 p-[1px]">
+            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden border border-slate-200 p-[1px]">
               <motion.div
-                className="h-full bg-gradient-to-r from-emerald-500 to-[#15803d] rounded-full"
+                className="h-full bg-[#15803d] rounded-full"
                 initial={{ width: 0 }}
                 animate={{ width: `${(step / steps.length) * 100}%` }}
                 transition={{ duration: 0.4, ease: "easeOut" }}
               />
             </div>
-            <p className="text-[10px] text-gray-400 font-extrabold uppercase tracking-[0.15em] mt-3.5 text-center">
-              {step === 4 ? "Pronto per l'invio ufficiale al Comune di Naro" : `Prossimo passo: ${steps[step].label}`}
-            </p>
           </div>
 
           <div className="p-6 md:p-10 flex-1">
@@ -407,7 +406,7 @@ export default function Segnala() {
                     </button>
                   )}
                 </div>
-                <div className="h-[320px] md:h-[420px] w-full rounded-lg overflow-hidden border border-gray-100 relative shadow-inner">
+                <div className="h-[450px] md:h-[550px] w-full rounded-lg overflow-hidden border border-gray-100 relative shadow-inner">
                   <AppMap interactive onLocationSelect={handleLocationSelect} hideFilters />
                 </div>
                 {error && <p className="text-red-500 font-bold text-xs">{error}</p>}
@@ -1027,7 +1026,7 @@ export default function Segnala() {
       </AnimatePresence>
       
       <p className="text-center text-slate-700 text-[10px] font-bold mt-12 uppercase tracking-[0.2em] max-w-xl mx-auto leading-relaxed">
-        Il sistema AnimalHub PA è una piattaforma ufficiale del Comune di Naro. Le segnalazioni mendaci sono punite ai sensi della legge italiana.
+        Il sistema AnimalHub PA è una piattaforma ufficiale del {siteName}. Le segnalazioni mendaci sono punite ai sensi della legge italiana (art. 76 del D.P.R. 445/2000 e art. 483 del Codice Penale).
       </p>
     </div>
     </div>
