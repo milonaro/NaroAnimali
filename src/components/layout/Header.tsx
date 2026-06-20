@@ -43,7 +43,12 @@ export default function Header() {
 
   const checkCitizenAuth = async () => {
     try {
-      const res = await fetch("/api/otp/me");
+      const storedToken = localStorage.getItem("local_citizen_token");
+      const headers: any = {};
+      if (storedToken) {
+        headers["Authorization"] = `Bearer ${storedToken}`;
+      }
+      const res = await fetch("/api/otp/me", { headers });
       if (res.ok) {
         const data = await res.json();
         if (data && data.user) {
@@ -102,6 +107,7 @@ export default function Header() {
     try {
       const res = await fetch("/api/otp/logout", { method: "POST" });
       if (res.ok) {
+        localStorage.removeItem("local_citizen_token");
         setCitizenEmail(null);
         setCitizenProfile(null);
         setIsCitizenDropdownOpen(false);

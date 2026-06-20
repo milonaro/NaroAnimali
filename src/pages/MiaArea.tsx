@@ -100,7 +100,12 @@ export default function MiaArea() {
 
   const checkAuth = async () => {
     try {
-      const res = await fetch("/api/otp/me");
+      const storedToken = localStorage.getItem("local_citizen_token");
+      const headers: any = {};
+      if (storedToken) {
+        headers["Authorization"] = `Bearer ${storedToken}`;
+      }
+      const res = await fetch("/api/otp/me", { headers });
       if (res.ok) {
         const data = await res.json();
         if (data && data.user) {
@@ -124,9 +129,14 @@ export default function MiaArea() {
     setError(null);
     setProfileSuccess(false);
     try {
+      const storedToken = localStorage.getItem("local_citizen_token");
+      const headers: any = { "Content-Type": "application/json" };
+      if (storedToken) {
+        headers["Authorization"] = `Bearer ${storedToken}`;
+      }
       const res = await fetch("/api/otp/profile", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(profile)
       });
       if (res.ok) {
@@ -148,7 +158,12 @@ export default function MiaArea() {
   const loadAnimals = async () => {
     setLoadingAnimals(true);
     try {
-      const res = await fetch("/api/registro/my-animals");
+      const storedToken = localStorage.getItem("local_citizen_token");
+      const headers: any = {};
+      if (storedToken) {
+        headers["Authorization"] = `Bearer ${storedToken}`;
+      }
+      const res = await fetch("/api/registro/my-animals", { headers });
       if (res.ok) {
         const data = await res.json();
         setAnimals(data);
@@ -219,10 +234,11 @@ export default function MiaArea() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "OTP non valido");
       
-      await Promise.all([
-        loadReports(email),
-        loadAnimals()
-      ]);
+      if (data.token) {
+        localStorage.setItem("local_citizen_token", data.token);
+      }
+      
+      await checkAuth();
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -234,6 +250,7 @@ export default function MiaArea() {
     try {
       await fetch("/api/otp/logout", { method: "POST" });
     } catch (e) {}
+    localStorage.removeItem("local_citizen_token");
     setStep(1);
     setEmail('');
     setOtp('');
@@ -257,9 +274,14 @@ export default function MiaArea() {
     }
 
     try {
+      const storedToken = localStorage.getItem("local_citizen_token");
+      const headers: any = { "Content-Type": "application/json" };
+      if (storedToken) {
+        headers["Authorization"] = `Bearer ${storedToken}`;
+      }
       const res = await fetch("/api/registro/my-animals", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(regForm)
       });
       const data = await res.json();
@@ -595,7 +617,7 @@ export default function MiaArea() {
                               </div>
                             </div>
                             
-                            <div className="h-[300px] w-full">
+                            <div className="h-[300px] w-full min-w-0">
                               <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={[
                                   { name: 'Dic', total: 12 },

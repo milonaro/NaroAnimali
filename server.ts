@@ -533,7 +533,7 @@ app.get("/api/interventi_logs", requireAuth(["ADMIN", "POLIZIA_LOCALE", "CANILE_
 
 // --- CITIZEN'S REGISTRY (ANAGRAFE CANINA) ENDPOINTS ---
 function getCitizenEmail(req: any): string | null {
-  const token = req.cookies?.citizen_token;
+  const token = req.cookies?.citizen_token || req.headers.authorization?.split(" ")[1];
   if (!token) return null;
   try {
     const decoded: any = jwt.verify(token, process.env.JWT_SECRET || "animal-hub-secret-otp");

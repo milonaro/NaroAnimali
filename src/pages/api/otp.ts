@@ -220,7 +220,7 @@ router.post("/logout", (req, res) => {
 });
 
 router.get("/me", async (req, res) => {
-  const token = req.cookies.citizen_token;
+  const token = req.cookies.citizen_token || req.headers.authorization?.split(" ")[1];
   if (!token) {
     return res.json({ user: null, profile: null });
   }
@@ -256,7 +256,7 @@ router.get("/me", async (req, res) => {
 });
 
 router.post("/profile", async (req, res) => {
-  const token = req.cookies.citizen_token;
+  const token = req.cookies.citizen_token || req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(401).json({ error: "Non autenticato" });
   
   try {

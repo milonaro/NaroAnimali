@@ -59,11 +59,11 @@ export default function AutocompleteInput({
     try {
       let url = "";
       if (type === 'comune') {
-        url = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=it&featuretype=settlement&q=${encodeURIComponent(query)}&limit=8`;
+        url = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=it&addressdetails=1&featuretype=settlement&q=${encodeURIComponent(query)}&limit=8`;
       } else {
         // Via / Stradario context e.g. "Via Sabella, Naro"
         const fullQuery = `${query}${comuneContext ? `, ${comuneContext}` : ''}`;
-        url = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=it&q=${encodeURIComponent(fullQuery)}&limit=8`;
+        url = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=it&addressdetails=1&q=${encodeURIComponent(fullQuery)}&limit=8`;
       }
 
       const response = await fetch(url, {
@@ -77,20 +77,32 @@ export default function AutocompleteInput({
       const data = await response.json();
 
       const results = data.map((item: any) => {
-        const parts = item.display_name.split(',');
         if (type === 'comune') {
-          // Typically the first item is the town name (e.g. "Naro")
+          if (item.address) {
+            const cityName = item.address.town || item.address.city || item.address.municipality || item.address.village || item.address.suburb;
+            if (cityName) return cityName.toUpperCase();
+          }
+          const parts = item.display_name.split(',');
           const cityName = parts[0]?.trim();
           return cityName ? cityName.toUpperCase() : null;
         } else {
-          // For streets, return the street name and number but exclude county and country if too long
-          // e.g. "Via Sabella, Naro"
-          const street = parts[0]?.trim();
-          const location = parts[1]?.trim();
-          if (street && location) {
-            return `${street}, ${location}`;
+          // Return ONLY street address and optional house_number, excluding the city, county/country
+          if (item.address) {
+            const road = item.address.road || item.address.pedestrian || item.address.suburb || item.address.footway || item.address.cycleway || item.address.path || item.address.square || item.address.amenity || item.address.industrial || item.address.neighbourhood;
+            const houseNumber = item.address.house_number;
+            if (road) {
+              return houseNumber ? `${road}, ${houseNumber}` : road;
+            }
           }
-          return item.display_name.split(',').slice(0, 2).join(', ');
+          // Fallback parsing display_name
+          const parts = item.display_name.split(',');
+          const p0 = parts[0]?.trim() || '';
+          const p1 = parts[1]?.trim() || '';
+          const isNumber = /^\d+$/.test(p0) || /^\d+[a-zA-Z]?$/.test(p0);
+          if (isNumber && p1) {
+            return `${p1}, ${p0}`;
+          }
+          return p0;
         }
       }).filter((val: string | null): val is string => val !== null);
 
