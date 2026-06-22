@@ -185,6 +185,15 @@ export default function Home() {
     fetchConfig();
   }, []);
 
+  useEffect(() => {
+    const handleStartTour = () => {
+      setRunTour(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    window.addEventListener('start-tutorial', handleStartTour);
+    return () => window.removeEventListener('start-tutorial', handleStartTour);
+  }, []);
+
   const cityName = useMemo(() => {
     return siteName.replace("Comune di ", "");
   }, [siteName]);
@@ -416,7 +425,7 @@ export default function Home() {
       />
 
       {/* 1. HERO SLIDER */}
-      <section id="hero-step" className="relative h-[93vh] lg:h-[750px] overflow-hidden bg-[#101b3a] flex items-center pt-24 shadow-2xl z-20">
+      <section id="hero-step" className="relative min-h-[92vh] lg:h-[750px] overflow-hidden bg-[#101b3a] flex items-center pt-28 md:pt-36 pb-12 sm:pb-16 lg:py-0 shadow-2xl z-20">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.012)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.012)_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none z-20 opacity-40" />
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#101b3a] to-transparent pointer-events-none z-20" />
 
@@ -442,7 +451,7 @@ export default function Home() {
         </AnimatePresence>
 
         <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-10 lg:gap-16 items-center">
             
             {/* Left Col: Dynamic text content */}
             <div className="lg:col-span-7 text-left">
@@ -453,49 +462,49 @@ export default function Home() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -30 }}
                   transition={{ duration: 0.5, ease: "easeOut" }}
-                  className="space-y-6"
+                  className="space-y-4 md:space-y-6"
                 >
-                  <div className={`inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl backdrop-blur-md border ${getThemeColors(activeSlide.color_theme).badgeBg}`}>
+                  <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-xl backdrop-blur-md border ${getThemeColors(activeSlide.color_theme).badgeBg}`}>
                     {getSliderIcon(activeSlide.icon)}
-                    <span className="font-extrabold uppercase tracking-[0.25em] text-[10px]">
+                    <span className="font-extrabold uppercase tracking-[0.25em] text-[8px] md:text-[10px]">
                       {language === 'it' ? activeSlide.badge_it : activeSlide.badge_en}
                     </span>
                   </div>
                   
-                  <h1 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold text-white tracking-tight leading-[1.05] drop-shadow-md">
+                  <h1 className="text-2xl sm:text-5xl lg:text-7xl font-extrabold text-white tracking-tight leading-[1.1] md:leading-[1.05] drop-shadow-md">
                     {language === 'it' 
                       ? activeSlide.title_it 
                       : activeSlide.title_en}
                   </h1>
                   
-                  <p className="text-slate-300 text-base sm:text-lg leading-relaxed max-w-xl font-medium">
+                  <p className="text-slate-300 text-xs sm:text-base lg:text-lg leading-relaxed max-w-xl font-medium">
                     {language === 'it' ? activeSlide.desc_it : activeSlide.desc_en}
                   </p>
                   
-                  <div className="flex flex-wrap gap-4 pt-4">
+                  <div className="flex flex-col sm:flex-row gap-3 pt-2 md:pt-4 w-full">
                     {activeSlide.btn1_label_it && (
                       <Link 
                         id="segnala-step" 
                         to={activeSlide.btn1_link || "/segnala"} 
-                        className={`text-white px-8 py-4 rounded-xl font-extrabold text-base transition-all flex items-center gap-3 shadow-xl hover:-translate-y-0.5 cursor-pointer ${
+                        className={`text-white px-6 py-3.5 sm:px-8 sm:py-4 rounded-xl font-extrabold text-xs sm:text-base transition-all flex items-center justify-center gap-3 shadow-xl hover:-translate-y-0.5 cursor-pointer shrink-0 ${
                           activeSlide.btn1_style === 'secondary' 
                             ? 'bg-white/10 hover:bg-white/15 border border-white/20 backdrop-blur-md' 
                             : 'bg-[#15803d] hover:bg-[#166534] hover:shadow-emerald-950/30'
                         }`}
                       >
-                        <MapPin className="h-5 w-5" /> {language === 'it' ? activeSlide.btn1_label_it : activeSlide.btn1_label_en}
+                        <MapPin className="h-4 w-4 sm:h-5 sm:w-5" /> {language === 'it' ? activeSlide.btn1_label_it : activeSlide.btn1_label_en}
                       </Link>
                     )}
                     {activeSlide.btn2_label_it && (
                       <Link 
                         to={activeSlide.btn2_link || "/mia-area"} 
-                        className={`text-white px-8 py-4 rounded-xl font-bold text-base transition-all flex items-center gap-3 border backdrop-blur-md hover:-translate-y-0.5 cursor-pointer ${
+                        className={`text-white px-6 py-3.5 sm:px-8 sm:py-4 rounded-xl font-bold text-xs sm:text-base transition-all flex items-center justify-center gap-3 border backdrop-blur-md hover:-translate-y-0.5 cursor-pointer shrink-0 ${
                           activeSlide.btn2_style === 'primary' 
                             ? 'bg-[#15803d] hover:bg-[#166534] border-transparent' 
                             : 'bg-white/10 hover:bg-white/15 border-white/20'
                         }`}
                       >
-                        <Search className="h-5 w-5 text-emerald-400" /> {language === 'it' ? activeSlide.btn2_label_it : activeSlide.btn2_label_en}
+                        <Search className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-400" /> {language === 'it' ? activeSlide.btn2_label_it : activeSlide.btn2_label_en}
                       </Link>
                     )}
                   </div>
@@ -504,7 +513,7 @@ export default function Home() {
             </div>
 
             {/* Right Col: High-fidelity Custom Tab controls */}
-            <div className="lg:col-span-5 flex flex-col sm:flex-row lg:flex-col gap-4 w-full pt-6 lg:pt-0">
+            <div className="lg:col-span-5 flex flex-col sm:flex-row lg:flex-col gap-3 sm:gap-4 w-full pt-6 lg:pt-0">
               {sliders.map((tab, idx) => {
                 const isActive = activeSlideIdx === idx;
                 const colors = getThemeColors(tab.color_theme);
@@ -512,7 +521,7 @@ export default function Home() {
                   <button
                     key={tab.id || idx}
                     onClick={() => setCurrentSlide(idx)}
-                    className={`flex-1 text-left p-6 rounded-2xl cursor-pointer border transition-all duration-300 relative group flex items-start gap-4 backdrop-blur-md overflow-hidden ${
+                    className={`flex-1 text-left p-3 md:p-6 rounded-xl md:rounded-2xl cursor-pointer border transition-all duration-300 relative group flex items-center md:items-start gap-3 md:gap-4 backdrop-blur-md overflow-hidden ${
                       isActive 
                         ? colors.activeBg
                         : 'bg-[#101b3a]/40 hover:bg-[#101b3a]/65 border-white/10 text-slate-400 hover:text-white hover:border-white/20 hover:scale-[1.01]'
@@ -522,30 +531,30 @@ export default function Home() {
                       <div className={`absolute inset-0 bg-gradient-to-br ${colors.tabHighlight} pointer-events-none opacity-40 z-0`} />
                     )}
                     
-                    <div className="relative z-10 flex flex-col items-center">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs transition-colors shrink-0 ${
+                    <div className="relative z-10 flex flex-col items-center shrink-0">
+                      <div className={`w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl flex items-center justify-center font-black text-[10px] md:text-xs transition-colors shrink-0 ${
                         isActive 
                           ? colors.tagIconBg
                           : 'bg-white/10 text-slate-300'
                       }`}>
                         {getSliderIcon(tab.icon)}
                       </div>
-                      <span className="text-[9px] font-black uppercase tracking-wider block mt-2 text-center text-slate-400 leading-none shrink-0">
+                      <span className="text-[7px] md:text-[9px] font-black uppercase tracking-wider block mt-1 md:mt-2 text-center text-slate-400 leading-none shrink-0">
                         {language === 'it' ? tab.tab_step_it : tab.tab_step_en}
                       </span>
                     </div>
 
-                    <div className="relative z-10 space-y-1">
-                      <p className="text-sm font-black tracking-tight leading-none pt-1">
+                    <div className="relative z-10 space-y-0.5 md:space-y-1 min-w-0 flex-1">
+                      <p className="text-xs md:text-sm font-black tracking-tight leading-none pt-0.5">
                         {language === 'it' ? tab.tab_title_it : tab.tab_title_en}
                       </p>
-                      <p className="text-xs text-slate-300/80 leading-relaxed font-semibold">
+                      <p className="hidden md:block text-xs text-slate-300/80 leading-relaxed font-semibold">
                         {language === 'it' ? tab.tab_desc_it : tab.tab_desc_en}
                       </p>
                       {isActive && (
-                        <div className="flex items-center gap-1.5 pt-1">
+                        <div className="flex items-center gap-1.5 pt-0.5 md:pt-1">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                          <span className="text-[9px] uppercase font-black tracking-widest text-[#22c55e]">
+                          <span className="text-[8px] md:text-[9px] uppercase font-black tracking-widest text-[#22c55e]">
                             {language === 'it' ? 'Modulo in evidenza' : 'Active Module'}
                           </span>
                         </div>
@@ -564,12 +573,12 @@ export default function Home() {
       <section id="how-it-works-step" className="py-32 bg-white relative overflow-hidden shadow-[inset_0_4px_30px_rgba(0,0,0,0.02),_0_20px_50px_rgba(0,0,0,0.04)] z-10">
         <div className="absolute top-0 right-0 w-1/3 h-full bg-gray-50/50 -skew-x-12 translate-x-1/2"></div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center mb-20">
+          <div className="text-center mb-20 p-2">
              <div className="inline-block px-4 py-1.5 bg-emerald-50 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-[#15803d] mb-6">
                {language === 'it' ? 'Processo Autoguidato' : 'Self-Guided Process'}
              </div>
-             <h2 className="text-5xl font-black text-[#101b3a] tracking-tight mb-4">{t('home.sec_how')}</h2>
-             <p className="text-slate-700 font-semibold text-lg">{t('home.sec_how_desc')}</p>
+             <h2 className="text-xl sm:text-3xl md:text-5xl font-black text-[#101b3a] tracking-tight mb-4">{t('home.sec_how')}</h2>
+             <p className="text-slate-700 font-semibold text-xs sm:text-base md:text-lg">{t('home.sec_how_desc')}</p>
           </div>
           
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8 lg:gap-12">
@@ -683,8 +692,8 @@ export default function Home() {
                <div className="inline-block px-4 py-1.5 bg-[#15803d]/10 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-[#15803d] mb-6">
                  {language === 'it' ? 'Database Animali' : 'Animal Catalog'}
                </div>
-               <h2 className="text-5xl font-black text-[#101b3a] tracking-tight mb-4">{t('home.sec_explore')}</h2>
-               <p className="text-slate-800 font-semibold text-lg">{t('home.sec_explore_desc')}</p>
+               <h2 className="text-[1.35rem] sm:text-3xl md:text-5xl font-black text-[#101b3a] tracking-tight mb-4">{t('home.sec_explore')}</h2>
+               <p className="text-slate-800 font-semibold text-xs sm:text-base md:text-lg">{t('home.sec_explore_desc')}</p>
             </div>
             <div className="flex bg-white p-2 rounded-lg shadow-xl border border-gray-100 items-center gap-2 group focus-within:ring-2 focus-within:ring-[#15803d]/20 transition-all">
               <Search className="h-5 w-5 text-slate-400 ml-4 group-focus-within:text-[#15803d] transition-colors" />
@@ -841,8 +850,8 @@ export default function Home() {
           <div className="flex justify-between items-end mb-16">
             <div className="max-w-2xl text-left">
               <div className="inline-block px-4 py-1.5 bg-emerald-50 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-[#15803d] mb-6">{t('home.sec_feed_badge')}</div>
-              <h2 className="text-4xl font-black text-[#101b3a] tracking-tight mb-4">{t('home.sec_feed')}</h2>
-              <p className="text-slate-700 font-semibold">{t('home.sec_feed_desc')} {siteName}.</p>
+              <h2 className="text-xl sm:text-2xl md:text-4xl font-black text-[#101b3a] tracking-tight mb-4">{t('home.sec_feed')}</h2>
+              <p className="text-slate-700 font-semibold text-xs sm:text-base">{t('home.sec_feed_desc')} {siteName}.</p>
             </div>
             <Link to="/mia-area" className="bg-gray-50 hover:bg-gray-100 text-[#101b3a] px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 border border-gray-100">
                {t('home.all_activities')} <ArrowRight className="h-4 w-4" />
@@ -887,8 +896,8 @@ export default function Home() {
       <section className="py-24 bg-[#fafafb] border-y border-gray-200/80 overflow-hidden relative shadow-[inset_0_6px_36px_rgba(0,0,0,0.035),_0_20px_40px_rgba(0,0,0,0.02)] z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-black text-[#101b3a] tracking-tight mb-4">{t('home.sec_innovation')}</h2>
-            <p className="text-slate-700 font-semibold text-lg">{t('home.sec_innovation_desc')}</p>
+            <h2 className="text-xl sm:text-2xl md:text-4xl font-black text-[#101b3a] tracking-tight mb-4">{t('home.sec_innovation')}</h2>
+            <p className="text-slate-700 font-semibold text-xs sm:text-base md:text-lg">{t('home.sec_innovation_desc')}</p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -973,7 +982,7 @@ export default function Home() {
       {/* 6. PERCHÈ USARE ANIMALHUB PA */}
       <section className="py-24 bg-white relative border-t border-gray-100 shadow-[inset_0_4px_30px_rgba(0,0,0,0.015),_0_20px_40px_rgba(0,0,0,0.03)] z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl font-black text-[#101b3a] tracking-tight mb-16">{t('home.sec_why')}</h2>
+          <h2 className="text-xl sm:text-2xl md:text-4xl font-black text-[#101b3a] tracking-tight mb-8 md:mb-16">{t('home.sec_why')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12 text-left">
             {[
               { 
@@ -1022,15 +1031,6 @@ export default function Home() {
          <div className="flex items-center gap-2 font-bold text-xs"><Info className="h-4 w-4" /> {language === 'it' ? `Portale Civico ${siteName}` : `Civic Portal ${cityName}`}</div>
       </section>
 
-      {/* Floating Tutorial Button */}
-      <button 
-        onClick={() => setRunTour(true)}
-        className="fixed bottom-5 left-5 z-[5000] w-10 h-10 bg-amber-500 hover:bg-amber-600 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 border border-white/50 group cursor-pointer"
-        aria-label="Avvia Tutorial"
-      >
-        <HelpCircle className="h-4.5 w-4.5 group-hover:rotate-12 transition-transform" />
-      </button>
-
       {/* Scroll to Top Button */}
       <AnimatePresence>
         {showScrollTop && (
@@ -1039,7 +1039,7 @@ export default function Home() {
             animate={{ opacity: 1, y: 0, x: "-50%" }}
             exit={{ opacity: 0, y: 20, x: "-50%" }}
             onClick={scrollToTop}
-            className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[5000] w-10 h-10 bg-[#101b3a] hover:bg-[#15803d] text-white rounded-full shadow-xl flex items-center justify-center transition-colors hover:scale-105 active:scale-95 border border-white/50 cursor-pointer"
+            className="fixed bottom-20 md:bottom-5 left-1/2 -translate-x-1/2 z-[5000] w-10 h-10 bg-[#101b3a] hover:bg-[#15803d] text-white rounded-full shadow-xl flex items-center justify-center transition-colors hover:scale-105 active:scale-95 border border-white/50 cursor-pointer"
             aria-label="Torna su"
           >
             <ArrowUp className="h-4.5 w-4.5" />

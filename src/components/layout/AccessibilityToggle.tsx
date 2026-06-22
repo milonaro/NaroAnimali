@@ -15,6 +15,14 @@ export default function AccessibilityToggle() {
   const [showPageStructure, setShowPageStructure] = useState(false);
   const { settings, updateSettings, resetSettings } = useAccessibility();
 
+  useEffect(() => {
+    const handleOpen = () => {
+      setIsOpen(true);
+    };
+    window.addEventListener('open-accessibility-menu', handleOpen);
+    return () => window.removeEventListener('open-accessibility-menu', handleOpen);
+  }, []);
+
   // Esc key down handler to close widget
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -61,18 +69,6 @@ export default function AccessibilityToggle() {
 
   return (
     <>
-      {/* Floating Launcher Button - Sienna Style (Blue circle with white figure) */}
-      <button
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-44 right-4 md:bottom-28 md:right-8 z-[9990] bg-blue-600 hover:bg-blue-700 active:scale-95 text-white p-4 rounded-full shadow-2xl border border-white/20 hover:scale-105 transition-all flex items-center justify-center animate-bounce-slow cursor-pointer"
-        title="Menu Accessibilità"
-        aria-label="Apri opzioni di accessibilità"
-        id="sienna-accessibility-launcher"
-      >
-        <Accessibility className="h-7 w-7 text-white" />
-        <span className="absolute -top-1 -right-1 bg-emerald-500 w-3.5 h-3.5 rounded-full ring-2 ring-white" />
-      </button>
-
       {/* Accessible Canvas Overlay & Modal */}
       <AnimatePresence>
         {isOpen && (

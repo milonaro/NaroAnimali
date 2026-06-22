@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, Accessibility, Info, Mail, Phone, MapPin, HelpCircle, BarChart3, Globe } from 'lucide-react';
+import { Shield, Accessibility, Info, Mail, Phone, MapPin, HelpCircle, BarChart3, Globe, Cookie, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AccessibilityToggle from './AccessibilityToggle';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -66,6 +66,7 @@ export default function Footer() {
               <li><Link to="/privacy-policy" className="hover:text-emerald-400 transition-colors">Privacy Policy</Link></li>
               <li><Link to="/cookie-policy" className="hover:text-emerald-400 transition-colors">Cookie Policy</Link></li>
               <li><Link to="/statistiche-catasto" className="hover:text-emerald-400 transition-colors text-emerald-300 flex items-center gap-1.5 font-semibold"><BarChart3 className="h-4 w-4 text-emerald-400 shrink-0" /> {t('footer.stat_module')}</Link></li>
+              <li><Link to="/assistente-ai" className="hover:text-emerald-400 text-emerald-300 transition-colors font-bold font-sans flex items-center gap-1.5"><Sparkles className="h-4 w-4 text-emerald-400 animate-pulse shrink-0" /> Chiedi all'AI (Assistente)</Link></li>
               <li className="pt-2">
                 <Link to="/operatori" className="inline-flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-2 rounded-lg text-xs font-bold transition-all shadow-sm">
                   {language === 'it' ? 'Area Operatori (Accesso Comune)' : 'Operator Area (Municipal Access)'}
@@ -114,9 +115,36 @@ export default function Footer() {
             <AccessibilityToggle />
           </div>
           <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded bg-white/5 border border-white/10 flex items-center justify-center text-[10px] font-bold text-slate-300">AG</div>
-              <div className="w-8 h-8 rounded bg-white/5 border border-white/10 flex items-center justify-center text-[10px] font-bold text-slate-300">IT</div>
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/* Bottone Guida / Tutorial */}
+              <button 
+                onClick={() => window.dispatchEvent(new Event('start-tutorial'))}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-bold text-slate-300 transition-all cursor-pointer active:scale-95"
+                title={language === 'it' ? "Avvia Guida Interattiva" : "Start Interactive Guide"}
+              >
+                <HelpCircle className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                <span>{language === 'it' ? 'Guida' : 'Guide'}</span>
+              </button>
+
+              {/* Bottone Preferenze Cookie */}
+              <button 
+                onClick={() => window.dispatchEvent(new Event('open-cookie-preferences'))}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-bold text-slate-300 transition-all cursor-pointer active:scale-95"
+                title={language === 'it' ? "Impostazioni Privacy & Cookie" : "Privacy & Cookie Settings"}
+              >
+                <Cookie className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                <span>Cookie</span>
+              </button>
+
+              {/* Bottone Menu Accessibilità */}
+              <button 
+                onClick={() => window.dispatchEvent(new Event('open-accessibility-menu'))}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-bold text-slate-300 transition-all cursor-pointer active:scale-95"
+                title={language === 'it' ? "Apri Opzioni Accessibilità" : "Open Accessibility Options"}
+              >
+                <Accessibility className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                <span>{language === 'it' ? 'Accessibilità' : 'Accessibility'}</span>
+              </button>
             </div>
           </div>
         </div>

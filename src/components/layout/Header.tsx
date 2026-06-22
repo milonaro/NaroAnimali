@@ -1,4 +1,4 @@
-import { PawPrint, Home as HomeIcon, MapPin, Map as MapIcon, UserCircle, Search, Globe, ChevronDown, Check, X } from 'lucide-react';
+import { PawPrint, Home as HomeIcon, MapPin, Map as MapIcon, UserCircle, Search, Globe, ChevronDown, Check, X, Sparkles } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -283,6 +283,9 @@ export default function Header() {
               </Link>
               <Link to="/mappa" className={`transition-colors flex flex-col items-center gap-1.5 pb-0.5 ${transparentHeader ? 'hover:text-white text-white/80' : 'hover:text-[#101b3a]'}`}>
                 <MapIcon className="h-4.5 w-4.5" /> <span>{t('nav.map')}</span>
+              </Link>
+              <Link to="/assistente-ai" className={`transition-colors flex flex-col items-center gap-1.5 pb-0.5 ${transparentHeader ? 'hover:text-white text-emerald-400 hover:scale-105' : 'hover:text-[#15803d] text-[#15803d] hover:scale-105'}`}>
+                <Sparkles className="h-4.5 w-4.5 text-emerald-500 animate-pulse" /> <span className="font-extrabold">{t('nav.ai_assistant')}</span>
               </Link>
               {!citizenEmail ? (
                 <Link to="/mia-area" className={`transition-colors flex flex-col items-center gap-1.5 pb-0.5 ${transparentHeader ? 'hover:text-white text-white/80' : 'hover:text-[#101b3a]'}`}>

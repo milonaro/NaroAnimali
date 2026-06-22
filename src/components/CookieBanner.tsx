@@ -29,6 +29,12 @@ export default function CookieBanner() {
   const [prefs, setPrefs] = useState<CookiePrefs>(defaultPrefs);
 
   useEffect(() => {
+    const handleOpen = () => {
+      setIsVisible(true);
+      setShowCustomizeModal(true);
+    };
+    window.addEventListener('open-cookie-preferences', handleOpen);
+
     const consent = localStorage.getItem('cookie-consent');
     const savedPrefs = localStorage.getItem('cookie-consent-preferences');
     
@@ -57,6 +63,10 @@ export default function CookieBanner() {
         initializeAnalytics();
       }
     }
+
+    return () => {
+      window.removeEventListener('open-cookie-preferences', handleOpen);
+    };
   }, []);
 
   const initializeAnalytics = () => {
@@ -115,20 +125,7 @@ export default function CookieBanner() {
   };
 
   if (!isVisible) {
-    // Return a neat cookie button in case they want to review settings later
-    return (
-      <button
-        onClick={() => {
-          setIsVisible(true);
-          setShowCustomizeModal(true);
-        }}
-        className="fixed bottom-5 left-16 z-[9988] w-10 h-10 bg-white hover:bg-slate-50 text-slate-800 rounded-full shadow-xl border border-slate-200 hover:scale-105 transition-all flex items-center justify-center cursor-pointer hover:border-emerald-500"
-        title="Impostazioni Privacy & Cookie"
-        aria-label="Gestisci preferenze cookie"
-      >
-        <Cookie className="h-4.5 w-4.5 text-emerald-705 animate-pulse" />
-      </button>
-    );
+    return null;
   }
 
   return (

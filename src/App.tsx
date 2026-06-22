@@ -19,10 +19,10 @@ import AdminRoute from './components/AdminRoute';
 import DebugDb from './pages/DebugDb';
 import { PrivacyPolicy, Accessibilita, CookiePolicy } from './pages/Compliance';
 import StatisticheCatasto from './pages/StatisticheCatasto';
+import AssistenteAI from './pages/AssistenteAI';
 
 import { AccessibilityProvider } from './contexts/AccessibilityContext';
 import { LanguageProvider } from './contexts/LanguageContext';
-import ChatOverlay from './components/chat/ChatOverlay';
 import BottomNavigation from './components/layout/BottomNavigation';
 import CookieBanner from './components/CookieBanner';
 import GlobalPopupModal from './components/GlobalPopupModal';
@@ -80,9 +80,9 @@ export default function App() {
                 <Route path="/cookie-policy" element={<CookiePolicy />} />
                 <Route path="/statistiche-catasto" element={<StatisticheCatasto />} />
                 <Route path="/debug-db" element={<DebugDb />} />
+                <Route path="/assistente-ai" element={<AssistenteAI />} />
               </Routes>
             </main>
-            <ChatOverlay />
             <BottomNavigation />
             <Footer />
             <CookieBanner />
