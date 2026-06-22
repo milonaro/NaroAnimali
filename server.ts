@@ -836,7 +836,7 @@ app.post("/api/adozioni/:id/clona", requireAuth(["ADMIN", "CANILE_SANITARIO", "P
 });
 
 // 2. STRUTTURE (Shelters / Clinics)
-app.get("/api/strutture", async (req, res) => {
+app.get("/api/strutture", requireAuth(["ADMIN", "CANILE_SANITARIO", "POLIZIA_LOCALE"]), async (req, res) => {
   if (!mysqlPool || !getIsMysqlHealthy()) return res.json([]);
   const [activeRow]: any = await mysqlPool.execute("SELECT value_data FROM admin_config WHERE key_name = 'activeComune'");
   const comune = activeRow[0]?.value_data || 'naro';
@@ -845,7 +845,7 @@ app.get("/api/strutture", async (req, res) => {
   res.json(rows);
 });
 
-app.post("/api/strutture", async (req, res) => {
+app.post("/api/strutture", requireAuth(["ADMIN"]), async (req, res) => {
   const data = req.body;
   if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
   const [activeRow]: any = await mysqlPool.execute("SELECT value_data FROM admin_config WHERE key_name = 'activeComune'");
@@ -859,7 +859,7 @@ app.post("/api/strutture", async (req, res) => {
 });
 
 // 3. FATTURE & BILANCIO (Invoices & Finanze)
-app.get("/api/fatture", async (req, res) => {
+app.get("/api/fatture", requireAuth(["ADMIN", "CANILE_SANITARIO", "POLIZIA_LOCALE"]), async (req, res) => {
   if (!mysqlPool || !getIsMysqlHealthy()) return res.json([]);
   const [activeRow]: any = await mysqlPool.execute("SELECT value_data FROM admin_config WHERE key_name = 'activeComune'");
   const comune = activeRow[0]?.value_data || 'naro';
@@ -868,7 +868,7 @@ app.get("/api/fatture", async (req, res) => {
   res.json(rows);
 });
 
-app.post("/api/fatture", async (req, res) => {
+app.post("/api/fatture", requireAuth(["ADMIN"]), async (req, res) => {
   const data = req.body;
   if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
   const [activeRow]: any = await mysqlPool.execute("SELECT value_data FROM admin_config WHERE key_name = 'activeComune'");
@@ -882,7 +882,7 @@ app.post("/api/fatture", async (req, res) => {
 });
 
 // 4. CONVENZIONI (Municipal Covenants & Agreements)
-app.get("/api/convenzioni", async (req, res) => {
+app.get("/api/convenzioni", requireAuth(["ADMIN", "CANILE_SANITARIO", "POLIZIA_LOCALE"]), async (req, res) => {
   if (!mysqlPool || !getIsMysqlHealthy()) return res.json([]);
   const [activeRow]: any = await mysqlPool.execute("SELECT value_data FROM admin_config WHERE key_name = 'activeComune'");
   const comune = activeRow[0]?.value_data || 'naro';
@@ -898,7 +898,7 @@ app.get("/api/convenzioni", async (req, res) => {
   res.json(rows);
 });
 
-app.post("/api/convenzioni", async (req, res) => {
+app.post("/api/convenzioni", requireAuth(["ADMIN"]), async (req, res) => {
   const data = req.body;
   if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
   const [activeRow]: any = await mysqlPool.execute("SELECT value_data FROM admin_config WHERE key_name = 'activeComune'");

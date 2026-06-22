@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import AppMap from '@/src/components/map/Map';
-import { PawPrint, MapPin, CheckCircle2, User, WifiOff, Dog, Cat, MoreHorizontal, ShieldCheck, Info, Heart, AlertTriangle, Users, Baby, Thermometer, ChevronRight, ArrowLeft, ArrowRight, Camera } from 'lucide-react';
+import { PawPrint, MapPin, CheckCircle2, User, WifiOff, Dog, Cat, MoreHorizontal, ShieldCheck, Info, Heart, AlertTriangle, Users, Baby, Thermometer, ChevronRight, ArrowLeft, ArrowRight, Camera, Download, FileText } from 'lucide-react';
 import { Segnalazione, AnimalSpecie } from '@/src/types';
 import { isInTerritorio } from '@/src/lib/geofence';
 import { motion, AnimatePresence } from 'motion/react';
 import { OfflineStore } from '@/src/lib/offline';
 import { Link } from 'react-router-dom';
+import { jsPDF } from 'jspdf';
 
 const ANIMALI_GESTITI = [
   "Piccioni urbani (Columba livia domestica)",
@@ -105,6 +106,342 @@ export default function Segnala() {
     window.addEventListener('online', handleSync);
     return () => window.removeEventListener('online', handleSync);
   }, []);
+
+  const generateSegnalazionePDF = async (protocolCode?: string) => {
+    let photoBase64 = "";
+    if (photo) {
+      try {
+        photoBase64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(photo);
+        });
+      } catch (e) {
+        console.error("Errore conversione foto per PDF", e);
+      }
+    }
+    
+    const doc = new jsPDF();
+    const isDefinitive = !!protocolCode;
+    const finalCode = protocolCode || "COF-SEG-PREVIEW";
+
+    // --- STEMMA COMUNALE REALISTICO (Disegnato con primitive jsPDF) ---
+    doc.setDrawColor(30, 58, 95); 
+    doc.setLineWidth(0.8);
+    doc.setFillColor(248, 250, 252); 
+    
+    doc.rect(20, 15, 14, 12, 'FD');
+    doc.ellipse(27, 27, 7, 5, 'FD'); 
+
+    doc.setFillColor(217, 119, 6); 
+    doc.rect(21, 11, 12, 3, 'F');
+    doc.rect(21, 9, 2, 2, 'F');
+    doc.rect(25, 9, 2, 2, 'F');
+    doc.rect(29, 9, 2, 2, 'F');
+    doc.rect(31, 9, 2, 2, 'F');
+
+    doc.setDrawColor(59, 130, 246); 
+    doc.line(23, 20, 31, 20);
+    doc.line(22, 23, 32, 23);
+    doc.line(24, 26, 30, 26);
+
+    // --- TESTI INTESTAZIONE COMUNALE ---
+    doc.setTextColor(30, 58, 95); 
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text("CITTÀ DI NARO", 40, 19);
+    
+    doc.setTextColor(100, 116, 139); 
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text("Provincia di Agrigento", 40, 23);
+    
+    doc.setTextColor(71, 85, 105); 
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.text("SETTORE VIGILANZA E SANITÀ ANIMALE", 40, 28);
+    
+    doc.setTextColor(148, 163, 184); 
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.text("Ufficio Tutela Ambientale e Gestione Territoriale del Randagismo", 40, 32);
+
+    // Protocol info box (Top right)
+    doc.setFillColor(241, 245, 249); 
+    doc.rect(135, 12, 55, 22, 'F');
+    doc.setDrawColor(226, 232, 240);
+    doc.rect(135, 12, 55, 22, 'D');
+
+    doc.setTextColor(100, 116, 139);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.text("REGISTRO SEGNALAZIONI", 140, 17);
+    
+    doc.setTextColor(15, 118, 110); 
+    doc.setFontSize(8);
+    doc.text(isDefinitive ? "STATO: TRASMESSO" : "ANTEPRIMA DI STAMPA", 140, 22);
+
+    doc.setTextColor(30, 58, 95);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.text(`Prot.: ${finalCode}`, 140, 29);
+
+    // Separatore orizzontale
+    doc.setDrawColor(30, 58, 95);
+    doc.setLineWidth(1.5);
+    doc.line(20, 39, 190, 39);
+
+    // --- TITOLO DOCUMENTO ---
+    doc.setTextColor(30, 58, 95);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("VERBALE DI SEGNALAZIONE DI ANIMALE RANDAGIO O IN DIFFICOLTÀ", 105, 48, { align: 'center' });
+    
+    doc.setTextColor(100, 116, 139);
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(8);
+    doc.text("Redatto ai sensi del D.P.R. 445/2000 in materia di dichiarazioni sostitutive e della L.R. Siciliana n. 15/2000", 105, 53, { align: 'center' });
+
+    // --- SEZIONE 1: DATI DEL SEGNALANTE (DICHIARANTE) ---
+    doc.setFillColor(30, 58, 95);
+    doc.rect(20, 58, 170, 6, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.text("SEZIONE I - DICHIARANTE / RECAPITO SEGNALANTE", 23, 62);
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.5);
+    doc.rect(20, 64, 170, 24, 'D');
+    doc.line(20, 76, 190, 76); 
+    doc.line(105, 64, 105, 88); 
+
+    // Riquadro 1: Cognome e Nome
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(115, 115, 115);
+    doc.text("COGNOME E NOME:", 22, 68);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9.5);
+    doc.setTextColor(30, 58, 95);
+    doc.text(`${(formData.nomeSegnalante || '').toUpperCase()} ${(formData.cognomeSegnalante || '').toUpperCase()}`, 22, 73);
+
+    // Riquadro 2: Recapito Telefonico
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(115, 115, 115);
+    doc.text("TELEFONO / RECAPITO:", 107, 68);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9.5);
+    doc.setTextColor(30, 58, 95);
+    doc.text(`${formData.telefonoSegnalante || 'Non specificato'}`, 107, 73);
+
+    // Riquadro 3: Email
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(115, 115, 115);
+    doc.text("INDIRIZZO EMAIL CONTATTO:", 22, 80);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(51, 65, 85);
+    doc.text(`${formData.emailSegnalante || 'Non specificato'}`, 22, 84);
+
+    // Riquadro 4: Data e Ora Accettazione
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(115, 115, 115);
+    doc.text("DATA E ORA COMPILAZIONE:", 107, 80);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(30, 58, 95);
+    doc.text(`${new Date().toLocaleString('it-IT')}`, 107, 84);
+
+
+    // --- SEZIONE 2: DATI DELL'ANIMALE ---
+    doc.setFillColor(30, 58, 95);
+    doc.rect(20, 93, 170, 6, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.text("SEZIONE II - SCHEDA DI RILEVAMENTO SOGGETTO (ANIMALE)", 23, 97);
+
+    const hasPhotoObj = !!photoBase64;
+    const rightBoundaryX = hasPhotoObj ? 140 : 190;
+    const rightColWidth = hasPhotoObj ? 120 : 170;
+
+    doc.setLineWidth(0.5);
+    doc.setDrawColor(226, 232, 240);
+    doc.rect(20, 99, rightColWidth, 36, 'D');
+    doc.line(20, 111, rightBoundaryX, 111);
+    doc.line(20, 123, rightBoundaryX, 123);
+    
+    const midpointX = hasPhotoObj ? 80 : 105;
+    doc.line(midpointX, 99, midpointX, 123);
+
+    // Riquadro Specie
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(115, 115, 115);
+    doc.text("SPECIE / SOGGETTO:", 22, 103);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(30, 58, 95);
+    doc.text(`${(formData.specie || 'Non specificata').toUpperCase()}`, 22, 108);
+
+    // Riquadro Taglia
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(115, 115, 115);
+    doc.text("TAGLIA PREVISTA:", midpointX + 2, 103);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(30, 58, 95);
+    doc.text(`${(formData.taglia || 'N.D.').toUpperCase()}`, midpointX + 2, 108);
+
+    // Riquadro Condizioni
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(115, 115, 115);
+    doc.text("STATO SANITARIO E CONDIZIONI:", 22, 115);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(185, 28, 28); 
+    doc.text(`${(formData.condizioni || 'NORMALE').toUpperCase()}`, 22, 120);
+
+    // Riquadro Colore
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(115, 115, 115);
+    doc.text("COLORE MANTELLO / SEGNI:", midpointX + 2, 115);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(51, 65, 85);
+    doc.text(`${formData.colore || 'Non specificato'}`, midpointX + 2, 120);
+
+    // Note descrittive
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(115, 115, 115);
+    doc.text("DESCRIZIONE DETTAGLIATA O ANOMALIE COMPORTAMENTALI:", 22, 127);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(51, 65, 85);
+    const splitNotes = doc.splitTextToSize(formData.descrizione || "Nessun dettaglio aggiuntivo descritto dal dichiarante originario.", rightColWidth - 4);
+    doc.text(splitNotes, 22, 131.5);
+
+    if (hasPhotoObj) {
+      doc.rect(142, 99, 48, 36, 'D');
+      try {
+        doc.addImage(photoBase64, "JPEG", 143, 100, 46, 34);
+      } catch (err) {
+        console.error("Non-critical: Image adding failed in PDF", err);
+        doc.setFontSize(7);
+        doc.setTextColor(150, 150, 150);
+        doc.text("[Impossibile inserire foto]", 166, 118, { align: 'center' });
+      }
+    }
+
+
+    // --- SEZIONE 3: LOCALIZZAZIONE E RIFERIMENTI ---
+    doc.setFillColor(30, 58, 95);
+    doc.rect(20, 140, 170, 6, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.text("SEZIONE III - GEO-LOCALIZZAZIONE E RIFERIMENTI TERRITORIALI", 23, 144);
+
+    doc.rect(20, 146, 170, 24, 'D');
+    doc.line(20, 158, 190, 158);
+    doc.line(105, 158, 105, 170); 
+
+    // Indirizzo
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(115, 115, 115);
+    doc.text("INDIRIZZO RILEVATO DEL RITROVAMENTO:", 22, 150);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(30, 58, 95);
+    const splitAddr = doc.splitTextToSize(locationDetails?.address || "Coordinate definite manualmente sulla mappa interattiva", 164);
+    doc.text(splitAddr, 22, 154.5);
+
+    // Latitudine
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(115, 115, 115);
+    doc.text("COORD. LATITUDINE:", 22, 162);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(30, 58, 95);
+    doc.text(`${location?.lat.toFixed(6) || '0.000000'}`, 22, 166.5);
+
+    // Longitudine
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(115, 115, 115);
+    doc.text("COORD. LONGITUDINE:", 107, 162);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(30, 58, 95);
+    doc.text(`${location?.lng.toFixed(6) || '0.000000'}`, 107, 166.5);
+
+
+    // --- SEZIONE 4: DICHIARAZIONE D'ASSUNZIONE DI RESPONSABILITÀ ---
+    doc.setFillColor(254, 243, 199); 
+    doc.rect(20, 175, 170, 17, 'F');
+    doc.setDrawColor(245, 158, 11); 
+    doc.rect(20, 175, 170, 17, 'D');
+
+    doc.setTextColor(146, 64, 14); 
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.text("Dichiarazione Sostitutiva ai Sensi del DPR 445/2000 & Assunzione di Responsabilità Legale", 23, 179);
+    
+    doc.setTextColor(120, 53, 4); 
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6.5);
+    const txtLaw = "Il dichiarante sopra indicato sottoscrive la veridicità delle dichiarazioni rese ai sensi e per gli effetti dello Statuto della Città di Naro e delle Leggi penali dello Stato, consapevole che le dichiarazioni false ed i procurati allarmi sono puniti e qualificati come reato d'ufficio e segnalati all'Autorità Giudiziaria.";
+    const splitLaw = doc.splitTextToSize(txtLaw, 164);
+    doc.text(splitLaw, 23, 183);
+
+
+    // --- SOTTOSCRIZIONI (FIRME) ---
+    doc.setTextColor(100, 116, 139);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.text(`Naro (AG), lì ${new Date().toLocaleDateString('it-IT')}`, 20, 203);
+
+    doc.setFontSize(7.5);
+    doc.text("IL DICHIARANTE (SEGNALANTE)", 35, 209, { align: 'center' });
+    doc.line(20, 227, 75, 227); 
+    
+    doc.text("IL FUNZIONARIO RILEVATORE", 155, 209, { align: 'center' });
+    doc.line(135, 227, 190, 227); 
+    
+    doc.setFontSize(6.5);
+    doc.setFont("helvetica", "italic");
+    doc.text("(Firma autografa digitale protocollata)", 35, 231, { align: 'center' });
+    doc.text("(Timbro d'Ufficio e firma per presa in carico)", 155, 231, { align: 'center' });
+
+
+    // --- PIE' DI PAGINA ISTITUZIONALE ---
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.5);
+    doc.line(20, 240, 190, 240);
+
+    doc.setTextColor(148, 163, 184); 
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6.5);
+    doc.text("Servizio Integrato di Tutela e di Controllo del Randagismo - Comune di Naro (AG) - Piazza Garibaldi, 1", 105, 245, { align: 'center' });
+    doc.text("Piattaforma Digitale Civica AnimalHub PA - Questo file PDF è un documento valido ai fini delle sanzioni penali e civili", 105, 249, { align: 'center' });
+
+    doc.save(`Verbale_Segnalazione_${finalCode}.pdf`);
+  };
 
   const steps = [
     { id: 1, label: 'Dove' },
@@ -306,10 +643,21 @@ export default function Segnala() {
           </p>
 
           {!isCached && (
-            <div className="bg-gray-50 border border-gray-100 p-8 rounded-lg mb-8">
-               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Codice di Tracking</p>
-               <span className="text-3xl font-bold text-[#1e3a5f] tracking-widest uppercase">{success}</span>
-            </div>
+            <>
+              <div className="bg-gray-50 border border-gray-100 p-8 rounded-lg mb-6">
+                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Codice di Tracking</p>
+                 <span className="text-3xl font-bold text-[#1e3a5f] tracking-widest uppercase">{success}</span>
+              </div>
+              
+              <div className="max-w-md mx-auto mb-8">
+                <button 
+                  onClick={() => generateSegnalazionePDF(success)} 
+                  className="w-full bg-[#1e3a5f] hover:bg-[#101b3a] text-white py-3.5 px-6 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#1e3a5f]/20 transition-all active:scale-95 cursor-pointer text-sm"
+                >
+                  <Download className="h-4.5 w-4.5" /> Scarica Verbale Ufficiale (PDF)
+                </button>
+              </div>
+            </>
           )}
 
           <button onClick={() => window.location.href = '/'} className="text-[#15803d] font-bold flex items-center gap-2 mx-auto hover:underline">
@@ -333,32 +681,35 @@ export default function Segnala() {
           className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden min-h-[600px] flex flex-col w-full"
         >
           {/* Header integrato per ottimizzazione degli spazi */}
-          <div className="bg-slate-900 text-white p-6 md:px-10 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800">
+          <div className="bg-[#f8fafc] text-slate-800 p-6 md:px-10 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200">
             <div>
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#22c55e]">Protocollo Civico Digitale</span>
-              <h1 className="text-xl md:text-2xl font-black text-white tracking-tight mt-0.5">Nuova Segnalazione</h1>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15803d]">Protocollo Civico Digitale</span>
+              <h1 className="text-xl md:text-2xl font-black text-[#1e3a5f] tracking-tight mt-0.5">Nuova Segnalazione</h1>
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1">
                 Comune di {siteName.replace(/^Comune di\s+/i, "")}
               </p>
             </div>
             
             {/* Step indicator compatto orizzontale */}
-            <div className="flex flex-wrap items-center gap-2 bg-[#0d1527] border border-slate-800 p-2 px-3 rounded-xl max-w-full">
+            <div className="flex flex-wrap items-center gap-2 bg-white border border-slate-200 p-2 px-3 rounded-xl max-w-full shadow-sm">
               {steps.map((s, i) => (
                 <React.Fragment key={s.id}>
                   <div className="flex items-center gap-2">
                     <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black transition-all ${
-                      step === s.id ? 'bg-[#22c55e] text-slate-950 shadow-md shadow-[#22c55e]/20 scale-105' : 
-                      step > s.id ? 'bg-[#22c55e] text-slate-950' : 'bg-slate-800 text-slate-400'
+                      step === s.id ? 'bg-[#15803d] text-white shadow-sm scale-110' : 
+                      step > s.id ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-400'
                     }`}>
                       {step > s.id ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> : s.id}
                     </div>
-                    <span className={`text-[9px] font-extrabold uppercase tracking-widest ${step === s.id ? 'text-[#22c55e]' : 'text-slate-400'}`}>
+                    <span className={`text-[9px] font-extrabold uppercase tracking-widest ${
+                      step === s.id ? 'text-[#15803d]' : 
+                      step > s.id ? 'text-emerald-800' : 'text-slate-400'
+                    }`}>
                       {s.label}
                     </span>
                   </div>
                   {i < steps.length - 1 && (
-                    <div className={`h-[1px] w-4 md:w-8 rounded-full ${step > s.id ? 'bg-[#22c55e]' : 'bg-slate-800'}`} />
+                    <div className={`h-[2px] w-4 md:w-8 rounded-full ${step > s.id ? 'bg-[#15803d]' : 'bg-slate-200'}`} />
                   )}
                 </React.Fragment>
               ))}
@@ -474,11 +825,11 @@ export default function Segnala() {
                 <div className="space-y-8">
                   <div>
                     <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 block mb-4">Specie *</label>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-3 gap-2 md:gap-4">
                       {[
-                        { id: AnimalSpecie.CANE, label: 'Cane', icon: <Dog className="h-6 w-6" />, active: formData.specie === AnimalSpecie.CANE },
-                        { id: AnimalSpecie.GATTO, label: 'Gatto', icon: <Cat className="h-6 w-6" />, active: formData.specie === AnimalSpecie.GATTO },
-                        { id: AnimalSpecie.ALTRO, label: 'Altro', icon: <MoreHorizontal className="h-6 w-6" />, active: (formData.specie !== undefined && formData.specie !== AnimalSpecie.CANE && formData.specie !== AnimalSpecie.GATTO) || isAltroSelected }
+                        { id: AnimalSpecie.CANE, label: 'Cane', icon: <Dog className="h-5 w-5 md:h-6 md:w-6" />, active: formData.specie === AnimalSpecie.CANE },
+                        { id: AnimalSpecie.GATTO, label: 'Gatto', icon: <Cat className="h-5 w-5 md:h-6 md:w-6" />, active: formData.specie === AnimalSpecie.GATTO },
+                        { id: AnimalSpecie.ALTRO, label: 'Altro', icon: <MoreHorizontal className="h-5 w-5 md:h-6 md:w-6" />, active: (formData.specie !== undefined && formData.specie !== AnimalSpecie.CANE && formData.specie !== AnimalSpecie.GATTO) || isAltroSelected }
                       ].map((item) => (
                         <button
                           key={item.id}
@@ -492,12 +843,12 @@ export default function Segnala() {
                               setIsAltroSelected(false);
                             }
                           }}
-                          className={`p-6 rounded-lg border-2 transition-all flex flex-col items-center gap-3 cursor-pointer ${
+                          className={`p-3 md:p-6 rounded-lg border-2 transition-all flex flex-col items-center gap-2 md:gap-3 cursor-pointer ${
                             item.active ? 'border-[#15803d] bg-emerald-50 text-[#15803d]' : 'border-gray-100 bg-white text-gray-500 hover:border-gray-200'
                           }`}
                         >
                           {item.icon}
-                          <span className="font-bold text-sm">{item.label}</span>
+                          <span className="font-black text-xs md:text-sm tracking-wider">{item.label}</span>
                         </button>
                       ))}
                     </div>
@@ -562,13 +913,13 @@ export default function Segnala() {
 
                   <div>
                     <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 block mb-4 flex items-center gap-2">Taglia * <Info className="h-3 w-3" /></label>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-3 gap-2 md:gap-4">
                       {['PICCOLA', 'MEDIA', 'GRANDE'].map((t) => (
                         <button
                           key={t}
                           type="button"
                           onClick={() => setFormData({ ...formData, taglia: t as any })}
-                          className={`p-4 rounded-lg border-2 font-bold text-xs transition-all cursor-pointer ${
+                          className={`p-3 md:p-4 rounded-lg border-2 font-black text-[10px] md:text-xs tracking-wider transition-all cursor-pointer ${
                             formData.taglia === t ? 'border-[#15803d] bg-emerald-50 text-[#15803d]' : 'border-gray-100 bg-white text-gray-500 hover:border-gray-200'
                           }`}
                         >
@@ -580,26 +931,26 @@ export default function Segnala() {
 
                   <div>
                     <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 block mb-4">Condizioni *</label>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 md:gap-4">
                       {[
-                        { id: 'NORMALE', label: 'Normale', icon: <Heart className="h-5 w-5" /> },
-                        { id: 'FERITO', label: 'Ferito', icon: <Thermometer className="h-5 w-5" /> },
-                        { id: 'AGGRESSIVO', label: 'Aggressivo', icon: <AlertTriangle className="h-5 w-5" /> },
-                        { id: 'CUCCIOLO', label: 'Cucciolo', icon: <Baby className="h-5 w-5" /> },
-                        { id: 'BRANCO', label: 'Branco', icon: <Users className="h-5 w-5" /> }
+                        { id: 'NORMALE', label: 'Normale', icon: <Heart className="h-4 w-4 md:h-5 md:w-5" /> },
+                        { id: 'FERITO', label: 'Ferito', icon: <Thermometer className="h-4 w-4 md:h-5 md:w-5" /> },
+                        { id: 'AGGRESSIVO', label: 'Aggressivo', icon: <AlertTriangle className="h-4 w-4 md:h-5 md:w-5" /> },
+                        { id: 'CUCCIOLO', label: 'Cucciolo', icon: <Baby className="h-4 w-4 md:h-5 md:w-5" /> },
+                        { id: 'BRANCO', label: 'Branco', icon: <Users className="h-4 w-4 md:h-5 md:w-5" /> }
                       ].map((c) => (
                         <button
                           key={c.id}
                           type="button"
                           onClick={() => setFormData({ ...formData, condizioni: c.id })}
-                          className={`p-4 rounded-lg border-2 transition-all flex flex-col items-center gap-2 cursor-pointer ${
+                          className={`p-3 md:p-4 rounded-lg border-2 transition-all flex flex-col items-center gap-1.5 md:gap-2 cursor-pointer ${
                             formData.condizioni === c.id 
                               ? `border-[#15803d] bg-emerald-50 text-[#15803d]` 
                               : 'border-gray-100 bg-white text-gray-500 hover:border-gray-200'
                           }`}
                         >
                           {c.icon}
-                          <span className="font-bold text-[10px] uppercase tracking-wider">{c.label}</span>
+                          <span className="font-bold text-[9px] md:text-[10px] uppercase tracking-wider">{c.label}</span>
                         </button>
                       ))}
                     </div>
@@ -1002,7 +1353,14 @@ export default function Segnala() {
                  </div>
 
                  {/* Action Panel */}
-                 <div className="pt-6 border-t border-slate-100 text-center space-y-4">
+                 <div className="pt-6 border-t border-slate-100 text-center space-y-4 flex flex-col items-center">
+                   <button
+                     type="button"
+                     onClick={() => generateSegnalazionePDF()}
+                     className="w-full md:w-[350px] bg-white border border-[#1e3a5f] text-[#1e3a5f] hover:bg-[#1e3a5f]/5 px-8 py-3.5 rounded-lg font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm text-sm"
+                   >
+                     <FileText className="h-4.5 w-4.5" /> Genera Anteprima Verbale (PDF)
+                   </button>
                     <button
                       type="button"
                       onClick={handleSubmit}

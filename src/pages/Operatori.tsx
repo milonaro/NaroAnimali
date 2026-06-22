@@ -3,7 +3,7 @@ import {
   Briefcase, MapPin, ShieldAlert, BadgeInfo, CheckCircle, 
   Download, Filter, Search, User, FileSpreadsheet, Plus, 
   Activity, Star, Sparkles, Building, Phone, Calendar, CheckSquare,
-  Dog, Cat, FileText, AlertTriangle, X
+  Dog, Cat, FileText, AlertTriangle, X, Printer, Lock
 } from 'lucide-react';
 import AppMap from '@/src/components/map/Map';
 import { AnimalSpecie, SegnalazioneStato, Segnalazione } from '../types';
@@ -36,7 +36,7 @@ interface LogIntervento {
 }
 
 export default function Operatori() {
-  const [activeTab, setActiveTab] = useState<'statistiche' | 'modulo-b' | 'modulo-c' | 'modulo-adozioni' | 'gestione-operatori'>('modulo-b');
+  const [activeTab, setActiveTab] = useState<'statistiche' | 'modulo-b' | 'modulo-c' | 'modulo-adozioni' | 'gestione-operatori'>('statistiche');
   const [activeComune, setActiveComune] = useState(() => (localStorage.getItem('active_comune') || 'naro').toLowerCase());
   const [siteName, setSiteName] = useState("Comune di Naro");
   const [reports, setReports] = useState<Segnalazione[]>([]);
@@ -52,6 +52,7 @@ export default function Operatori() {
   const [adozioni, setAdozioni] = useState<any[]>([]);
   const [adozioniLogs, setAdozioniLogs] = useState<any[]>([]);
   const [editingAdozione, setEditingAdozione] = useState<any | null>(null);
+  const [printingAdozione, setPrintingAdozione] = useState<any | null>(null);
   const [strutture, setStrutture] = useState<any[]>([]);
   const [convenzioni, setConvenzioni] = useState<any[]>([]);
   const [fatture, setFatture] = useState<any[]>([]);
@@ -62,7 +63,32 @@ export default function Operatori() {
   const [showNuovaConvenzioneModal, setShowNuovaConvenzioneModal] = useState(false);
 
   // Form states
-  const [formAdozione, setFormAdozione] = useState({ registroId: '', nome: '', cf: '', tel: '', email: '', note: '' });
+  const [formAdozione, setFormAdozione] = useState({
+    registroId: '',
+    nome: '',
+    cf: '',
+    tel: '',
+    tel2: '',
+    email: '',
+    nato_a: '',
+    nato_prov: '',
+    nato_il: '',
+    residente_a: '',
+    residente_prov: '',
+    via: '',
+    via_num: '',
+    via_int_scala: '',
+    luogo_detenzione: '',
+    documento_tipo: 'CARTA_IDENTITA',
+    documento_numero: '',
+    documento_data: '',
+    documento_ente: '',
+    richiesta_tipo: 'ADOZIONE_DEFINITIVA',
+    a_partire_da: '',
+    donazione_euro: '',
+    impegno_sterilizzazione: 'SI',
+    note_operatore: ''
+  });
   const [formStruttura, setFormStruttura] = useState({ nome: '', tipo: 'CANILE', indirizzo: '', telefono: '', capacitaMax: 100 });
   const [formFattura, setFormFattura] = useState({ fornitore: '', numero: '', data: '', importo: '', stato: 'DA_PAGARE' });
   const [formConvenzione, setFormConvenzione] = useState({ strutturaId: '', tipoServizio: '', dataInizio: '', dataFine: '', importoAnnuo: '', stato: 'ATTIVA' });
@@ -170,14 +196,77 @@ export default function Operatori() {
     );
   };
 
+  const startEditingAdozione = (adop: any) => {
+    let extraDetails = {
+      tel2: '',
+      nato_a: '',
+      nato_prov: '',
+      nato_il: '',
+      residente_a: '',
+      residente_prov: '',
+      via: '',
+      via_num: '',
+      via_int_scala: '',
+      luogo_detenzione: '',
+      documento_tipo: 'CARTA_IDENTITA',
+      documento_numero: '',
+      documento_data: '',
+      documento_ente: '',
+      richiesta_tipo: 'ADOZIONE_DEFINITIVA',
+      a_partire_da: '',
+      donazione_euro: '',
+      impegno_sterilizzazione: 'SI',
+      note_operatore: adop.note || ''
+    };
+
+    if (adop.note && adop.note.trim().startsWith('{')) {
+      try {
+        const parsed = JSON.parse(adop.note);
+        extraDetails = { ...extraDetails, ...parsed };
+      } catch (e) {}
+    }
+
+    setEditingAdozione({
+      ...adop,
+      ...extraDetails
+    });
+  };
+
   const handleEditAdoptionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingAdozione) return;
     try {
+      const extraDetails = {
+        tel2: editingAdozione.tel2 || '',
+        nato_a: editingAdozione.nato_a || '',
+        nato_prov: editingAdozione.nato_prov || '',
+        nato_il: editingAdozione.nato_il || '',
+        residente_a: editingAdozione.residente_a || '',
+        residente_prov: editingAdozione.residente_prov || '',
+        via: editingAdozione.via || '',
+        via_num: editingAdozione.via_num || '',
+        via_int_scala: editingAdozione.via_int_scala || '',
+        luogo_detenzione: editingAdozione.luogo_detenzione || '',
+        documento_tipo: editingAdozione.documento_tipo || 'CARTA_IDENTITA',
+        documento_numero: editingAdozione.documento_numero || '',
+        documento_data: editingAdozione.documento_data || '',
+        documento_ente: editingAdozione.documento_ente || '',
+        richiesta_tipo: editingAdozione.richiesta_tipo || 'ADOZIONE_DEFINITIVA',
+        a_partire_da: editingAdozione.a_partire_da || '',
+        donazione_euro: editingAdozione.donazione_euro || '',
+        impegno_sterilizzazione: editingAdozione.impegno_sterilizzazione || 'SI',
+        note_operatore: editingAdozione.note_operatore || ''
+      };
+
+      const payload = {
+        ...editingAdozione,
+        note: JSON.stringify(extraDetails)
+      };
+
       const res = await fetch(`/api/adozioni/${editingAdozione.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editingAdozione)
+        body: JSON.stringify(payload)
       });
       if (res.ok) {
         popup.success("Pratica di adozione modificata con successo!");
@@ -245,6 +334,28 @@ export default function Operatori() {
       return;
     }
     try {
+      const extraDetails = {
+        tel2: formAdozione.tel2,
+        nato_a: formAdozione.nato_a,
+        nato_prov: formAdozione.nato_prov,
+        nato_il: formAdozione.nato_il,
+        residente_a: formAdozione.residente_a,
+        residente_prov: formAdozione.residente_prov,
+        via: formAdozione.via,
+        via_num: formAdozione.via_num,
+        via_int_scala: formAdozione.via_int_scala,
+        luogo_detenzione: formAdozione.luogo_detenzione,
+        documento_tipo: formAdozione.documento_tipo,
+        documento_numero: formAdozione.documento_numero,
+        documento_data: formAdozione.documento_data,
+        documento_ente: formAdozione.documento_ente,
+        richiesta_tipo: formAdozione.richiesta_tipo,
+        a_partire_da: formAdozione.a_partire_da,
+        donazione_euro: formAdozione.donazione_euro,
+        impegno_sterilizzazione: formAdozione.impegno_sterilizzazione,
+        note_operatore: formAdozione.note_operatore
+      };
+
       const res = await fetch('/api/adozioni', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -254,12 +365,37 @@ export default function Operatori() {
           adottante_cf: formAdozione.cf,
           adottante_tel: formAdozione.tel,
           adottante_email: formAdozione.email,
-          note: formAdozione.note
+          note: JSON.stringify(extraDetails)
         })
       });
       if (res.ok) {
         popup.success("Richiesta di adozione salvata con successo!");
-        setFormAdozione({ registroId: '', nome: '', cf: '', tel: '', email: '', note: '' });
+        setFormAdozione({
+          registroId: '',
+          nome: '',
+          cf: '',
+          tel: '',
+          tel2: '',
+          email: '',
+          nato_a: '',
+          nato_prov: '',
+          nato_il: '',
+          residente_a: '',
+          residente_prov: '',
+          via: '',
+          via_num: '',
+          via_int_scala: '',
+          luogo_detenzione: '',
+          documento_tipo: 'CARTA_IDENTITA',
+          documento_numero: '',
+          documento_data: '',
+          documento_ente: '',
+          richiesta_tipo: 'ADOZIONE_DEFINITIVA',
+          a_partire_da: '',
+          donazione_euro: '',
+          impegno_sterilizzazione: 'SI',
+          note_operatore: ''
+        });
         setShowNuovaAdozioneModal(false);
         fetchAdozioni();
       }
@@ -766,6 +902,335 @@ export default function Operatori() {
     { id: 'modulo-adozioni', name: 'Modulo Adozioni & Costi', allowed: !currentUser?.visible_modules || currentUser.visible_modules.includes('modulo-adozioni') },
     { id: 'gestione-operatori', name: 'Gestione Operatori 👥', allowed: currentUser?.role === 'ADMIN' || currentUser?.role === 'Admin' }
   ];
+
+  if (printingAdozione) {
+    let extraPrintDetails = {
+      tel2: '',
+      nato_a: 'Naro',
+      nato_prov: 'AG',
+      nato_il: '',
+      residente_a: 'Naro',
+      residente_prov: 'AG',
+      via: '',
+      via_num: '',
+      via_int_scala: '',
+      luogo_detenzione: 'Stessa residenza',
+      documento_tipo: 'CARTA_IDENTITA',
+      documento_numero: '',
+      documento_data: '',
+      documento_ente: 'Comune di Naro',
+      richiesta_tipo: 'ADOZIONE_DEFINITIVA',
+      a_partire_da: '',
+      donazione_euro: '0',
+      impegno_sterilizzazione: 'SI',
+      note_operatore: ''
+    };
+
+    if (printingAdozione.note && printingAdozione.note.trim().startsWith('{')) {
+      try {
+        const parsed = JSON.parse(printingAdozione.note);
+        extraPrintDetails = { ...extraPrintDetails, ...parsed };
+      } catch (e) {}
+    } else {
+      extraPrintDetails.note_operatore = printingAdozione.note || '';
+    }
+
+    const animalName = printingAdozione.animal_nome || 'Soggetto registrato';
+    const animalMicrochip = printingAdozione.animal_microchip || 'NESSUNO / IN ATTESA';
+    const animalSpecie = printingAdozione.animal_specie || 'CANE';
+    const animalFoto = printingAdozione.animal_foto || '';
+
+    return (
+      <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-start py-8 px-4 print:bg-white print:p-0 font-sans text-slate-800">
+        {/* ACTION BAR: Hidden on print */}
+        <div className="w-full max-w-4xl bg-white rounded-xl shadow-md border border-slate-200 p-4 mb-6 flex flex-wrap items-center justify-between gap-4 print:hidden">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-emerald-100 rounded-lg text-emerald-800">
+              <Printer className="h-6 w-6 animate-pulse" />
+            </div>
+            <div>
+              <p className="text-sm font-black uppercase text-slate-800">Modalità Stampa Verbale</p>
+              <p className="text-xs text-slate-500">Pratica #{printingAdozione.id} • Adottante: {printingAdozione.adottante_nome}</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => window.print()}
+              className="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold text-xs uppercase tracking-wider px-5 py-2.5 rounded-lg flex items-center gap-2 shadow-sm transition-all cursor-pointer"
+            >
+              <Printer className="h-4 w-4" /> Stampa Verbale / Salva PDF
+            </button>
+            <button
+              onClick={() => setPrintingAdozione(null)}
+              className="bg-slate-800 hover:bg-slate-900 active:scale-95 text-white font-extrabold text-xs uppercase tracking-wider px-5 py-2.5 rounded-lg transition-all cursor-pointer"
+            >
+              Chiudi Anteprima
+            </button>
+          </div>
+        </div>
+
+        {/* PRINTABLE AREA (A4 format representation) */}
+        <div className="w-full max-w-[210mm] min-h-[297mm] bg-white p-[15mm] border border-slate-300 shadow-2xl rounded-sm print:shadow-none print:border-none print:p-0 relative flex flex-col justify-between">
+          
+          {/* Header */}
+          <div>
+            <div className="flex items-center justify-between border-b-2 border-[#1e3a5f] pb-4 mb-6">
+              <div className="flex items-center gap-4">
+                {/* STEMMA COMUNALE - SVG elegant Naro coat of arms graphic representation */}
+                <div className="h-20 w-16 flex-shrink-0 flex items-center justify-center">
+                  <svg viewBox="0 0 100 120" className="w-full h-full text-[#1e3a5f]">
+                    <path d="M10,10 L90,10 L90,70 C90,100 50,115 50,115 C50,115 10,100 10,70 Z" fill="none" stroke="currentColor" strokeWidth="4" />
+                    <path d="M10,10 L90,10 L90,70 C90,100 50,115 50,115 C50,115 10,100 10,70 Z" fill="#f8fafc" />
+                    <rect x="35" y="45" width="30" height="30" fill="currentColor" rx="2" />
+                    <rect x="40" y="25" width="20" height="20" fill="currentColor" rx="1" />
+                    <rect x="25" y="55" width="8" height="20" fill="currentColor" />
+                    <rect x="67" y="55" width="8" height="20" fill="currentColor" />
+                    <circle cx="50" cy="18" r="4" fill="#d97706" />
+                    <circle cx="34" cy="21" r="3" fill="#d97706" />
+                    <circle cx="66" cy="21" r="3" fill="#d97706" />
+                    <path d="M 20 85 Q 35 80 50 85 T 80 85" fill="none" stroke="#3b82f6" strokeWidth="2" />
+                    <path d="M 20 90 Q 35 85 50 90 T 80 90" fill="none" stroke="#3b82f6" strokeWidth="2" />
+                  </svg>
+                </div>
+                <div className="text-left w-full">
+                  <h1 className="text-lg font-black tracking-wide text-[#1e3a5f] uppercase leading-tight font-sans">
+                    Città di Naro
+                  </h1>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Provincia di Agrigento</p>
+                  <p className="text-[10px] font-extrabold text-slate-700 uppercase mt-1">Settore Vigilanza e Sanità Animale</p>
+                  <p className="text-[9px] text-slate-400 font-medium">Ufficio di Tutela Ambientale • Gestione Territoriale del Randagismo</p>
+                </div>
+              </div>
+              <div className="text-right flex flex-col justify-between h-full min-w-[150px]">
+                <div className="bg-slate-100 border border-slate-200 rounded px-3 py-1.5 text-right">
+                  <span className="text-[8px] font-bold text-slate-400 uppercase block">Pratica Numero</span>
+                  <span className="text-xs font-mono font-black text-slate-800">COF-AD-{printingAdozione.id || 'N.D.'}</span>
+                </div>
+                <div className="text-[8px] text-slate-400 mt-2 font-mono">
+                  Generato il {new Date().toLocaleDateString('it-IT')}
+                </div>
+              </div>
+            </div>
+
+            <div className="text-center my-6">
+              <h2 className="text-base font-black tracking-wide text-[#1e3a5f] uppercase border-b border-dashed border-slate-300 pb-2 inline-block">
+                Verbale di Affidamento e Co-Adozione di Animale d'Affezione
+              </h2>
+              <p className="text-[9px] text-slate-500 italic mt-1.5">
+                Redatto ai sensi della Legge Regionale Siciliana del 3 luglio 2000, n. 15 e s.m.i. sul controllo del randagismo.
+              </p>
+            </div>
+
+            {/* SEZIONE I: ANIMALE */}
+            <div className="border border-slate-200 rounded-lg mb-5 overflow-hidden">
+              <div className="bg-[#1e3a5f] text-white px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider flex justify-between items-center">
+                <span>Sezione I — Dati Identificativi del Soggetto (da Registro Comunale)</span>
+                {animalMicrochip !== 'NESSUNO / IN ATTESA' && (
+                  <span className="bg-emerald-500/20 text-emerald-300 text-[8px] font-black border border-emerald-500/30 px-2 py-0.5 rounded uppercase font-mono">
+                    Microchip Identificato
+                  </span>
+                )}
+              </div>
+              <div className="p-4 grid grid-cols-1 sm:grid-cols-4 gap-4 items-center">
+                
+                {/* Print/Visual image */}
+                {animalFoto && (
+                  <div className="sm:col-span-1 flex justify-center print:block">
+                    <img
+                      src={animalFoto}
+                      alt={animalName}
+                      referrerPolicy="no-referrer"
+                      className="w-24 h-24 object-cover rounded-lg border border-slate-200 max-h-24 shadow-sm"
+                    />
+                  </div>
+                )}
+
+                <div className={`${animalFoto ? 'sm:col-span-3' : 'sm:col-span-4'} grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-left`}>
+                  <div>
+                    <span className="text-[9px] font-black uppercase text-slate-400 block font-sans">Nome del Soggetto:</span>
+                    <span className="font-extrabold text-slate-800 uppercase">{animalName}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-black uppercase text-slate-400 block font-sans">Codice Microchip:</span>
+                    <span className="font-mono font-black text-rose-700 bg-rose-50 border border-rose-100 rounded px-1.5 py-0.5">{animalMicrochip}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-black uppercase text-slate-400 block font-sans">Specie / Genere:</span>
+                    <span className="font-bold text-slate-700">{animalSpecie}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-black uppercase text-slate-400 block font-sans">Razza / Meticciato:</span>
+                    <span className="font-bold text-slate-700">{extraPrintDetails.note_operatore ? 'Incrocio registrato' : 'Meticcio'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-black uppercase text-slate-400 block font-sans">Età Approssimativa / Taglia:</span>
+                    <span className="font-bold text-slate-700">Adulto / Media</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-black uppercase text-slate-400 block font-sans">Condizioni Sanitarie Generali:</span>
+                    <span className="font-extrabold text-[#15803d]">Sano, Sottoposto a Profilassi ASP Agrigento</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* SEZIONE II: ADOTTANTE */}
+            <div className="border border-slate-200 rounded-lg mb-5 overflow-hidden">
+              <div className="bg-[#1e3a5f] text-white px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider">
+                Sezione II — Dichiarante Adottante / Affidatario
+              </div>
+              <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-xs text-left">
+                <div>
+                  <span className="text-[9px] font-black uppercase text-slate-400 block">Cognome e Nome:</span>
+                  <span className="font-black text-slate-800 text-sm uppercase">{printingAdozione.adottante_nome}</span>
+                </div>
+                <div>
+                  <span className="text-[9px] font-black uppercase text-slate-400 block">Codice Fiscale:</span>
+                  <span className="font-mono font-black text-slate-800 uppercase">{printingAdozione.adottante_cf}</span>
+                </div>
+                <div>
+                  <span className="text-[9px] font-black uppercase text-slate-400 block">Nato/a il / Luogo:</span>
+                  <span className="font-bold text-slate-700">
+                    {extraPrintDetails.nato_il ? new Date(extraPrintDetails.nato_il).toLocaleDateString('it-IT') : 'N.D.'} a {extraPrintDetails.nato_a} ({extraPrintDetails.nato_prov || 'AG'})
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[9px] font-black uppercase text-slate-400 block">Residente a / Comune:</span>
+                  <span className="font-bold text-slate-700">
+                    {extraPrintDetails.residente_a} ({extraPrintDetails.residente_prov})
+                  </span>
+                </div>
+                <div className="sm:col-span-2">
+                  <span className="text-[9px] font-black uppercase text-slate-400 block">Indirizzo di Domicilio Legale:</span>
+                  <span className="font-bold text-slate-700">
+                    Via/Piazza {extraPrintDetails.via || '__________________'} n. {extraPrintDetails.via_num || '___'} {extraPrintDetails.via_int_scala && `(Sc/Int: ${extraPrintDetails.via_int_scala})`}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[9px] font-black uppercase text-slate-400 block">Recapito Telefonico Primario / Secondario:</span>
+                  <span className="font-mono font-bold text-slate-700">
+                    {printingAdozione.adottante_tel} {extraPrintDetails.tel2 && `/ ${extraPrintDetails.tel2}`}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[9px] font-black uppercase text-slate-400 block">Indirizzo Email / PEC:</span>
+                  <span className="font-bold text-slate-700">{printingAdozione.adottante_email}</span>
+                </div>
+
+                <div className="sm:col-span-2 border-t border-slate-100 pt-2 grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-[9px] font-black uppercase text-slate-400 block">Documento Identificativo esibito:</span>
+                    <span className="font-bold text-slate-700 uppercase">
+                      {extraPrintDetails.documento_tipo?.replace('_', ' ') || 'CARTA D\'IDENTITA'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-black uppercase text-slate-400 block">Numero / Ente Rilasciante:</span>
+                    <span className="font-bold text-slate-700">
+                      N. {extraPrintDetails.documento_numero || '________________'} - Ril. da {extraPrintDetails.documento_ente || 'N.D.'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* SEZIONE III: VINCOLI */}
+            <div className="border border-slate-200 rounded-lg mb-5 overflow-hidden">
+              <div className="bg-[#1e3a5f] text-white px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider">
+                Sezione III — Disciplina dell'Affido, Sterilizzazione ed Obblighi Legali
+              </div>
+              <div className="p-4 text-[10px] space-y-2.5 text-left text-slate-700 leading-relaxed">
+                <p>
+                  <strong>1) REGIME DI DETENZIONE ED ALLOGGIO:</strong> L'adottante dichiara che l'animale alloggerà permanentemente presso:  
+                  <span className="font-bold text-slate-800 bg-slate-50 px-1 border border-slate-100 rounded ml-1">{extraPrintDetails.luogo_detenzione || 'La propria residenza'}</span>. 
+                  Si impegna ad assicurare idonee condizioni di benessere ai sensi delle norme vigenti e dei regolamenti comunali di tutela degli animali.
+                </p>
+                <p>
+                  <strong>2) VALIDITÀ DEL RAPPORTO DI AFFIDO:</strong> La pratica viene avviata sotto il regime d'istruttoria di:  
+                  <span className="font-black text-slate-800 uppercase bg-slate-50 px-1 border border-slate-100 rounded ml-1">{extraPrintDetails.richiesta_tipo?.replace('_', ' ') || 'ADOZIONE DEFINITIVA'}</span>.
+                  {extraPrintDetails.a_partire_da && (
+                    <span> Con decorrenza formale delle responsabilità civili e penali a partire dal giorno <strong>{new Date(extraPrintDetails.a_partire_da).toLocaleDateString('it-IT')}</strong>.</span>
+                  )}
+                </p>
+                <p>
+                  <strong>3) IMPEGNO DI STERILIZZAZIONE ANIMALE:</strong> {extraPrintDetails.impegno_sterilizzazione === 'SI' ? (
+                    <span className="text-red-700 font-extrabold bg-red-50 border border-red-100 px-1.5 py-0.5 rounded">
+                      ⚠️ OBBLIGATORIO: L'adottante si assume formale vincolo giuridico a sottoporre l'animale a sterilizzazione entro i termini concordati con gli uffici comunali e comunicarne l'avvenuto intervento.
+                    </span>
+                  ) : (
+                    <span className="text-emerald-700 font-extrabold bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded">
+                      ✓ ESENTE: L'animale risulta già sottoposto ad ovariectomia/castrazione chirurgia o esente per età/motivi di salute certificati.
+                    </span>
+                  )}
+                </p>
+                <p>
+                  <strong>4) VIGILANZA POST-AFFIDO:</strong> L'adottante acconsente espressamente a visite e ispezioni domiciliari da parte delle Guardie Zoofile comunali o degli Agenti del Comando di Polizia Municipale di Naro, per verificare il corretto accudimento del soggetto.
+                </p>
+              </div>
+            </div>
+
+            {/* SEZIONE IV: DISPOSIZIONI */}
+            <div className="border border-slate-200 rounded-lg overflow-hidden">
+              <div className="bg-[#1e3a5f] text-white px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider">
+                Sezione IV — Conclusioni Amministrative dell'Ufficio Tutela Animali
+              </div>
+              <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-left">
+                <div>
+                  <span className="text-[9px] font-black uppercase text-slate-400 block">Stato Generale della Pratica:</span>
+                  <span className={`inline-flex items-center gap-1.5 text-xs font-black px-2.5 py-0.5 rounded uppercase mt-0.5 border ${
+                    printingAdozione.stato === 'APPROVATA' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-amber-50 text-amber-800 border-amber-200'
+                  }`}>
+                    🔴 {printingAdozione.stato || 'CREATA'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[9px] font-black uppercase text-slate-400 block">Esito Istruttorio Deliberato:</span>
+                  <span className="font-extrabold text-slate-800 uppercase">
+                    {printingAdozione.esito?.replace('_', ' ') || 'IDONEO (ISTRUTTORIA FAVOREVOLE)'}
+                  </span>
+                </div>
+                <div className="sm:col-span-2">
+                  <span className="text-[9px] font-black uppercase text-slate-400 block">Note Addizionali ed Accertamenti Sociali eseguiti dall'Ufficio:</span>
+                  <p className="text-slate-600 bg-slate-50 border border-slate-150 p-2.5 rounded font-medium mt-1 leading-relaxed text-[11px] italic">
+                    "{extraPrintDetails.note_operatore || 'Istruttoria conclusa positivamente. Spazi idonei e recintati, assenza di precedenti sanitari ostativi a carico dell\'interessato.'}"
+                  </p>
+                </div>
+                <div>
+                  <span className="text-[9px] font-black uppercase text-slate-400 block">Contributo Donatore Incassato:</span>
+                  <span className="font-extrabold text-slate-700 block mt-0.5">
+                    € {parseFloat(extraPrintDetails.donazione_euro || '0').toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[9px] font-black uppercase text-slate-400 block">Copie Verbale Distribuite:</span>
+                  <span className="font-bold text-slate-500 block">N. 3 (Adottante, Archivio Comunale, ASP Agrigento)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Underwriting Block */}
+          <div className="mt-12 border-t pt-8">
+            <p className="text-[10px] text-slate-500 text-left mb-6 font-semibold">
+              Fatto, letto, confermato e sottoscritto in Naro (AG), lì {new Date(printingAdozione.createdAt || Date.now()).toLocaleDateString('it-IT')}
+            </p>
+            <div className="grid grid-cols-2 gap-12 text-center text-xs">
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-12">L'AFFIDATARIO (Adottante)</span>
+                <div className="w-48 border-b border-dashed border-slate-400 mb-1"></div>
+                <span className="text-[8px] text-slate-400">(Firma per accettazione ed impegni di legge)</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-12">L'OPERATORE COMUNALE PREPOSTO</span>
+                <div className="w-48 border-b border-dashed border-slate-400 mb-1"></div>
+                <span className="text-[8px] text-slate-400">(Timbro dell'Ufficio e Firma dell'incaricato)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50/70 pb-32 pt-24">
@@ -1787,11 +2252,19 @@ export default function Operatori() {
                               )}
 
                               <button
-                                onClick={() => setEditingAdozione(adop)}
+                                onClick={() => startEditingAdozione(adop)}
                                 title="Modifica Dati"
                                 className="bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-[10px] uppercase tracking-wider px-2.5 py-1.5 rounded-lg transition-all"
                               >
                                 Modifica
+                              </button>
+
+                              <button
+                                onClick={() => setPrintingAdozione(adop)}
+                                title="Stampa Modulo"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[10px] uppercase tracking-wider px-2.5 py-1.5 rounded-lg transition-all flex items-center gap-1"
+                              >
+                                <Printer className="h-3 w-3" /> Stampa
                               </button>
 
                               <button
@@ -1848,129 +2321,139 @@ export default function Operatori() {
             </div>
 
             {/* SEZIONE 2: STRUTTURE ECOSYSTEM & CONVENZIONI ATTIVE */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              
-              {/* BOARDING FACILITIES (CUSTODIA) */}
-              <div className="lg:col-span-7 bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-                <div className="flex items-center justify-between pb-6 border-b border-slate-100">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-emerald-100 text-emerald-700 rounded-xl">
-                      <Building className="h-6 w-6" />
+            {currentUser?.role === 'ADMIN' || currentUser?.role === 'Admin' ? (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                
+                {/* BOARDING FACILITIES (CUSTODIA) */}
+                <div className="lg:col-span-7 bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                  <div className="flex items-center justify-between pb-6 border-b border-slate-100">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 bg-emerald-100 text-emerald-700 rounded-xl">
+                        <Building className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-black text-[#1e3a5f] uppercase tracking-wider">Strutture di Custodia</h3>
+                        <p className="text-[11px] text-slate-400 font-bold">Rifugi sanitari e alloggi convenzionati</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-lg font-black text-[#1e3a5f] uppercase tracking-wider">Strutture di Custodia</h3>
-                      <p className="text-[11px] text-slate-400 font-bold">Rifugi sanitari e alloggi convenzionati</p>
-                    </div>
+                    <button
+                      onClick={() => setShowNuovaStrutturaModal(true)}
+                      className="border border-slate-200 hover:border-emerald-500 hover:text-emerald-700 text-slate-600 bg-white font-extrabold text-[10px] uppercase tracking-wider px-4 py-3 rounded-lg transition-colors active:scale-95 shadow-sm"
+                    >
+                      + Aggiungi Struttura
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setShowNuovaStrutturaModal(true)}
-                    className="border border-slate-200 hover:border-emerald-500 hover:text-emerald-700 text-slate-600 bg-white font-extrabold text-[10px] uppercase tracking-wider px-4 py-3 rounded-lg transition-colors active:scale-95 shadow-sm"
-                  >
-                    + Aggiungi Struttura
-                  </button>
-                </div>
 
-                {strutture.length === 0 ? (
-                  <div className="text-center py-10 bg-slate-50 border border-slate-150 rounded-xl">
-                    <p className="text-sm font-semibold text-slate-500">Nessun rifugio o clinica registrato.</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {strutture.map((s) => (
-                      <div key={s.id} className="p-5 border border-slate-200 rounded-xl bg-slate-50 flex flex-col justify-between space-y-4 hover:shadow-md transition-shadow relative">
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${
-                              s.tipo === "CANILE" ? "bg-amber-100 text-amber-800" :
-                              s.tipo === "GATTILE" ? "bg-indigo-100 text-indigo-800" :
-                              "bg-indigo-100 text-indigo-800 animate-pulse"
-                            }`}>
-                              {s.tipo}
-                            </span>
-                            <span className="text-[11px] font-bold text-slate-400">ID: #{s.id}</span>
-                          </div>
-                          <h4 className="font-extrabold text-slate-800 text-base">{s.nome}</h4>
-                          <p className="text-xs text-slate-500 flex items-center gap-1">
-                            <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" /> {s.indirizzo}
-                          </p>
-                          {s.telefono && (
-                            <p className="text-xs text-slate-400 flex items-center gap-1">
-                              <Phone className="h-3.5 w-3.5 text-slate-300 shrink-0" /> {s.telefono}
+                  {strutture.length === 0 ? (
+                    <div className="text-center py-10 bg-slate-50 border border-slate-150 rounded-xl">
+                      <p className="text-sm font-semibold text-slate-500">Nessun rifugio o clinica registrato.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {strutture.map((s) => (
+                        <div key={s.id} className="p-5 border border-slate-200 rounded-xl bg-slate-50 flex flex-col justify-between space-y-4 hover:shadow-md transition-shadow relative">
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${
+                                s.tipo === "CANILE" ? "bg-amber-100 text-amber-800" :
+                                s.tipo === "GATTILE" ? "bg-indigo-100 text-indigo-800" :
+                                "bg-indigo-100 text-indigo-800 animate-pulse"
+                              }`}>
+                                {s.tipo}
+                              </span>
+                              <span className="text-[11px] font-bold text-slate-400">ID: #{s.id}</span>
+                            </div>
+                            <h4 className="font-extrabold text-slate-800 text-base">{s.nome}</h4>
+                            <p className="text-xs text-slate-500 flex items-center gap-1">
+                              <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" /> {s.indirizzo}
                             </p>
-                          )}
-                        </div>
-
-                        {/* Gage Capienza */}
-                        <div className="space-y-1 pt-2 border-t border-slate-200/60">
-                          <div className="flex justify-between text-[10px] font-bold text-slate-500">
-                            <span>Saturazione:</span>
-                            <span className="font-extrabold text-[#1e3a5f]">
-                              {s.postazioni_occupate || 0} / {s.capacita_max || 100} ({Math.round(((s.postazioni_occupate || 0) / (s.capacita_max || 100)) * 100)}%)
-                            </span>
+                            {s.telefono && (
+                              <p className="text-xs text-slate-400 flex items-center gap-1">
+                                <Phone className="h-3.5 w-3.5 text-slate-300 shrink-0" /> {s.telefono}
+                              </p>
+                            )}
                           </div>
-                          <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all duration-500 ${
-                                ((s.postazioni_occupate || 0) / (s.capacita_max || 100)) > 0.85 ? "bg-rose-500" : "bg-emerald-500"
-                              }`}
-                              style={{ width: `${Math.min(100, ((s.postazioni_occupate || 0) / (s.capacita_max || 100)) * 100)}%` }}
-                            />
+
+                          {/* Gage Capienza */}
+                          <div className="space-y-1 pt-2 border-t border-slate-200/60">
+                            <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                              <span>Saturazione:</span>
+                              <span className="font-extrabold text-[#1e3a5f]">
+                                {s.postazioni_occupate || 0} / {s.capacita_max || 100} ({Math.round(((s.postazioni_occupate || 0) / (s.capacita_max || 100)) * 100)}%)
+                              </span>
+                            </div>
+                            <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${
+                                  ((s.postazioni_occupate || 0) / (s.capacita_max || 100)) > 0.85 ? "bg-rose-500" : "bg-emerald-500"
+                                }`}
+                                style={{ width: `${Math.min(100, ((s.postazioni_occupate || 0) / (s.capacita_max || 100)) * 100)}%` }}
+                              />
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* COVENANTS & ACCORDS (CONVENZIONI) */}
-              <div className="lg:col-span-5 bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-                <div className="flex items-center justify-between pb-6 border-b border-slate-100">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-blue-100 text-blue-700 rounded-xl">
-                      <FileText className="h-6 w-6" />
+                      ))}
                     </div>
-                    <div>
-                      <h3 className="text-lg font-black text-[#1e3a5f] uppercase tracking-wider">Convenzioni Attive</h3>
-                      <p className="text-[11px] text-slate-400 font-bold">Dotazioni economiche e atti istituzionali</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setShowNuovaConvenzioneModal(true)}
-                    className="border border-slate-200 hover:border-blue-500 hover:text-blue-700 text-slate-600 bg-white font-extrabold text-[10px] uppercase tracking-wider px-4 py-3 rounded-lg transition-colors active:scale-95 shadow-sm"
-                  >
-                    + Nuova Convenzione
-                  </button>
+                  )}
                 </div>
 
-                {convenzioni.length === 0 ? (
-                  <div className="text-center py-10 bg-slate-50 border border-dashed border-slate-250 rounded-xl">
-                    <p className="text-sm font-semibold text-slate-500">Nessun patto economico registrato.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {convenzioni.map((c) => (
-                      <div key={c.id} className="p-4 border border-slate-100 rounded-xl bg-slate-50 flex items-start justify-between gap-4">
-                        <div className="space-y-1">
-                          <p className="font-extrabold text-slate-800 text-sm">{c.struttura_nome || "Rifugio Convenzionato"}</p>
-                          <p className="text-xs text-indigo-600 font-extrabold">{c.tipo_servizio}</p>
-                          <p className="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
-                            <Calendar className="h-3 w-3 shrink-0" />
-                            Dal {new Date(c.data_inizio).toLocaleDateString('it-IT')} al {new Date(c.data_fine).toLocaleDateString('it-IT')}
-                          </p>
-                        </div>
-                        <div className="text-right space-y-1 shrink-0">
-                          <p className="text-sm font-black text-rose-600">€ {(parseFloat(c.importo_annuo) || 0).toLocaleString('it-IT')}</p>
-                          <span className="inline-block px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-800 border border-emerald-100">
-                            {c.stato || "ATTIVA"}
-                          </span>
-                        </div>
+                {/* COVENANTS & ACCORDS (CONVENZIONI) */}
+                <div className="lg:col-span-5 bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                  <div className="flex items-center justify-between pb-6 border-b border-slate-100">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 bg-blue-100 text-blue-700 rounded-xl">
+                        <FileText className="h-6 w-6" />
                       </div>
-                    ))}
+                      <div>
+                        <h3 className="text-lg font-black text-[#1e3a5f] uppercase tracking-wider">Convenzioni Attive</h3>
+                        <p className="text-[11px] text-slate-400 font-bold">Dotazioni economiche e atti istituzionali</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowNuovaConvenzioneModal(true)}
+                      className="border border-slate-200 hover:border-blue-500 hover:text-blue-700 text-slate-600 bg-white font-extrabold text-[10px] uppercase tracking-wider px-4 py-3 rounded-lg transition-colors active:scale-95 shadow-sm"
+                    >
+                      + Nuova Convenzione
+                    </button>
                   </div>
-                )}
+
+                  {convenzioni.length === 0 ? (
+                    <div className="text-center py-10 bg-slate-50 border border-dashed border-slate-250 rounded-xl">
+                      <p className="text-sm font-semibold text-slate-500">Nessun patto economico registrato.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {convenzioni.map((c) => (
+                        <div key={c.id} className="p-4 border border-slate-100 rounded-xl bg-slate-50 flex items-start justify-between gap-4">
+                          <div className="space-y-1">
+                            <p className="font-extrabold text-slate-800 text-sm">{c.struttura_nome || "Rifugio Convenzionato"}</p>
+                            <p className="text-xs text-indigo-600 font-extrabold">{c.tipo_servizio}</p>
+                            <p className="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
+                              <Calendar className="h-3 w-3 shrink-0" />
+                              Dal {new Date(c.data_inizio).toLocaleDateString('it-IT')} al {new Date(c.data_fine).toLocaleDateString('it-IT')}
+                            </p>
+                          </div>
+                          <div className="text-right space-y-1 shrink-0">
+                            <p className="text-sm font-black text-rose-600">€ {(parseFloat(c.importo_annuo) || 0).toLocaleString('it-IT')}</p>
+                            <span className="inline-block px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-800 border border-emerald-100">
+                              {c.stato || "ATTIVA"}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="bg-white border border-slate-200 p-8 rounded-2xl flex flex-col items-center justify-center text-center space-y-4">
+                <Lock className="h-10 w-10 text-slate-400" />
+                <h3 className="text-md font-black text-[#1e3a5f] uppercase tracking-wider">🔒 Strutture e Convenzioni Protette</h3>
+                <p className="text-xs text-slate-500 font-semibold max-w-lg leading-relaxed">
+                  L'accesso alle <strong>Strutture di Custodia</strong> ed alle relative <strong>Convenzioni Comunali Attive</strong> è riservato agli operatori accreditati come Amministratori di Sistema. Per richiedere l'abilitazione contatta il referente del backoffice.
+                </p>
+              </div>
+            )}
 
             {/* SEZIONE 3: FATTURAZIONE & LIQUIDAZIONE VETERINARIA */}
             {(currentUser?.role === 'ADMIN' || currentUser?.role === 'Admin') && (
@@ -2040,92 +2523,341 @@ export default function Operatori() {
                 )}
               </div>
             )}
-
-            {/* MODAL 1: REGISTRAZIONE PRATICA ADOZIONE */}
             {showNuovaAdozioneModal && (
               <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden max-w-lg w-full flex flex-col max-h-[90vh]">
-                  <div className="bg-slate-900 px-6 py-4 flex items-center justify-between text-white border-b border-slate-800">
-                    <h3 className="font-extrabold uppercase tracking-wider text-sm flex items-center gap-2">
-                      <Plus className="h-5 w-5 text-indigo-400" /> Avvia Pratica Adozione (COF)
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden max-w-3xl w-full flex flex-col max-h-[90vh]">
+                  <div className="bg-[#1e3a5f] px-6 py-4 flex items-center justify-between text-white border-b border-slate-800">
+                    <h3 className="font-extrabold uppercase tracking-wide text-sm flex items-center gap-2">
+                      <Plus className="h-5 w-5 text-emerald-400" /> Avvia Nuova Istruttoria Pratica Adozione
                     </h3>
                     <button onClick={() => setShowNuovaAdozioneModal(false)} className="text-slate-400 hover:text-white transition-colors">
                       <X className="h-5 w-5" />
                     </button>
                   </div>
-                  <form onSubmit={handleCreaAdozione} className="p-6 space-y-4 overflow-y-auto w-full text-left">
-                    <div>
-                      <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Seleziona Canide / Felide da Affidare</label>
-                      <select
-                        required
-                        value={formAdozione.registroId}
-                        onChange={(e) => setFormAdozione({ ...formAdozione, registroId: e.target.value })}
-                        className="w-full p-2.5 border border-slate-200 rounded-lg text-sm text-slate-800 font-semibold outline-none focus:border-indigo-600 bg-white"
-                      >
-                        <option value="">Seleziona Animale dal Catalogo...</option>
-                        {registro
-                          .filter((animal) => animal.stato !== 'ADOTTATO')
-                          .map((animal) => (
-                            <option key={animal.id} value={animal.id}>
-                              {animal.nome || `Senza Nome ID #${animal.id}`} ({animal.specie}) - Microchip: {animal.microchip}
-                            </option>
-                          ))}
-                      </select>
+                  <form onSubmit={handleCreaAdozione} className="p-6 space-y-6 overflow-y-auto w-full text-left">
+                    
+                    {/* SEZIONE 1: SCELTA SOGGETTO DA ARCHIVIO */}
+                    <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                      <h4 className="text-xs font-black text-[#1e3a5f] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200 pb-2">
+                        🐕 1. Soggetto da Affidare / Adottare (da Archivio)
+                      </h4>
+                      <div>
+                        <select
+                          required
+                          value={formAdozione.registroId}
+                          onChange={(e) => setFormAdozione({ ...formAdozione, registroId: e.target.value })}
+                          className="w-full p-2.5 border border-slate-200 rounded-lg text-xs text-slate-800 font-extrabold outline-none focus:border-[#1e3a5f] bg-white transition-colors"
+                        >
+                          <option value="">Scegli l'animale registrato dal canile comunale...</option>
+                          {registro
+                            .filter((animal) => animal.stato !== 'ADOTTATO')
+                            .map((animal) => (
+                              <option key={animal.id} value={animal.id}>
+                                {animal.nome || `Senza Nome ID #${animal.id}`} ({animal.specie}) - Microchip: {animal.microchip || 'Nessuno'}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+
+                      {formAdozione.registroId && (() => {
+                        const sel = registro.find(a => String(a.id) === String(formAdozione.registroId));
+                        if (!sel) return null;
+                        return (
+                          <div className="bg-white border border-slate-200 rounded-xl p-3.5 flex gap-4 items-center">
+                            <img 
+                              src={sel.fotoUrl || "https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=150"} 
+                              alt={sel.nome} 
+                              referrerPolicy="no-referrer"
+                              className="w-16 h-16 object-cover rounded-lg border border-slate-200" 
+                            />
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5 text-xs text-slate-600 w-full font-semibold">
+                              <div><span className="text-[9px] font-black uppercase text-slate-400 block">Nome Animale:</span> <span className="font-bold text-slate-800">{sel.nome || 'Senza Nome'}</span></div>
+                              <div><span className="text-[9px] font-black uppercase text-slate-400 block">Identificativo Microchip:</span> <span className="font-mono text-emerald-700 font-bold">{sel.microchip || 'NESSUNO'}</span></div>
+                              <div><span className="text-[9px] font-black uppercase text-slate-400 block">Specie / Razza:</span> {sel.specie} / {sel.notes || 'Meticcio'}</div>
+                              <div><span className="text-[9px] font-black uppercase text-slate-400 block">Sesso:</span> {sel.sesso}</div>
+                              <div><span className="text-[9px] font-black uppercase text-slate-400 block">Taglia / Colore:</span> {sel.taglia || 'Media'} / {sel.colore || 'N.D.'}</div>
+                              <div><span className="text-[9px] font-black uppercase text-slate-400 block">Clinica/Sanitario:</span> {sel.condizioniSanitarie || 'Buono'}</div>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Nome e Cognome Adottante</label>
-                        <input
-                          type="text"
-                          required
-                          value={formAdozione.nome}
-                          onChange={(e) => setFormAdozione({ ...formAdozione, nome: e.target.value })}
-                          className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-600"
-                        />
+                    {/* SEZIONE 2: ANAGRAFICA DELL'ADOTTANTE / DICHIARANTE */}
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-black text-[#1e3a5f] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200 pb-2">
+                        👤 2. Anagrafica Completa Adottante
+                      </h4>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Nome e Cognome Completo</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Cognome e Nome dell'adottante"
+                            value={formAdozione.nome}
+                            onChange={(e) => setFormAdozione({ ...formAdozione, nome: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-[#1e3a5f]"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Codice Fiscale</label>
+                          <input
+                            type="text"
+                            required
+                            maxLength={16}
+                            placeholder="Minsters CF character"
+                            value={formAdozione.cf}
+                            onChange={(e) => setFormAdozione({ ...formAdozione, cf: e.target.value.toUpperCase() })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-mono font-bold outline-none focus:border-[#1e3a5f]"
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Codice Fiscale / ID</label>
-                        <input
-                          type="text"
-                          required
-                          value={formAdozione.cf}
-                          onChange={(e) => setFormAdozione({ ...formAdozione, cf: e.target.value.toUpperCase() })}
-                          className="w-full p-2.5 border border-slate-200 rounded-lg text-sm font-mono outline-none focus:border-indigo-600"
-                        />
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Luogo di Nascita</label>
+                          <input
+                            type="text"
+                            value={formAdozione.nato_a}
+                            onChange={(e) => setFormAdozione({ ...formAdozione, nato_a: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-[#1e3a5f]"
+                            placeholder="Esempio: Naro"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Prov. Nascita</label>
+                          <input
+                            type="text"
+                            maxLength={2}
+                            value={formAdozione.nato_prov}
+                            onChange={(e) => setFormAdozione({ ...formAdozione, nato_prov: e.target.value.toUpperCase() })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-semibold text-center outline-none focus:border-[#1e3a5f]"
+                            placeholder="AG"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Data di Nascita</label>
+                          <input
+                            type="date"
+                            value={formAdozione.nato_il}
+                            onChange={(e) => setFormAdozione({ ...formAdozione, nato_il: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-[#1e3a5f]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Comune di Residenza</label>
+                          <input
+                            type="text"
+                            value={formAdozione.residente_a}
+                            onChange={(e) => setFormAdozione({ ...formAdozione, residente_a: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-[#1e3a5f]"
+                            placeholder="Esempio: Naro"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Prov.</label>
+                          <input
+                            type="text"
+                            maxLength={2}
+                            value={formAdozione.residente_prov}
+                            onChange={(e) => setFormAdozione({ ...formAdozione, residente_prov: e.target.value.toUpperCase() })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-semibold text-center outline-none focus:border-[#1e3a5f]"
+                            placeholder="AG"
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Contatto Telefonico Secondario</label>
+                          <input
+                            type="tel"
+                            value={formAdozione.tel2}
+                            onChange={(e) => setFormAdozione({ ...formAdozione, tel2: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs outline-none focus:border-[#1e3a5f]"
+                            placeholder="Cellulare/Fisso opzionale"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Via / Piazza d'abitazione</label>
+                          <input
+                            type="text"
+                            value={formAdozione.via}
+                            onChange={(e) => setFormAdozione({ ...formAdozione, via: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-[#1e3a5f]"
+                            placeholder="Esempio: Corso Vittorio Emanuele"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1 font-mono">N. Civico</label>
+                          <input
+                            type="text"
+                            value={formAdozione.via_num}
+                            onChange={(e) => setFormAdozione({ ...formAdozione, via_num: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs outline-none focus:border-[#1e3a5f]"
+                            placeholder="Ex. 14"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1 font-mono">Scala / Int.</label>
+                          <input
+                            type="text"
+                            value={formAdozione.via_int_scala}
+                            onChange={(e) => setFormAdozione({ ...formAdozione, via_int_scala: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs outline-none focus:border-[#1e3a5f]"
+                            placeholder="Scala A int. 3"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Telefono Primario</label>
+                          <input
+                            type="tel"
+                            required
+                            value={formAdozione.tel}
+                            onChange={(e) => setFormAdozione({ ...formAdozione, tel: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs outline-none focus:border-[#1e3a5f]"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Indirizzo Email</label>
+                          <input
+                            type="email"
+                            required
+                            value={formAdozione.email}
+                            onChange={(e) => setFormAdozione({ ...formAdozione, email: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs outline-none focus:border-[#1e3a5f]"
+                          />
+                        </div>
+                      </div>
+
+                      {/* DOCUMENTO RICONOSCIMENTO */}
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 bg-slate-55 p-3 rounded-lg border border-slate-200">
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500 block mb-1">Estremi Documento</label>
+                          <select
+                            value={formAdozione.documento_tipo}
+                            onChange={(e) => setFormAdozione({ ...formAdozione, documento_tipo: e.target.value })}
+                            className="w-full p-2 border border-slate-200 rounded text-xs text-slate-800 font-bold bg-white"
+                          >
+                            <option value="CARTA_IDENTITA">Carta d'Identità</option>
+                            <option value="PASSAPORTO">Passaporto</option>
+                            <option value="PATENTE">Patente di Guida</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500 block mb-1">Numero</label>
+                          <input
+                            type="text"
+                            placeholder="Es: CA02931AA"
+                            value={formAdozione.documento_numero}
+                            onChange={(e) => setFormAdozione({ ...formAdozione, documento_numero: e.target.value.toUpperCase() })}
+                            className="w-full p-2 border border-slate-200 rounded text-xs uppercase"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500 block mb-1">Rilasciato da</label>
+                          <input
+                            type="text"
+                            placeholder="Es: Comune di Naro"
+                            value={formAdozione.documento_ente}
+                            onChange={(e) => setFormAdozione({ ...formAdozione, documento_ente: e.target.value })}
+                            className="w-full p-2 border border-slate-200 rounded text-xs"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500 block mb-1">Rilasciato il</label>
+                          <input
+                            type="date"
+                            value={formAdozione.documento_data}
+                            onChange={(e) => setFormAdozione({ ...formAdozione, documento_data: e.target.value })}
+                            className="w-full p-2 border border-slate-200 rounded text-xs"
+                          />
+                        </div>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Telefono Primario</label>
-                        <input
-                          type="tel"
-                          required
-                          value={formAdozione.tel}
-                          onChange={(e) => setFormAdozione({ ...formAdozione, tel: e.target.value })}
-                          className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-600"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Indirizzo Email Certificato</label>
-                        <input
-                          type="email"
-                          required
-                          value={formAdozione.email}
-                          onChange={(e) => setFormAdozione({ ...formAdozione, email: e.target.value })}
-                          className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-600"
-                        />
-                      </div>
-                    </div>
+                    {/* SEZIONE 3: RICHIESTA & IMPEGNI LEGALI */}
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-black text-[#1e3a5f] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200 pb-2">
+                        ⚖️ 3. Tipo Richiesta e Vincoli Istituzionali
+                      </h4>
 
-                    <div>
-                      <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Note / Relazione Sociale / Esito Pre-affido</label>
-                      <textarea
-                        value={formAdozione.note}
-                        onChange={(e) => setFormAdozione({ ...formAdozione, note: e.target.value })}
-                        className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-600 h-20 resize-none"
-                      />
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1 font-black">Regime della Pratica</label>
+                          <select
+                            value={formAdozione.richiesta_tipo}
+                            onChange={(e) => setFormAdozione({ ...formAdozione, richiesta_tipo: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs text-slate-800 font-extrabold bg-white"
+                          >
+                            <option value="ADOZIONE_DEFINITIVA">Adozione Definitiva</option>
+                            <option value="AFFIDO_TEMPORANEO">Affido Temporaneo (Modulo C)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">In data di decorrenza</label>
+                          <input
+                            type="date"
+                            value={formAdozione.a_partire_da}
+                            onChange={(e) => setFormAdozione({ ...formAdozione, a_partire_da: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Luogo Detenzione Soggetto</label>
+                          <input
+                            type="text"
+                            placeholder="Es: Stessa Residenza"
+                            value={formAdozione.luogo_detenzione}
+                            onChange={(e) => setFormAdozione({ ...formAdozione, luogo_detenzione: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-semibold outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1 font-bold">Impegno Obbligatorio Sterilizzazione</label>
+                          <select
+                            value={formAdozione.impegno_sterilizzazione}
+                            onChange={(e) => setFormAdozione({ ...formAdozione, impegno_sterilizzazione: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 bg-white"
+                          >
+                            <option value="SI">Sì, mi impegno (obbligatorio per cuccioli)</option>
+                            <option value="NO">No (già effettuata dal Comune / Esente)</option>
+                            <option value="GIA_EFFETTUATA">Già Effettuata</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Contributo Donazione Ente (€)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            placeholder="Libera o Fissa (es: 50)"
+                            value={formAdozione.donazione_euro}
+                            onChange={(e) => setFormAdozione({ ...formAdozione, donazione_euro: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-800"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Nota Istruttoria Finale dell'Operatore comunale</label>
+                        <textarea
+                          placeholder="Fornisci eventuali dettagli sull'alloggio, spazio verde recintato o se l'adottante ha superato il test di pre-affido..."
+                          value={formAdozione.note_operatore}
+                          onChange={(e) => setFormAdozione({ ...formAdozione, note_operatore: e.target.value })}
+                          className="w-full p-2.5 border border-slate-200 rounded-lg text-xs outline-none h-20 resize-none"
+                        />
+                      </div>
                     </div>
 
                     <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">
@@ -2138,9 +2870,9 @@ export default function Operatori() {
                       </button>
                       <button
                         type="submit"
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs uppercase tracking-wider px-5 py-2.5 rounded-lg active:scale-95"
+                        className="bg-[#1e3a5f] hover:bg-[#1a3455] text-white font-extrabold text-xs uppercase tracking-wider px-6 py-2.5 rounded-lg active:scale-95"
                       >
-                        Salva Pratica
+                        Salva ed Avvia Pratica
                       </button>
                     </div>
                   </form>
@@ -2148,114 +2880,327 @@ export default function Operatori() {
               </div>
             )}
 
-            {/* MODAL 1.5: MODIFICA PRATICA ADOZIONE */}
+            {/* MODAL EDITING: MODIFICA PRATICA ADOZIONE */}
             {editingAdozione && (
               <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden max-w-lg w-full flex flex-col max-h-[90vh]">
-                  <div className="bg-slate-900 px-6 py-4 flex items-center justify-between text-white border-b border-slate-800">
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden max-w-3xl w-full flex flex-col max-h-[90vh]">
+                  <div className="bg-[#1e3a5f] px-6 py-4 flex items-center justify-between text-white border-b border-slate-800">
                     <h3 className="font-extrabold uppercase tracking-wider text-xs flex items-center gap-2">
-                       Modifica Pratica Adozione #{editingAdozione.id}
+                       Modifica Pratica Istruttoria Adozione #{editingAdozione.id}
                     </h3>
                     <button onClick={() => setEditingAdozione(null)} className="text-slate-400 hover:text-white transition-colors">
                       <X className="h-5 w-5" />
                     </button>
                   </div>
-                  <form onSubmit={handleEditAdoptionSubmit} className="p-6 space-y-4 overflow-y-auto w-full text-left">
+                  <form onSubmit={handleEditAdoptionSubmit} className="p-6 space-y-5 overflow-y-auto w-full text-left">
                     
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center gap-3">
+                    {/* INFO SOGGETTO */}
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 flex gap-4 items-center">
                       <img
                         src={editingAdozione.animal_foto || "https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=150"}
                         alt={editingAdozione.animal_nome}
-                        className="w-12 h-12 object-cover rounded-lg border border-slate-200"
+                        referrerPolicy="no-referrer"
+                        className="w-14 h-14 object-cover rounded-lg border border-emerald-100"
                       />
-                      <div>
-                        <p className="font-extrabold text-slate-800 leading-tight">Soggetto: {editingAdozione.animal_nome || "Animale Registrato"}</p>
-                        <p className="text-[10px] text-indigo-500 uppercase font-bold tracking-wider">{editingAdozione.animal_specie || "CANE"}</p>
+                      <div className="grid grid-cols-2 text-xs font-semibold text-slate-700 w-full gap-x-2">
+                        <div><span className="text-[9px] uppercase text-slate-400 block font-bold">Animale:</span> <span className="font-bold text-slate-800">{editingAdozione.animal_nome}</span></div>
+                        <div><span className="text-[9px] uppercase text-slate-400 block font-bold">Microchip:</span> <span className="font-mono text-emerald-800">{editingAdozione.animal_microchip || 'ND'}</span></div>
+                        <div><span className="text-[9px] uppercase text-slate-400 block font-bold">Specie:</span> {editingAdozione.animal_specie}</div>
                       </div>
                     </div>
 
-                    <div>
-                      <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Nome e Cognome Adottante</label>
-                      <input
-                        type="text"
-                        required
-                        value={editingAdozione.adottante_nome || ""}
-                        onChange={(e) => setEditingAdozione({ ...editingAdozione, adottante_nome: e.target.value })}
-                        className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-600 bg-white"
-                      />
+                    {/* STATO PRATICA PER GESTIONE OPERATORE */}
+                    <div className="bg-slate-50 p-4 border border-slate-200 rounded-xl space-y-3">
+                      <h4 className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Azione Amministrativa & Delibera</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Stato Generale</label>
+                          <select
+                            required
+                            value={editingAdozione.stato || "IN_VALUTAZIONE"}
+                            onChange={(e) => setEditingAdozione({ ...editingAdozione, stato: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-850 bg-white"
+                          >
+                            <option value="CREATA">CREATA</option>
+                            <option value="IN_VALUTAZIONE">IN_VALUTAZIONE</option>
+                            <option value="APPROVATA">APPROVATA (Pratica Chiusa)</option>
+                            <option value="RIFIUTATA">RIFIUTATA</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Esito Istruttoria Comune</label>
+                          <select
+                            value={editingAdozione.esito || ""}
+                            onChange={(e) => setEditingAdozione({ ...editingAdozione, esito: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-850 bg-white"
+                          >
+                            <option value="">IN SOSPESO / DA DECIDERE</option>
+                            <option value="CANDIDATO_IDONEO">IDONEO (Affido idoneo)</option>
+                            <option value="NON_SUPPORTATO">CONDIZIONI NON IDONEE (Respinta)</option>
+                            <option value="RINUNCIA">RINUNCIA ADOTTANTE</option>
+                          </select>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* ANAGRAFICA DETTAGLIATA */}
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-black text-[#1e3a5f] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200 pb-2">
+                        👤 Anagrafica dell'Adottante
+                      </h4>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Cognome e Nome</label>
+                          <input
+                            type="text"
+                            required
+                            value={editingAdozione.adottante_nome || ""}
+                            onChange={(e) => setEditingAdozione({ ...editingAdozione, adottante_nome: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs outline-none font-semibold bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Codice Fiscale</label>
+                          <input
+                            type="text"
+                            required
+                            value={editingAdozione.adottante_cf || ""}
+                            onChange={(e) => setEditingAdozione({ ...editingAdozione, adottante_cf: e.target.value.toUpperCase() })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs outline-none font-mono font-bold bg-white"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Nato a</label>
+                          <input
+                            type="text"
+                            value={editingAdozione.nato_a || ""}
+                            onChange={(e) => setEditingAdozione({ ...editingAdozione, nato_a: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-semibold"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Prov. Nascita</label>
+                          <input
+                            type="text"
+                            maxLength={2}
+                            value={editingAdozione.nato_prov || ""}
+                            onChange={(e) => setEditingAdozione({ ...editingAdozione, nato_prov: e.target.value.toUpperCase() })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs text-center uppercase"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Nato il</label>
+                          <input
+                            type="date"
+                            value={editingAdozione.nato_il || ""}
+                            onChange={(e) => setEditingAdozione({ ...editingAdozione, nato_il: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Residente a</label>
+                          <input
+                            type="text"
+                            value={editingAdozione.residente_a || ""}
+                            onChange={(e) => setEditingAdozione({ ...editingAdozione, residente_a: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-semibold"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Prov.</label>
+                          <input
+                            type="text"
+                            maxLength={2}
+                            value={editingAdozione.residente_prov || ""}
+                            onChange={(e) => setEditingAdozione({ ...editingAdozione, residente_prov: e.target.value.toUpperCase() })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs text-center uppercase"
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Tel Registrato Secondary</label>
+                          <input
+                            type="tel"
+                            value={editingAdozione.tel2 || ""}
+                            onChange={(e) => setEditingAdozione({ ...editingAdozione, tel2: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                        <div className="sm:col-span-2">
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Via / Piazza</label>
+                          <input
+                            type="text"
+                            value={editingAdozione.via || ""}
+                            onChange={(e) => setEditingAdozione({ ...editingAdozione, via: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-semibold"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Civico</label>
+                          <input
+                            type="text"
+                            value={editingAdozione.via_num || ""}
+                            onChange={(e) => setEditingAdozione({ ...editingAdozione, via_num: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1 font-mono">Scala / Int.</label>
+                          <input
+                            type="text"
+                            value={editingAdozione.via_int_scala || ""}
+                            onChange={(e) => setEditingAdozione({ ...editingAdozione, via_int_scala: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Telefono Primario</label>
+                          <input
+                            type="text"
+                            required
+                            value={editingAdozione.adottante_tel || ""}
+                            onChange={(e) => setEditingAdozione({ ...editingAdozione, adottante_tel: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs outline-none bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Email Adottante</label>
+                          <input
+                            type="email"
+                            required
+                            value={editingAdozione.adottante_email || ""}
+                            onChange={(e) => setEditingAdozione({ ...editingAdozione, adottante_email: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs outline-none bg-white"
+                          />
+                        </div>
+                      </div>
+
+                      {/* DOCUMENT */}
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 bg-slate-55 p-3 rounded-lg border border-slate-200">
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500 block mb-1">Tipo Documento</label>
+                          <select
+                            value={editingAdozione.documento_tipo}
+                            onChange={(e) => setEditingAdozione({ ...editingAdozione, documento_tipo: e.target.value })}
+                            className="w-full p-2 border border-slate-200 rounded text-xs font-bold bg-white"
+                          >
+                            <option value="CARTA_IDENTITA">Carta d'Identità</option>
+                            <option value="PASSAPORTO">Passaporto</option>
+                            <option value="PATENTE">Patente di Guida</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500 block mb-1">Numero</label>
+                          <input
+                            type="text"
+                            value={editingAdozione.documento_numero || ""}
+                            onChange={(e) => setEditingAdozione({ ...editingAdozione, documento_numero: e.target.value.toUpperCase() })}
+                            className="w-full p-2 border border-slate-200 text-xs rounded uppercase"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500 block mb-1">Rilasciato da</label>
+                          <input
+                            type="text"
+                            value={editingAdozione.documento_ente || ""}
+                            onChange={(e) => setEditingAdozione({ ...editingAdozione, documento_ente: e.target.value })}
+                            className="w-full p-2 border border-slate-200 text-xs rounded"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-slate-500 block mb-1">Rilasciato il</label>
+                          <input
+                            type="date"
+                            value={editingAdozione.documento_data || ""}
+                            onChange={(e) => setEditingAdozione({ ...editingAdozione, documento_data: e.target.value })}
+                            className="w-full p-2 border border-slate-200 text-xs rounded"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* DICHIARAZIONI ED IMPEGNI */}
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-black text-[#1e3a5f] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200 pb-2">
+                        ⚖️ Dichiarazioni, Regimi & Sterilizzazione
+                      </h4>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Regime Pratica</label>
+                          <select
+                            value={editingAdozione.richiesta_tipo}
+                            onChange={(e) => setEditingAdozione({ ...editingAdozione, richiesta_tipo: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 bg-white"
+                          >
+                            <option value="ADOZIONE_DEFINITIVA">Adozione Definitiva</option>
+                            <option value="AFFIDO_TEMPORANEO">Affido Temporaneo</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Decorrenza da</label>
+                          <input
+                            type="date"
+                            value={editingAdozione.a_partire_da || ""}
+                            onChange={(e) => setEditingAdozione({ ...editingAdozione, a_partire_da: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-semibold"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Luogo Detenzione</label>
+                          <input
+                            type="text"
+                            value={editingAdozione.luogo_detenzione || ""}
+                            onChange={(e) => setEditingAdozione({ ...editingAdozione, luogo_detenzione: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1 font-bold">Obbligo Sterilizzazione</label>
+                          <select
+                            value={editingAdozione.impegno_sterilizzazione}
+                            onChange={(e) => setEditingAdozione({ ...editingAdozione, impegno_sterilizzazione: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 bg-white"
+                          >
+                            <option value="SI">Sì, impegnato</option>
+                            <option value="NO">No, esente</option>
+                            <option value="GIA_EFFETTUATA">Già Effettuata</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Contributo Donatore (€)</label>
+                          <input
+                            type="number"
+                            value={editingAdozione.donazione_euro || ""}
+                            onChange={(e) => setEditingAdozione({ ...editingAdozione, donazione_euro: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-bold"
+                          />
+                        </div>
+                      </div>
+
                       <div>
-                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Codice Fiscale</label>
-                        <input
-                          type="text"
-                          required
-                          value={editingAdozione.adottante_cf || ""}
-                          onChange={(e) => setEditingAdozione({ ...editingAdozione, adottante_cf: e.target.value.toUpperCase() })}
-                          className="w-full p-2.5 border border-slate-200 rounded-lg text-sm font-mono outline-none focus:border-indigo-600 bg-white"
+                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Note Istruttorie / Relazione Sociale dell'Operatore</label>
+                        <textarea
+                          value={editingAdozione.note_operatore || ""}
+                          onChange={(e) => setEditingAdozione({ ...editingAdozione, note_operatore: e.target.value })}
+                          className="w-full p-2.5 border border-slate-200 rounded-lg text-xs outline-none h-20 resize-none bg-white font-semibold"
                         />
                       </div>
-                      <div>
-                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Telefono</label>
-                        <input
-                          type="text"
-                          required
-                          value={editingAdozione.adottante_tel || ""}
-                          onChange={(e) => setEditingAdozione({ ...editingAdozione, adottante_tel: e.target.value })}
-                          className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-600 bg-white"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Email Adottante</label>
-                      <input
-                        type="email"
-                        required
-                        value={editingAdozione.adottante_email || ""}
-                        onChange={(e) => setEditingAdozione({ ...editingAdozione, adottante_email: e.target.value })}
-                        className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-600 bg-white"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Stato Pratica</label>
-                        <select
-                          required
-                          value={editingAdozione.stato || "IN_VALUTAZIONE"}
-                          onChange={(e) => setEditingAdozione({ ...editingAdozione, stato: e.target.value })}
-                          className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-600 bg-white"
-                        >
-                          <option value="CREATA">CREATA</option>
-                          <option value="IN_VALUTAZIONE">IN_VALUTAZIONE</option>
-                          <option value="APPROVATA">APPROVATA</option>
-                          <option value="RIFIUTATA">RIFIUTATA</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Esito Istruttoria</label>
-                        <select
-                          value={editingAdozione.esito || ""}
-                          onChange={(e) => setEditingAdozione({ ...editingAdozione, esito: e.target.value })}
-                          className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-600 bg-white"
-                        >
-                          <option value="">Nessuno (In attesa)</option>
-                          <option value="CANDIDATO_IDONEO">CANDIDATO_IDONEO (Idoneità Approvata)</option>
-                          <option value="NON_SUPPORTATO">NON_SUPPORTATO (Respinta)</option>
-                          <option value="RINUNCIA">RINUNCIA (Rinunciata)</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Relazione Note</label>
-                      <textarea
-                        value={editingAdozione.note || ""}
-                        onChange={(e) => setEditingAdozione({ ...editingAdozione, note: e.target.value })}
-                        className="w-full p-2.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-600 h-24 resize-none bg-white"
-                      />
                     </div>
 
                     <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">
