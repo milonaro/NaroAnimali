@@ -191,6 +191,13 @@ export default function Home() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
     window.addEventListener('start-tutorial', handleStartTour);
+
+    // Auto-trigger tour if redirected from another page with auto_start_tour flag
+    if (sessionStorage.getItem('auto_start_tour') === 'true') {
+      sessionStorage.removeItem('auto_start_tour');
+      handleStartTour();
+    }
+
     return () => window.removeEventListener('start-tutorial', handleStartTour);
   }, []);
 

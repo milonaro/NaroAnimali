@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageSquare, Send, Loader2, Info, ArrowUpRight, Sparkles, HelpCircle, AlertTriangle } from 'lucide-react';
+import { MessageSquare, Send, Loader2, Info, ArrowUpRight, Sparkles, HelpCircle, AlertTriangle, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -13,12 +13,37 @@ export default function AssistenteAI() {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   
   const [siteName, setSiteName] = useState("Comune di Naro");
   const [cityName, setCityName] = useState("Naro");
 
+  // Comprehensive logger for compliance and audits
+  const logChatActivity = (event: string, details: any) => {
+    const logEntry = {
+      timestamp: new Date().toISOString(),
+      event,
+      siteName,
+      cityName,
+      language,
+      ...details
+    };
+    console.log("[AI Assistente LOG TRACE]:", JSON.stringify(logEntry, null, 2));
+    try {
+      const existingLogs = localStorage.getItem('animalhub_ai_audit_logs');
+      let logs = existingLogs ? JSON.parse(existingLogs) : [];
+      logs.unshift(logEntry);
+      if (logs.length > 300) logs = logs.slice(0, 300); // Last 300 logs
+      localStorage.setItem('animalhub_ai_audit_logs', JSON.stringify(logs));
+    } catch (e) {
+      console.error("Failed to write audit logs to localStorage", e);
+    }
+  };
+
   useEffect(() => {
+    // Scroll entire window to top instantly on mount
+    window.scrollTo({ top: 0, behavior: 'instant' });
+
     const fetchConfig = async () => {
       try {
         const res = await fetch("/api/admin/config");
@@ -32,10 +57,31 @@ export default function AssistenteAI() {
       } catch(e) {}
     };
     fetchConfig();
+
+    // Recover persisted chat history on entry
+    const saved = localStorage.getItem('animalhub_ai_chat_history');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed);
+          logChatActivity("LOAD_CHAT_HISTORY_SUCCESS", { messageCount: parsed.length });
+        }
+      } catch (e) {
+        logChatActivity("LOAD_CHAT_HISTORY_CORRUPT", { error: String(e) });
+      }
+    } else {
+      logChatActivity("LOAD_CHAT_HISTORY_EMPTY", {});
+    }
   }, []);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
   };
 
   useEffect(() => {
@@ -46,9 +92,13 @@ export default function AssistenteAI() {
     const textToSend = customText !== undefined ? customText : input;
     if (!textToSend.trim() || loading) return;
 
+    logChatActivity("USER_SEND_MESSAGE_BEGIN", { textLength: textToSend.length, isPreset: customText !== undefined });
+
     const userMsg: Message = { role: 'user', parts: { text: textToSend } };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
+    localStorage.setItem('animalhub_ai_chat_history', JSON.stringify(newMessages));
+
     if (customText === undefined) {
       setInput('');
     }
@@ -64,12 +114,40 @@ export default function AssistenteAI() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
-      setMessages([...newMessages, { role: 'model', parts: { text: data.text } }]);
+      const modelResponse: Message = { role: 'model', parts: { text: data.text } };
+      const updatedMessages = [...newMessages, modelResponse];
+      
+      setMessages(updatedMessages);
+      localStorage.setItem('animalhub_ai_chat_history', JSON.stringify(updatedMessages));
+      
+      logChatActivity("MODEL_RESPONSE_SUCCESS", { 
+        responseLength: data.text.length,
+        totalChatTurns: Math.ceil(updatedMessages.length / 2)
+      });
     } catch (err: any) {
-      console.error(err);
-      setMessages([...newMessages, { role: 'model', parts: { text: language === 'it' ? "Scusa, ho riscontrato un problema tecnico. Per favore riprova tra poco o contatta direttamente gli uffici." : "Sorry, I encountered a technical issue. Please try again in a moment or contact the municipal office directly." } }]);
+      logChatActivity("MODEL_RESPONSE_ERROR", { error: err.message || String(err) });
+      
+      const errorResponse: Message = { 
+        role: 'model', 
+        parts: { 
+          text: language === 'it' 
+            ? "Scusa, ho riscontrato un problema tecnico. Per favore riprova tra poco o contatta direttamente gli uffici." 
+            : "Sorry, I encountered a technical issue. Please try again in a moment or contact the municipal office directly." 
+        } 
+      };
+      const updatedMessages = [...newMessages, errorResponse];
+      setMessages(updatedMessages);
+      localStorage.setItem('animalhub_ai_chat_history', JSON.stringify(updatedMessages));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleClearHistory = () => {
+    if (window.confirm(language === 'it' ? "Sei sicuro di voler cancellare tutta la cronologia della chat?" : "Are you sure you want to clear your chat history?")) {
+      setMessages([]);
+      localStorage.removeItem('animalhub_ai_chat_history');
+      logChatActivity("CHAT_HISTORY_CLEARED_BY_USER", {});
     }
   };
 
@@ -110,11 +188,24 @@ export default function AssistenteAI() {
               </p>
             </div>
             
-            <div className="bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-xl flex items-center gap-2 self-start md:self-auto">
-              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
-              <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest leading-none">
-                {language === 'it' ? 'Sistema Attivo & Certificato' : 'Certified & Active'}
-              </span>
+            <div className="flex flex-wrap items-center gap-2.5 self-start md:self-auto">
+              {messages.length > 0 && (
+                <button
+                  onClick={handleClearHistory}
+                  className="bg-red-50 hover:bg-red-100 border border-red-200 hover:border-red-300 text-red-600 px-3.5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 cursor-pointer shadow-sm"
+                  title={language === 'it' ? 'Cancella cronologia messaggi' : 'Clear your chat history'}
+                >
+                  <Trash2 className="h-4 w-4 shrink-0" />
+                  <span>{language === 'it' ? 'Cancella Cronologia' : 'Clear History'}</span>
+                </button>
+              )}
+              
+              <div className="bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-xl flex items-center gap-2">
+                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
+                <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest leading-none">
+                  {language === 'it' ? 'Sistema Attivo & Certificato' : 'Certified & Active'}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -136,7 +227,7 @@ export default function AssistenteAI() {
             </div>
 
             {/* Conversation Canvas */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 bg-slate-50/40">
+            <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 bg-slate-50/40">
               {messages.length === 0 && (
                 <div className="text-center py-6 sm:py-10 max-w-2xl mx-auto space-y-6">
                   <div className="w-16 h-16 bg-[#15803d]/5 rounded-2xl flex items-center justify-center mx-auto shadow-inner border border-[#15803d]/10">
@@ -194,7 +285,6 @@ export default function AssistenteAI() {
                   </div>
                 </div>
               )}
-              <div ref={messagesEndRef} />
             </div>
 
             {/* Input Control Center */}
