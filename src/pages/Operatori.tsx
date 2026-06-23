@@ -1,3 +1,4 @@
+import { jsPDF } from 'jspdf';
 import React, { useState, useEffect } from 'react';
 import { 
   Briefcase, MapPin, ShieldAlert, BadgeInfo, CheckCircle, 
@@ -951,6 +952,76 @@ export default function Operatori() {
     const animalSpecie = printingAdozione.animal_specie || 'CANE';
     const animalFoto = printingAdozione.animal_foto || '';
 
+    const generateAdozionePDF = () => {
+      const doc = new jsPDF();
+      
+      // Sfondo Header
+      doc.setFillColor(16, 27, 58); // #101b3a
+      doc.rect(0, 0, 210, 45, 'F');
+      
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(20);
+      doc.text('COMUNE DI NARO', 105, 20, { align: 'center' });
+      doc.setFontSize(10);
+      doc.text('SETTORE BENESSERE ANIMALE E GESTIONE RANDAGISMO', 105, 32, { align: 'center' });
+      
+      // Titolo Certificato
+      doc.setTextColor(30, 58, 95); // #1e3a5f
+      doc.setFontSize(14);
+      doc.text('ISTRUTTORIA PRATICA DI ADOZIONE DEFINITIVA / AFFIDO', 105, 60, { align: 'center' });
+      
+      doc.setDrawColor(220, 220, 220);
+      doc.line(20, 68, 190, 68);
+      
+      // Tabella delle proprietà
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(11);
+      
+      let currentY = 82;
+      const addRow = (label: string, value: string) => {
+        doc.setFont('Helvetica', 'bold');
+        doc.text(label, 30, currentY);
+        doc.setFont('Helvetica', 'normal');
+        doc.text(value, 95, currentY);
+        currentY += 10;
+      };
+
+      addRow('Pratica Numero:', String(printingAdozione.id));
+      addRow('Data Pratica:', new Date(printingAdozione.data_richiesta || new Date()).toLocaleDateString('it-IT'));
+      addRow('Stato Pratica:', printingAdozione.stato || 'CREATA');
+      
+      currentY += 5;
+      doc.setFont('Helvetica', 'bold');
+      doc.text('DATI ADOTTANTE / AFFIDATARIO', 30, currentY);
+      doc.line(30, currentY + 2, 180, currentY + 2);
+      currentY += 10;
+
+      addRow('Nominativo:', printingAdozione.adottante_nome);
+      addRow('Codice Fiscale:', extraPrintDetails.codice_fiscale);
+      addRow('Documento Identità:', `${extraPrintDetails.documento_tipo} - ${extraPrintDetails.documento_numero}`);
+
+      currentY += 5;
+      doc.setFont('Helvetica', 'bold');
+      doc.text('DATI SOGGETTO IDENTIFICATIVO', 30, currentY);
+      doc.line(30, currentY + 2, 180, currentY + 2);
+      currentY += 10;
+
+      addRow('Codice Microchip:', animalMicrochip);
+      addRow('Nome Animale:', animalName);
+      addRow('Specie:', animalSpecie);
+
+      // Bordo finale
+      doc.line(20, currentY + 15, 190, currentY + 15);
+
+      // footer attestato
+      doc.setFontSize(8);
+      doc.setTextColor(140, 140, 140);
+      doc.text('La presente documentazione è generata dal sistema informativo comunale.', 105, currentY + 25, { align: 'center' });
+      doc.text('Tutti i diritti riservati - Comune di Naro.', 105, currentY + 30, { align: 'center' });
+
+      doc.save(`Pratica_Adozione_${printingAdozione.id}.pdf`);
+    };
+
     return (
       <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-start py-8 px-4 print:bg-white print:p-0 font-sans text-slate-800">
         {/* ACTION BAR: Hidden on print */}
@@ -966,10 +1037,10 @@ export default function Operatori() {
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => window.print()}
+              onClick={() => generateAdozionePDF()}
               className="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold text-xs uppercase tracking-wider px-5 py-2.5 rounded-lg flex items-center gap-2 shadow-sm transition-all cursor-pointer"
             >
-              <Printer className="h-4 w-4" /> Stampa Verbale / Salva PDF
+              <Printer className="h-4 w-4" /> Scarica Report PDF
             </button>
             <button
               onClick={() => setPrintingAdozione(null)}
