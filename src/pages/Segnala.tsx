@@ -108,6 +108,58 @@ export default function Segnala() {
     return () => window.removeEventListener('online', handleSync);
   }, []);
 
+  const [autoRecoverStatus, setAutoRecoverStatus] = useState<{
+    type: 'success' | 'info' | 'error' | null;
+    message: string | null;
+  }>({ type: null, message: null });
+
+  useEffect(() => {
+    const email = formData.emailSegnalante?.trim();
+    const tel = formData.telefonoSegnalante?.trim();
+    
+    if (!email && !tel) return;
+
+    const isEmailOk = typeof email === 'string' && email.includes('@') && email.length > 5;
+    const isTelOk = typeof tel === 'string' && tel.length >= 8;
+
+    if (!isEmailOk && !isTelOk) return;
+
+    const timer = setTimeout(async () => {
+      try {
+        let url = `/api/crosscheck?`;
+        if (isEmailOk) url += `email=${encodeURIComponent(email)}`;
+        if (isTelOk) {
+          if (isEmailOk) url += '&';
+          url += `telefono=${encodeURIComponent(tel)}`;
+        }
+
+        const res = await fetch(url);
+        if (res.ok) {
+          const result = await res.json();
+          if (result.found && result.type === 'citizen_profile') {
+            const profile = result.data;
+            setFormData(prev => ({
+              ...prev,
+              nomeSegnalante: prev.nomeSegnalante || profile.nome || '',
+              cognomeSegnalante: prev.cognomeSegnalante || profile.cognome || '',
+              telefonoSegnalante: prev.telefonoSegnalante || profile.telefono || '',
+              emailSegnalante: prev.emailSegnalante || profile.email || '',
+            }));
+            
+            setAutoRecoverStatus({
+              type: 'success',
+              message: `🟢 CODICE CATASTALE / ANAGRAFICA RICONOSCIUTA: Abbiamo individuato la tua scheda nei registri comunali! I tuoi dati sono stati recuperati e inseriti con successo nel modulo dell'intervento.`
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Errore controllo anagrafica automatica:", err);
+      }
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [formData.emailSegnalante, formData.telefonoSegnalante]);
+
   const generateSegnalazionePDF = async (protocolCode?: string) => {
     let photoBase64 = "";
     if (photo) {
@@ -1075,6 +1127,16 @@ export default function Segnala() {
                     )}
                   </div>
                 </div>
+
+                {autoRecoverStatus.message && (
+                  <div className={`p-4 rounded-xl mb-4 border text-[11px] font-extrabold transition-all leading-relaxed ${
+                    autoRecoverStatus.type === 'success' 
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+                      : 'bg-indigo-50 text-indigo-800 border-indigo-200'
+                  }`}>
+                    {autoRecoverStatus.message}
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-slate-50/50 p-6 rounded-xl border border-slate-100">
                   <div className="space-y-2">

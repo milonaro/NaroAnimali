@@ -8,7 +8,9 @@ export enum SegnalazioneStato {
   NUOVA = "NUOVA",
   IN_CARICO = "IN_CARICO",
   INTERVENTO = "INTERVENTO",
-  CHIUSA = "CHIUSA"
+  CHIUSA = "CHIUSA",
+  FUSA = "FUSA",
+  VALIDATA = "VALIDATA"
 }
 
 export interface Segnalazione {

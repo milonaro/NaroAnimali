@@ -4,13 +4,16 @@ import {
   Briefcase, MapPin, ShieldAlert, BadgeInfo, CheckCircle, 
   Download, Filter, Search, User, FileSpreadsheet, Plus, 
   Activity, Star, Sparkles, Building, Phone, Calendar, CheckSquare,
-  Dog, Cat, FileText, AlertTriangle, X, Printer, Lock
+  Dog, Cat, FileText, AlertTriangle, X, Printer, Lock,
+  GitMerge, GitCompare
 } from 'lucide-react';
 import AppMap from '@/src/components/map/Map';
 import { AnimalSpecie, SegnalazioneStato, Segnalazione } from '../types';
 import GestioneOperatoriTab from '@/src/components/GestioneOperatoriTab';
 import { popup } from '../lib/popup';
 import PageHeader from '../components/layout/PageHeader';
+import { calculateFiscalCode, isValidFiscalCode } from '../lib/fiscalCode';
+import AutocompleteInput from '../components/AutocompleteInput';
 
 // Removed mock data variables
 interface RegistroAnimale {
@@ -68,6 +71,8 @@ export default function Operatori() {
   const [formAdozione, setFormAdozione] = useState({
     registroId: '',
     nome: '',
+    cognome: '',
+    sesso: 'M' as 'M' | 'F',
     cf: '',
     tel: '',
     tel2: '',
@@ -284,6 +289,22 @@ export default function Operatori() {
     }
   };
 
+  // Calcolo automatico del Codice Fiscale
+  useEffect(() => {
+    if (formAdozione.nome || formAdozione.cognome || formAdozione.nato_il || formAdozione.nato_a) {
+      const computed = calculateFiscalCode({
+        nome: formAdozione.nome || "",
+        cognome: formAdozione.cognome || "",
+        sesso: formAdozione.sesso,
+        dataNascita: formAdozione.nato_il || "",
+        comuneNascita: formAdozione.nato_a || ""
+      });
+      if (computed && computed !== formAdozione.cf) {
+        setFormAdozione((prev) => ({ ...prev, cf: computed }));
+      }
+    }
+  }, [formAdozione.nome, formAdozione.cognome, formAdozione.sesso, formAdozione.nato_il, formAdozione.nato_a]);
+
   useEffect(() => {
     if (activeTab === 'modulo-adozioni') {
       fetchAdozioni();
@@ -363,7 +384,7 @@ export default function Operatori() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           registro_id: formAdozione.registroId,
-          adottante_nome: formAdozione.nome,
+          adottante_nome: `${formAdozione.cognome} ${formAdozione.nome}`.trim(),
           adottante_cf: formAdozione.cf,
           adottante_tel: formAdozione.tel,
           adottante_email: formAdozione.email,
@@ -375,6 +396,8 @@ export default function Operatori() {
         setFormAdozione({
           registroId: '',
           nome: '',
+          cognome: '',
+          sesso: 'M',
           cf: '',
           tel: '',
           tel2: '',
@@ -666,6 +689,127 @@ export default function Operatori() {
     fotoUrl: "https://images.unsplash.com/photo-1544568100-847a948585b9?auto=format&fit=crop&q=80&w=300"
   });
 
+  const [animalCrosscheckAlert, setAnimalCrosscheckAlert] = useState<string | null>(null);
+
+  useEffect(() => {
+    const nome = newSoggetto.nome?.trim();
+    const microchip = newSoggetto.microchip?.trim();
+    const specie = newSoggetto.specie;
+
+    if (!nome && !microchip) {
+      setAnimalCrosscheckAlert(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        let queryData = "";
+        if (microchip && microchip.length >= 5) {
+          queryData = `microchip=${encodeURIComponent(microchip)}`;
+        } else if (nome && nome.length >= 3 && specie) {
+          queryData = `animal_nome=${encodeURIComponent(nome)}&animal_specie=${encodeURIComponent(specie)}`;
+        } else {
+          setAnimalCrosscheckAlert(null);
+          return;
+        }
+
+        const res = await fetch(`/api/crosscheck?${queryData}`);
+        if (res.ok) {
+          const result = await res.json();
+          if (result.found) {
+            setAnimalCrosscheckAlert(result.message);
+          } else {
+            setAnimalCrosscheckAlert(null);
+          }
+        }
+      } catch (err) {
+        console.error("Errore nel crosscheck dell'animale:", err);
+      }
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [newSoggetto.nome, newSoggetto.microchip, newSoggetto.specie]);
+
+  // Handle duplicate report fusion
+  const [mergeTargetId, setMergeTargetId] = useState<string>("");
+
+  const handleMergeReports = async () => {
+    if (!selectedReport || !mergeTargetId) {
+      popup.error("Selezionare una segnalazione principale di destinazione.");
+      return;
+    }
+
+    const targetReport = reports.find(r => r.id === mergeTargetId);
+    if (!targetReport) {
+      popup.error("Segnalazione primaria non trovata.");
+      return;
+    }
+
+    try {
+      // 1. Update the status of current report to "FUSA"
+      const currentRes = await fetch(`/api/segnalazioni/${selectedReport.codiceTracking}/stato`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stato: SegnalazioneStato.FUSA })
+      });
+      if (!currentRes.ok) throw new Error("API status err");
+
+      // 2. Submit log to current report explaining it is merged
+      await fetch(`/api/segnalazioni/${selectedReport.codiceTracking}/log`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          operatore: currentUser?.username || "Operatore Comunale",
+          azione: `FUSA E ACCORPATA: Pratica chiusa e unificata sotto la segnalazione primaria #${targetReport.codiceTracking}.`,
+          note: `Fusione per associazione medesimo animale duplicato.`,
+          nuovoStato: SegnalazioneStato.FUSA
+        })
+      });
+
+      // 3. Submit log to the target (primary) report explaining current report is merged into it
+      await fetch(`/api/segnalazioni/${targetReport.codiceTracking}/log`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          operatore: currentUser?.username || "Operatore Comunale",
+          azione: `CONSOLIDAMENTO RECORD: La segnalazione duplicata #${selectedReport.codiceTracking} (Soggetto: ${selectedReport.specie}, a: ${selectedReport.indirizzo}) è stata fusa in questa attività principale.`,
+          note: `Evitata doppia notifica e duplice sopralluogo. Descrizione accorpata: ${selectedReport.descrizione}`,
+        })
+      });
+
+      // 4. Update local state
+      const updatedReports = reports.map(r => {
+        if (r.id === selectedReport.id) {
+          return {
+            ...r,
+            stato: SegnalazioneStato.FUSA,
+            updatedAt: new Date().toLocaleDateString("it-IT")
+          };
+        }
+        return r;
+      });
+      setReports(updatedReports);
+      
+      const newLog = {
+        id: `log-f-${Date.now()}`,
+        reportId: selectedReport.id || "",
+        data: new Date().toLocaleDateString("it-IT"),
+        operatore: currentUser?.username || "Operatore Comunale",
+        descrizione: `FUSA E ACCORPATA: Pratica chiusa e unificata sotto la segnalazione primaria #${targetReport.codiceTracking}.`,
+        assegnatoA: "nessuno" as "nessuno"
+      };
+      setLogs(prev => [newLog, ...prev]);
+
+      // Reset selection
+      setSelectedReport(null);
+      setMergeTargetId("");
+      popup.success(`Fusione eseguita! La segnalazione #${selectedReport.codiceTracking} è stata fusa correttamente in #${targetReport.codiceTracking}.`);
+    } catch (e) {
+      console.error(e);
+      popup.error("Impossibile procedere con l'unificazione del record.");
+    }
+  };
+
   // Handle adding log / signature for selected report
   const handleAddLog = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -916,7 +1060,7 @@ export default function Operatori() {
   ];
 
   if (printingAdozione) {
-    let extraPrintDetails = {
+    let extraPrintDetails: any = {
       tel2: '',
       nato_a: 'Naro',
       nato_prov: 'AG',
@@ -955,71 +1099,170 @@ export default function Operatori() {
     const generateAdozionePDF = () => {
       const doc = new jsPDF();
       
-      // Sfondo Header
-      doc.setFillColor(16, 27, 58); // #101b3a
-      doc.rect(0, 0, 210, 45, 'F');
+      // --- STEMMA COMUNALE REALISTICO (Disegnato con primitive jsPDF) ---
+      doc.setDrawColor(30, 58, 95); 
+      doc.setLineWidth(0.8);
+      doc.setFillColor(248, 250, 252); 
       
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(20);
-      doc.text('COMUNE DI NARO', 105, 20, { align: 'center' });
-      doc.setFontSize(10);
-      doc.text('SETTORE BENESSERE ANIMALE E GESTIONE RANDAGISMO', 105, 32, { align: 'center' });
-      
-      // Titolo Certificato
-      doc.setTextColor(30, 58, 95); // #1e3a5f
+      doc.rect(20, 15, 14, 12, 'FD');
+      doc.ellipse(27, 27, 7, 5, 'FD'); 
+  
+      doc.setFillColor(217, 119, 6); 
+      doc.rect(21, 11, 12, 3, 'F');
+      doc.rect(21, 9, 2, 2, 'F');
+      doc.rect(25, 9, 2, 2, 'F');
+      doc.rect(29, 9, 2, 2, 'F');
+      doc.rect(31, 9, 2, 2, 'F');
+  
+      doc.setDrawColor(59, 130, 246); 
+      doc.line(23, 20, 31, 20);
+      doc.line(22, 23, 32, 23);
+      doc.line(24, 26, 30, 26);
+  
+      // --- TESTI INTESTAZIONE COMUNALE ---
+      doc.setTextColor(30, 58, 95); 
+      doc.setFont("helvetica", "bold");
       doc.setFontSize(14);
-      doc.text('ISTRUTTORIA PRATICA DI ADOZIONE DEFINITIVA / AFFIDO', 105, 60, { align: 'center' });
+      doc.text("CITTÀ DI NARO", 40, 19);
+      
+      doc.setTextColor(100, 116, 139); 
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.text("Provincia di Agrigento", 40, 23);
+      
+      doc.setTextColor(71, 85, 105); 
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.text("SETTORE VIGILANZA E SANITÀ ANIMALE", 40, 28);
+      
+      doc.setTextColor(148, 163, 184); 
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.text("Ufficio Tutela Ambientale e Gestione Territoriale del Randagismo", 40, 32);
+
+      // Box info protocollo a destra
+      doc.setFillColor(241, 245, 249); 
+      doc.rect(130, 12, 60, 22, 'F');
+      doc.setDrawColor(226, 232, 240);
+      doc.rect(130, 12, 60, 22, 'D');
+
+      doc.setTextColor(71, 85, 105);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.text("PROTOCOLLO PRATICA", 133, 17);
+      
+      doc.setTextColor(15, 23, 42); 
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text(`ADO-NR-${printingAdozione.id.toString().padStart(4, '0')}`, 133, 23);
+      
+      doc.setTextColor(100, 116, 139); 
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.text(`Data: ${new Date(printingAdozione.data_richiesta || new Date()).toLocaleDateString('it-IT')}`, 133, 29);
+
+      // Titolo Certificato
+      doc.setTextColor(15, 23, 42);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.text('NUOVA ISTRUTTORIA PRATICA ADOZIONE', 105, 50, { align: 'center' });
+      doc.setFontSize(10);
+      doc.setTextColor(71, 85, 105);
+      doc.text(extraPrintDetails.richiesta_tipo === 'ADOZIONE_DEFINITIVA' ? 'Regime: Adozione Definitiva (Artt. 7 e succ. L.R. 15/2022)' : 'Regime: Affido Temporaneo - Modulo C', 105, 56, { align: 'center' });
       
       doc.setDrawColor(220, 220, 220);
-      doc.line(20, 68, 190, 68);
+      doc.setLineWidth(0.5);
+      doc.line(20, 62, 190, 62);
       
-      // Tabella delle proprietà
-      doc.setTextColor(0, 0, 0);
-      doc.setFontSize(11);
-      
-      let currentY = 82;
-      const addRow = (label: string, value: string) => {
-        doc.setFont('Helvetica', 'bold');
-        doc.text(label, 30, currentY);
-        doc.setFont('Helvetica', 'normal');
-        doc.text(value, 95, currentY);
+      // Funzione helper
+      let currentY = 75;
+      const addSection = (title: string) => {
+        doc.setFillColor(248, 250, 252);
+        doc.rect(20, currentY - 6, 170, 8, 'F');
+        doc.setTextColor(30, 58, 95);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.text(title.toUpperCase(), 22, currentY);
         currentY += 10;
+        doc.setTextColor(15, 23, 42);
+        doc.setFontSize(10);
       };
 
-      addRow('Pratica Numero:', String(printingAdozione.id));
-      addRow('Data Pratica:', new Date(printingAdozione.data_richiesta || new Date()).toLocaleDateString('it-IT'));
-      addRow('Stato Pratica:', printingAdozione.stato || 'CREATA');
+      const addGridRow = (label1: string, value1: string, label2?: string, value2?: string) => {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text(label1, 22, currentY);
+        if (label2) doc.text(label2, 110, currentY);
+        
+        currentY += 4;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(15, 23, 42);
+        doc.text(value1, 22, currentY);
+        if (label2 && value2) doc.text(value2, 110, currentY);
+        
+        currentY += 8;
+      };
+
+      // DATI ADOTTANTE
+      addSection('1. DATI ANAGRAFICI RICHIEDENTE (ADOTTANTE)');
+      addGridRow('Nominativo / Ragione Sociale', printingAdozione.adottante_nome, 'Codice Fiscale', extraPrintDetails.codice_fiscale);
+      addGridRow('Data e Luogo di Nascita', `${extraPrintDetails.nato_il ? new Date(extraPrintDetails.nato_il).toLocaleDateString('it-IT') : ''} a ${extraPrintDetails.nato_a} (${extraPrintDetails.nato_prov})`, 'Sesso', extraPrintDetails.sesso || 'N.D.');
+      addGridRow('Comune di Residenza', `${extraPrintDetails.residente_a} (${extraPrintDetails.residente_prov})`, 'Indirizzo e N. Civico', `${extraPrintDetails.via} ${extraPrintDetails.via_num} ${extraPrintDetails.via_int_scala || ''}`);
+      addGridRow('Contatto Telefonico', printingAdozione.adottante_tel + (extraPrintDetails.tel2 ? ` / ${extraPrintDetails.tel2}` : ''), 'Indirizzo Email', printingAdozione.adottante_email);
+      addGridRow('Estremi Documento', `${extraPrintDetails.documento_tipo} N. ${extraPrintDetails.documento_numero}`, 'Rilasciato da / in data', `${extraPrintDetails.documento_ente} il ${extraPrintDetails.documento_data ? new Date(extraPrintDetails.documento_data).toLocaleDateString('it-IT') : ''}`);
       
       currentY += 5;
-      doc.setFont('Helvetica', 'bold');
-      doc.text('DATI ADOTTANTE / AFFIDATARIO', 30, currentY);
-      doc.line(30, currentY + 2, 180, currentY + 2);
-      currentY += 10;
-
-      addRow('Nominativo:', printingAdozione.adottante_nome);
-      addRow('Codice Fiscale:', extraPrintDetails.codice_fiscale);
-      addRow('Documento Identità:', `${extraPrintDetails.documento_tipo} - ${extraPrintDetails.documento_numero}`);
+      
+      // DATI ANIMALE
+      addSection('2. IDENTIFICAZIONE SOGGETTO');
+      addGridRow('Codice Identificativo (Microchip)', animalMicrochip, 'Nome Animale', animalName);
+      addGridRow('Specie e Razza', animalSpecie, 'Stato al momento della pratica', printingAdozione.stato);
 
       currentY += 5;
-      doc.setFont('Helvetica', 'bold');
-      doc.text('DATI SOGGETTO IDENTIFICATIVO', 30, currentY);
-      doc.line(30, currentY + 2, 180, currentY + 2);
+
+      // DATI ISTRUTTORIA
+      addSection('3. DICHIARAZIONI E ISTRUTTORIA');
+      addGridRow('Luogo di Detenzione', extraPrintDetails.luogo_detenzione || 'Stessa residenza', 'Sterilizzazione Obbligatoria', extraPrintDetails.impegno_sterilizzazione === 'SI' ? 'Sì, Impegno Assunto' : extraPrintDetails.impegno_sterilizzazione);
+      if (extraPrintDetails.donazione_euro) {
+         addGridRow('Contributo al Comune / Donazione', `€ ${extraPrintDetails.donazione_euro}`);
+      }
+      if (extraPrintDetails.note_operatore) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(71, 85, 105);
+        const splitText = doc.splitTextToSize(`Note dell'operatore: ${extraPrintDetails.note_operatore}`, 165);
+        doc.text(splitText, 22, currentY);
+        currentY += (splitText.length * 4) + 4;
+      }
+
+      // FIRME E TIMBRI
+      currentY = 220;
+      doc.setDrawColor(226, 232, 240);
+      doc.line(20, currentY, 190, currentY);
+      
       currentY += 10;
-
-      addRow('Codice Microchip:', animalMicrochip);
-      addRow('Nome Animale:', animalName);
-      addRow('Specie:', animalSpecie);
-
-      // Bordo finale
-      doc.line(20, currentY + 15, 190, currentY + 15);
-
-      // footer attestato
+      doc.setFont('helvetica', 'bold');
       doc.setFontSize(8);
-      doc.setTextColor(140, 140, 140);
-      doc.text('La presente documentazione è generata dal sistema informativo comunale.', 105, currentY + 25, { align: 'center' });
-      doc.text('Tutti i diritti riservati - Comune di Naro.', 105, currentY + 30, { align: 'center' });
+      doc.setTextColor(15, 23, 42);
+      doc.text("L'ADOTTANTE / DICHIARANTE", 40, currentY, { align: 'center' });
+      doc.text("IL FUNZIONARIO INCARICATO", 170, currentY, { align: 'center' });
+      
+      currentY += 20;
+      doc.setDrawColor(148, 163, 184);
+      doc.setLineDashPattern([1, 1], 0);
+      doc.line(20, currentY, 60, currentY);
+      doc.line(150, currentY, 190, currentY);
+      doc.setLineDashPattern([], 0);
 
-      doc.save(`Pratica_Adozione_${printingAdozione.id}.pdf`);
+      // Piè di pagina
+      doc.setFontSize(7);
+      doc.setTextColor(148, 163, 184);
+      doc.text('Documento informatico generato automaticamente dal portale Animal Hub.', 105, 280, { align: 'center' });
+      doc.text(`ID Documento: ADO${printingAdozione.id}-SYS${new Date().getTime().toString().substr(-6)} • Comune di Naro`, 105, 284, { align: 'center' });
+
+      doc.save(`Istruttoria_Pratica_Adozione_${printingAdozione.id}.pdf`);
     };
 
     return (
@@ -1581,6 +1824,8 @@ export default function Operatori() {
                                 r.stato === SegnalazioneStato.NUOVA ? 'bg-blue-50 text-blue-600 border border-blue-200' :
                                 r.stato === SegnalazioneStato.IN_CARICO ? 'bg-yellow-50 text-yellow-600 border border-yellow-200' :
                                 r.stato === SegnalazioneStato.INTERVENTO ? 'bg-purple-50 text-purple-600 border border-purple-200' :
+                                r.stato === SegnalazioneStato.VALIDATA ? 'bg-sky-50 text-sky-600 border border-sky-200 animate-pulse' :
+                                r.stato === SegnalazioneStato.FUSA ? 'bg-slate-100 text-slate-400 border border-slate-200 line-through' :
                                 'bg-emerald-50 text-emerald-600 border border-emerald-200'
                               }`}>
                                 {r.stato.replace('_', ' ')}
@@ -1659,7 +1904,7 @@ export default function Operatori() {
                           {/* Direct Status Altering buttons */}
                           <div>
                             <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Imposta Stato Pratica</h4>
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="grid grid-cols-3 gap-2">
                               <button 
                                 onClick={() => handleUpdateStatus(SegnalazioneStato.IN_CARICO)}
                                 className={`p-2 rounded text-xs font-bold uppercase border tracking-wider transition-all ${
@@ -1671,6 +1916,16 @@ export default function Operatori() {
                                 In Carico
                               </button>
                               <button 
+                                onClick={() => handleUpdateStatus(SegnalazioneStato.VALIDATA)}
+                                className={`p-2 rounded text-xs font-bold uppercase border tracking-wider transition-all ${
+                                  selectedReport.stato === SegnalazioneStato.VALIDATA 
+                                    ? 'bg-sky-100 text-sky-800 border-sky-300 shadow-sm' 
+                                    : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
+                                }`}
+                              >
+                                Validata
+                              </button>
+                              <button 
                                 onClick={() => handleUpdateStatus(SegnalazioneStato.CHIUSA)}
                                 className={`p-2 rounded text-xs font-bold uppercase border tracking-wider transition-all ${
                                   selectedReport.stato === SegnalazioneStato.CHIUSA 
@@ -1678,9 +1933,47 @@ export default function Operatori() {
                                     : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
                                 }`}
                               >
-                                Risolta (Chiusa)
+                                Risolta
                               </button>
                             </div>
+                          </div>
+
+                          {/* Fusion & Duplication Merge Panel */}
+                          <div className="p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl space-y-3 text-left">
+                            <h4 className="text-[10px] font-black uppercase text-indigo-700 tracking-wider flex items-center gap-1.5">
+                              <GitMerge className="h-4 w-4 text-indigo-600" /> Unificazione e Fusione Duplicati
+                            </h4>
+                            <p className="text-[10px] text-slate-500 leading-relaxed">
+                              Se questa segnalazione è un duplicato di un'attività già registrata, seleziona qui sotto la pratica principale per effettuarne la fusa. Verranno salvati i registri storici di entrambe.
+                            </p>
+                            
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-bold text-slate-400 uppercase block">Segnalazione di Destinazione (Principale)</label>
+                              <select
+                                className="w-full p-2 border border-slate-200 rounded text-xs font-bold text-slate-700 bg-white"
+                                value={mergeTargetId}
+                                onChange={(e) => setMergeTargetId(e.target.value)}
+                              >
+                                <option value="">-- Seleziona Segnalazione Attiva --</option>
+                                {reports
+                                  .filter(r => r.id !== selectedReport.id && r.stato !== SegnalazioneStato.FUSA)
+                                  .map(r => (
+                                    <option key={r.id} value={r.id}>
+                                      [{r.codiceTracking}] - {r.indirizzo} ({r.createdAt})
+                                    </option>
+                                  ))}
+                              </select>
+                            </div>
+
+                            {mergeTargetId && (
+                              <button
+                                type="button"
+                                onClick={handleMergeReports}
+                                className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-black uppercase tracking-wider shadow transition-all flex items-center justify-center gap-1.5 animate-pulse"
+                              >
+                                <GitCompare className="h-3.5 w-3.5" /> Esegui Fusione Record
+                              </button>
+                            )}
                           </div>
 
                           {/* Form for Operator Log Timeline & Work Assignment */}
@@ -1816,6 +2109,13 @@ export default function Operatori() {
                 </div>
 
                 <form onSubmit={handleAddSoggettoSubmit} className="space-y-6">
+                  {animalCrosscheckAlert && (
+                    <div className="p-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-800 text-xs font-black shadow-sm flex items-center gap-2 transition-all animate-pulse">
+                      <AlertTriangle className="h-5 w-5 text-rose-600 shrink-0" />
+                      <span>{animalCrosscheckAlert}</span>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Name */}
                     <div>
@@ -2871,28 +3171,50 @@ export default function Operatori() {
                         👤 2. Anagrafica Completa Adottante
                       </h4>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div className="sm:col-span-2">
-                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Nome e Cognome Completo</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                        <div className="sm:col-span-1">
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Nome</label>
                           <input
                             type="text"
                             required
-                            placeholder="Cognome e Nome dell'adottante"
+                            placeholder="Nome"
                             value={formAdozione.nome}
                             onChange={(e) => setFormAdozione({ ...formAdozione, nome: e.target.value })}
                             className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-[#1e3a5f]"
                           />
                         </div>
-                        <div>
-                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Codice Fiscale</label>
+                        <div className="sm:col-span-1">
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Cognome</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Cognome"
+                            value={formAdozione.cognome}
+                            onChange={(e) => setFormAdozione({ ...formAdozione, cognome: e.target.value })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-[#1e3a5f]"
+                          />
+                        </div>
+                        <div className="sm:col-span-1">
+                          <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Sesso</label>
+                          <select
+                            value={formAdozione.sesso}
+                            onChange={(e) => setFormAdozione({ ...formAdozione, sesso: e.target.value as 'M' | 'F' })}
+                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-[#1e3a5f] bg-white"
+                          >
+                            <option value="M">Maschio (M)</option>
+                            <option value="F">Femmina (F)</option>
+                          </select>
+                        </div>
+                        <div className="sm:col-span-1">
+                          <label className={`text-[10px] font-bold uppercase block mb-1 ${formAdozione.cf && isValidFiscalCode(formAdozione.cf) ? 'text-emerald-600' : 'text-rose-500'}`}>Codice Fiscale *</label>
                           <input
                             type="text"
                             required
                             maxLength={16}
-                            placeholder="Minsters CF character"
+                            placeholder="Codice Fiscale"
                             value={formAdozione.cf}
                             onChange={(e) => setFormAdozione({ ...formAdozione, cf: e.target.value.toUpperCase() })}
-                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-mono font-bold outline-none focus:border-[#1e3a5f]"
+                            className={`w-full p-2.5 border rounded-lg text-xs font-mono font-bold outline-none transition-colors ${formAdozione.cf && isValidFiscalCode(formAdozione.cf) ? 'border-emerald-500 focus:border-emerald-600' : 'border-rose-300 focus:border-rose-500'}`}
                           />
                         </div>
                       </div>
@@ -2900,12 +3222,12 @@ export default function Operatori() {
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div>
                           <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Luogo di Nascita</label>
-                          <input
-                            type="text"
+                          <AutocompleteInput
+                            type="comune"
+                            placeholder="Es. Naro o Agrigento"
+                            className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold focus:border-[#1e3a5f] outline-none uppercase"
                             value={formAdozione.nato_a}
-                            onChange={(e) => setFormAdozione({ ...formAdozione, nato_a: e.target.value })}
-                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-[#1e3a5f]"
-                            placeholder="Esempio: Naro"
+                            onChange={(val) => setFormAdozione({ ...formAdozione, nato_a: val.toUpperCase() })}
                           />
                         </div>
                         <div>
@@ -2933,12 +3255,12 @@ export default function Operatori() {
                       <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
                         <div className="sm:col-span-2">
                           <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Comune di Residenza</label>
-                          <input
-                            type="text"
+                          <AutocompleteInput
+                            type="comune"
+                            placeholder="Es. Naro o Agrigento"
+                            className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold focus:border-[#1e3a5f] outline-none uppercase"
                             value={formAdozione.residente_a}
-                            onChange={(e) => setFormAdozione({ ...formAdozione, residente_a: e.target.value })}
-                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-[#1e3a5f]"
-                            placeholder="Esempio: Naro"
+                            onChange={(val) => setFormAdozione({ ...formAdozione, residente_a: val.toUpperCase() })}
                           />
                         </div>
                         <div>
@@ -2967,12 +3289,13 @@ export default function Operatori() {
                       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                         <div className="sm:col-span-2">
                           <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">Via / Piazza d'abitazione</label>
-                          <input
-                            type="text"
+                          <AutocompleteInput
+                            type="via"
+                            comuneContext={formAdozione.residente_a || "Naro"}
+                            placeholder="Es. Corso Vittorio Emanuele"
+                            className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold focus:border-[#1e3a5f] outline-none"
                             value={formAdozione.via}
-                            onChange={(e) => setFormAdozione({ ...formAdozione, via: e.target.value })}
-                            className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-[#1e3a5f]"
-                            placeholder="Esempio: Corso Vittorio Emanuele"
+                            onChange={(val) => setFormAdozione({ ...formAdozione, via: val })}
                           />
                         </div>
                         <div>
@@ -3152,7 +3475,8 @@ export default function Operatori() {
                       </button>
                       <button
                         type="submit"
-                        className="bg-[#1e3a5f] hover:bg-[#1a3455] text-white font-extrabold text-xs uppercase tracking-wider px-6 py-2.5 rounded-lg active:scale-95"
+                        disabled={formAdozione.cf.length > 0 && !isValidFiscalCode(formAdozione.cf)}
+                        className={`font-extrabold text-xs uppercase tracking-wider px-6 py-2.5 rounded-lg active:scale-95 transition-all text-white ${formAdozione.cf && !isValidFiscalCode(formAdozione.cf) ? 'bg-slate-400 cursor-not-allowed opacity-70' : 'bg-[#1e3a5f] hover:bg-[#1a3455]'}`}
                       >
                         Salva ed Avvia Pratica
                       </button>
