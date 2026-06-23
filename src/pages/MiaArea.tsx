@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import Lightbox from '../components/ui/Lightbox';
+import PageHeader from '../components/layout/PageHeader';
 
 import { calculateFiscalCode, isValidFiscalCode } from '../lib/fiscalCode';
 import AutocompleteInput from '../components/AutocompleteInput';
@@ -429,29 +430,23 @@ export default function MiaArea() {
 
   return (
     <div className="bg-gray-50 flex flex-col pt-28 pb-16 min-h-screen" style={{ borderWidth: '0px', paddingTop: '110px' }}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex flex-col gap-6 flex-1">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-12 w-full flex flex-col gap-6 flex-1 animate-fadeIn">
         
         {/* Modern Header block */}
         {step !== 3 && (
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-sm flex flex-col gap-5 transition-all">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15803d]">Fascicolo Elettronico del Cittadino</span>
-                <h1 className="text-2xl sm:text-3xl font-black text-[#101b3a] tracking-tight mt-0.5">Mia Area Riservata</h1>
-                <p className="text-xs text-slate-500 font-bold uppercase mt-1 tracking-wider text-left">
-                  Verifica lo stato di avanzamento delle tue segnalazioni di soccorso a <span className="text-[#101b3a] font-extrabold">Naro</span>.
-                </p>
-              </div>
-              
-              {/* Quick stats / safety indicators */}
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="px-3 border border-slate-200/60 rounded-xl flex items-center gap-2 h-9 bg-slate-50/50">
-                  <span className="w-2 h-2 rounded-full bg-[#15803d]" />
-                  <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Accesso Sicuro OTP</span>
-                </div>
+          <PageHeader
+            sopraTitolo="Fascicolo Elettronico del Cittadino"
+            titolo="Mia Area Riservata"
+            sottotitolo="Verifica lo stato di avanzamento delle tue segnalazioni di soccorso a Naro."
+          >
+            {/* Quick stats / safety indicators */}
+            <div className="flex flex-wrap items-center gap-3 justify-end">
+              <div className="px-3.5 py-1.5 border border-white/15 rounded-xl flex items-center gap-2 bg-white/5 backdrop-blur-md">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-[10px] font-black uppercase text-[#34d399] tracking-wider">Accesso Sicuro OTP</span>
               </div>
             </div>
-          </div>
+          </PageHeader>
         )}
 
         <div className="w-full flex-1">
@@ -557,17 +552,27 @@ export default function MiaArea() {
                 <AnimatePresence mode="wait">
                   {!selectedReport ? (
                     <motion.div key="list" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
-                      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-6 sm:p-8 rounded-2xl border border-slate-200/80 shadow-sm">
-                        <div>
-                          <span className="text-[10px] font-black uppercase tracking-[0.28em] text-[#15803d] mb-1.5 block">Identificativo Digitale</span>
-                          <h1 className="text-xl sm:text-2xl font-black text-[#101b3a] tracking-tight">Il tuo Fascicolo del Cittadino</h1>
-                          <div className="flex items-center gap-2 mt-2">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                            <p className="text-xs text-slate-500 font-semibold">Utenza attiva: <span className="text-[#101b3a] font-extrabold">{email}</span></p>
+                      <PageHeader
+                        sopraTitolo="Identificativo Digitale"
+                        titolo="Il tuo Fascicolo del Cittadino"
+                        sottotitolo={
+                          <div className="flex items-center gap-2 mt-1">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            <p className="text-xs text-slate-300 font-bold uppercase tracking-wider">
+                              Utenza attiva: <span className="text-white font-black lowercase">{email}</span>
+                            </p>
                           </div>
+                        }
+                      >
+                        <div className="flex justify-end">
+                          <button 
+                            onClick={handleLogout} 
+                            className="text-[9px] font-black uppercase tracking-[0.2em] text-red-200 hover:text-white transition-all py-2.5 px-5 bg-red-500/20 border border-red-500/30 hover:bg-red-600 rounded-xl cursor-pointer"
+                          >
+                            Esci Sessione
+                          </button>
                         </div>
-                        <button onClick={handleLogout} className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 hover:text-red-600 transition-all py-2.5 px-5 bg-slate-50 border border-slate-200 hover:border-red-200 rounded-xl cursor-pointer">Esci Sessione</button>
-                      </div>
+                      </PageHeader>
 
                       {/* TABS SELECTOR */}
                       <div className="flex border-b border-slate-200 gap-6">

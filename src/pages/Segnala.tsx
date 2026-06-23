@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { OfflineStore } from '@/src/lib/offline';
 import { Link } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
+import PageHeader from '../components/layout/PageHeader';
 
 const ANIMALI_GESTITI = [
   "Piccioni urbani (Columba livia domestica)",
@@ -670,8 +671,39 @@ export default function Segnala() {
 
   return (
     <div className="bg-gray-50 flex flex-col pt-28 pb-16 min-h-screen" style={{ borderWidth: '0px', paddingTop: '110px' }}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex flex-col gap-6 flex-1">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-12 w-full flex flex-col gap-6 flex-1 animate-fadeIn">
         
+        <PageHeader
+          sopraTitolo="Protocollo Civico Digitale"
+          titolo="Nuova Segnalazione"
+          sottotitolo={`Comune di ${siteName.replace(/^Comune di\s+/i, "")}`}
+        >
+          {/* Step indicator compatto orizzontale in header */}
+          <div className="flex flex-wrap items-center gap-2 bg-white/10 backdrop-blur-md border border-white/10 p-2.5 px-3.5 rounded-xl max-w-full shadow-md">
+            {steps.map((s, i) => (
+              <React.Fragment key={s.id}>
+                <div className="flex items-center gap-2">
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black transition-all ${
+                    step === s.id ? 'bg-[#15803d] text-white shadow-md scale-110' : 
+                    step > s.id ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-white/5 text-slate-300/60 border border-white/5'
+                  }`}>
+                    {step > s.id ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> : s.id}
+                  </div>
+                  <span className={`text-[9px] font-extrabold uppercase tracking-widest ${
+                    step === s.id ? 'text-emerald-300' : 
+                    step > s.id ? 'text-emerald-400' : 'text-slate-300/60'
+                  }`}>
+                    {s.label}
+                  </span>
+                </div>
+                {i < steps.length - 1 && (
+                  <div className={`h-[2px] w-3 md:w-6 rounded-full ${step > s.id ? 'bg-emerald-450' : 'bg-white/10'}`} />
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+        </PageHeader>
+
       <AnimatePresence mode="wait">
         <motion.div 
           key={step} 
@@ -680,42 +712,6 @@ export default function Segnala() {
           exit={{ opacity: 0, x: -20 }}
           className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden min-h-[600px] flex flex-col w-full"
         >
-          {/* Header integrato per ottimizzazione degli spazi */}
-          <div className="bg-[#f8fafc] text-slate-800 p-6 md:px-10 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200">
-            <div>
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15803d]">Protocollo Civico Digitale</span>
-              <h1 className="text-xl md:text-2xl font-black text-[#1e3a5f] tracking-tight mt-0.5">Nuova Segnalazione</h1>
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1">
-                Comune di {siteName.replace(/^Comune di\s+/i, "")}
-              </p>
-            </div>
-            
-            {/* Step indicator compatto orizzontale */}
-            <div className="flex flex-wrap items-center gap-2 bg-white border border-slate-200 p-2 px-3 rounded-xl max-w-full shadow-sm">
-              {steps.map((s, i) => (
-                <React.Fragment key={s.id}>
-                  <div className="flex items-center gap-2">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black transition-all ${
-                      step === s.id ? 'bg-[#15803d] text-white shadow-sm scale-110' : 
-                      step > s.id ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-400'
-                    }`}>
-                      {step > s.id ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> : s.id}
-                    </div>
-                    <span className={`text-[9px] font-extrabold uppercase tracking-widest ${
-                      step === s.id ? 'text-[#15803d]' : 
-                      step > s.id ? 'text-emerald-800' : 'text-slate-400'
-                    }`}>
-                      {s.label}
-                    </span>
-                  </div>
-                  {i < steps.length - 1 && (
-                    <div className={`h-[2px] w-4 md:w-8 rounded-full ${step > s.id ? 'bg-[#15803d]' : 'bg-slate-200'}`} />
-                  )}
-                </React.Fragment>
-              ))}
-            </div>
-          </div>
-
           {/* Visual Progress Bar and Percentage Tracker */}
           <div className="bg-slate-50 border-b border-gray-100 px-6 py-4 md:px-10">
             <div className="flex justify-between items-center mb-2">

@@ -3,12 +3,12 @@ import { Home, MapPin, Map, UserSquare, UserCircle } from 'lucide-react';
 
 export default function BottomNavigation() {
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-gray-100 z-50 flex justify-around items-center h-16 px-4 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] selection:bg-transparent">
+    <nav className="md:hidden fixed bottom-2.5 left-4 right-4 bg-white/95 backdrop-blur-md border border-slate-200/50 z-50 flex justify-around items-center h-16 px-2 rounded-2xl shadow-[0_8px_24px_rgba(16,27,58,0.11)] selection:bg-transparent transition-all">
       <NavLink
         to="/"
         className={({ isActive }) =>
-          `flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors text-[10px] font-bold uppercase tracking-wider ${
-            isActive ? 'text-[#15803d]' : 'text-gray-400 hover:text-gray-600'
+          `flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all text-[9px] font-black uppercase tracking-wider ${
+            isActive ? 'text-[#15803d] scale-105' : 'text-slate-400 hover:text-[#15803d]'
           }`
         }
       >
@@ -19,8 +19,8 @@ export default function BottomNavigation() {
       <NavLink
         to="/segnala"
         className={({ isActive }) =>
-          `flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors text-[10px] font-bold uppercase tracking-wider ${
-            isActive ? 'text-[#15803d]' : 'text-gray-400 hover:text-gray-600'
+          `flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all text-[9px] font-black uppercase tracking-wider ${
+            isActive ? 'text-[#15803d] scale-105' : 'text-slate-400 hover:text-[#15803d]'
           }`
         }
       >
@@ -31,8 +31,8 @@ export default function BottomNavigation() {
       <NavLink
         to="/mappa"
         className={({ isActive }) =>
-          `flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors text-[10px] font-bold uppercase tracking-wider ${
-            isActive ? 'text-[#15803d]' : 'text-gray-400 hover:text-gray-600'
+          `flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all text-[9px] font-black uppercase tracking-wider ${
+            isActive ? 'text-[#15803d] scale-105' : 'text-slate-400 hover:text-[#15803d]'
           }`
         }
       >
@@ -43,8 +43,8 @@ export default function BottomNavigation() {
       <NavLink
         to="/mia-area"
         className={({ isActive }) =>
-          `flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors text-[10px] font-bold uppercase tracking-wider ${
-            isActive ? 'text-[#15803d]' : 'text-gray-400 hover:text-gray-600'
+          `flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all text-[9px] font-black uppercase tracking-wider ${
+            isActive ? 'text-[#15803d] scale-105' : 'text-slate-400 hover:text-[#15803d]'
           }`
         }
       >

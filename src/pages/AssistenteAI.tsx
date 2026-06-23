@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, Send, Loader2, Info, ArrowUpRight, Sparkles, HelpCircle, AlertTriangle, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useLanguage } from '../contexts/LanguageContext';
+import PageHeader from '../components/layout/PageHeader';
 
 interface Message {
   role: 'user' | 'model';
@@ -168,47 +169,37 @@ export default function AssistenteAI() {
       ];
 
   return (
-    <div className="bg-gray-50 flex flex-col pt-28 pb-16 min-h-screen font-sans">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex flex-col gap-6 flex-1">
+    <div className="bg-gray-50 flex flex-col pt-28 pb-16 min-h-screen font-sans" style={{ borderWidth: '0px', paddingTop: '110px' }}>
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-12 w-full flex flex-col gap-6 flex-1 animate-fadeIn">
         
-        {/* Page Header - Matches FAQ layout precisely */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-sm flex flex-col gap-5 transition-all">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15803d] flex items-center gap-1.5 animate-pulse">
-                <Sparkles className="h-3.5 w-3.5" /> {language === 'it' ? 'Assistenza Istituzionale Intelligente' : 'Intelligent Institutional Assistant'}
-              </span>
-              <h1 className="text-2xl sm:text-3xl font-black text-[#101b3a] tracking-tight mt-0.5">
-                {language === 'it' ? 'Chiedi all\'Assistente AI' : 'Ask the AI Assistant'}
-              </h1>
-              <p className="text-xs text-slate-500 font-bold uppercase mt-1 tracking-wider text-left">
-                {language === 'it' 
-                  ? `Interagisci in tempo reale con l'intelligenza di AnimalHub PA istruita sulle delibere comunali di ${cityName}.`
-                  : `Interact in real time with the legal and operational handbook of AnimalHub PA trained for ${cityName}.`}
-              </p>
-            </div>
+        <PageHeader
+          sopraTitolo={language === 'it' ? 'Assistenza Istituzionale Intelligente' : 'Intelligent Institutional Assistant'}
+          titolo={language === 'it' ? 'Chiedi all\'Assistente AI' : 'Ask the AI Assistant'}
+          sottotitolo={language === 'it' 
+            ? `Interagisci in tempo reale con l'intelligenza di AnimalHub PA istruita sulle delibere comunali di ${cityName}.`
+            : `Interact in real time with the legal and operational handbook of AnimalHub PA trained for ${cityName}.`}
+          icon={<Sparkles className="h-3.5 w-3.5 text-emerald-300 animate-pulse" />}
+        >
+          <div className="flex flex-wrap items-center gap-2.5 self-start md:self-auto justify-end">
+            {messages.length > 0 && (
+              <button
+                onClick={handleClearHistory}
+                className="bg-red-500/15 hover:bg-red-500/25 border border-red-500/20 text-red-200 px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 cursor-pointer shadow-sm"
+                title={language === 'it' ? 'Cancella cronologia messaggi' : 'Clear your chat history'}
+              >
+                <Trash2 className="h-4 w-4 shrink-0" />
+                <span>{language === 'it' ? 'Cancella Cronologia' : 'Clear History'}</span>
+              </button>
+            )}
             
-            <div className="flex flex-wrap items-center gap-2.5 self-start md:self-auto">
-              {messages.length > 0 && (
-                <button
-                  onClick={handleClearHistory}
-                  className="bg-red-50 hover:bg-red-100 border border-red-200 hover:border-red-300 text-red-600 px-3.5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 cursor-pointer shadow-sm"
-                  title={language === 'it' ? 'Cancella cronologia messaggi' : 'Clear your chat history'}
-                >
-                  <Trash2 className="h-4 w-4 shrink-0" />
-                  <span>{language === 'it' ? 'Cancella Cronologia' : 'Clear History'}</span>
-                </button>
-              )}
-              
-              <div className="bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-xl flex items-center gap-2">
-                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
-                <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest leading-none">
-                  {language === 'it' ? 'Sistema Attivo & Certificato' : 'Certified & Active'}
-                </span>
-              </div>
+            <div className="bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-xl flex items-center gap-2">
+              <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+              <span className="text-[10px] font-black text-emerald-300 uppercase tracking-widest leading-none">
+                {language === 'it' ? 'Sistema Attivo & Certificato' : 'Certified & Active'}
+              </span>
             </div>
           </div>
-        </div>
+        </PageHeader>
 
         {/* Responsive Grid layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">

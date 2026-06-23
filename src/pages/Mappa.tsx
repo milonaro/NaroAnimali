@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { db } from '@/src/lib/firebase';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { useSearchParams } from 'react-router-dom';
+import PageHeader from '../components/layout/PageHeader';
 
 export default function Mappa() {
   const [segnalazioni, setSegnalazioni] = useState<any[]>([]);
@@ -161,38 +162,34 @@ export default function Mappa() {
 
   return (
     <div className="bg-gray-50 flex flex-col pt-28 pb-16 min-h-screen" style={{ borderWidth: '0px', paddingTop: '110px' }}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex flex-col gap-6 flex-1">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-12 w-full flex flex-col gap-6 flex-1 animate-fadeIn">
         
-        {/* Modern Header block with integrated filters */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-sm flex flex-col gap-5 transition-all">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15803d]">Inquadramento Geografico</span>
-              <h1 className="text-2xl sm:text-3xl font-black text-[#101b3a] tracking-tight mt-0.5">Mappa del Territorio</h1>
-              <p className="text-xs text-slate-500 font-bold uppercase mt-1 tracking-wider">
-                Monitoraggio Geografico delle segnalazioni a <span className="text-[#101b3a] font-extrabold">{cityName}</span> in tempo reale.
-              </p>
+        <PageHeader
+          sopraTitolo="Inquadramento Geografico"
+          titolo="Mappa del Territorio"
+          sottotitolo={`Monitoraggio Geografico delle segnalazioni a ${cityName} in tempo reale.`}
+        >
+          {/* Quick stats badges in header */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="px-3.5 py-1.5 border border-white/10 rounded-xl flex items-center gap-2 bg-white/5 backdrop-blur-md">
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+              <span className="text-[10px] md:text-xs font-black uppercase text-white tracking-wider">Segnalazioni: {stats.total}</span>
             </div>
-            
-            {/* Quick stats badges in header */}
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="px-3 border border-slate-200/60 rounded-xl flex items-center gap-2 h-9 bg-slate-50/50">
-                <span className="w-2 h-2 rounded-full bg-slate-400" />
-                <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Segnalazioni: {stats.total}</span>
-              </div>
-              <div className="px-3 border border-amber-200/60 rounded-xl flex items-center gap-2 h-9 bg-amber-50/50">
-                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                <span className="text-[10px] font-black uppercase text-amber-700 tracking-wider">Attive: {stats.active}</span>
-              </div>
-              <div className="px-3 border border-emerald-200/60 rounded-xl flex items-center gap-2 h-9 bg-emerald-50/50">
-                <span className="w-2 h-2 rounded-full bg-[#15803d]" />
-                <span className="text-[10px] font-black uppercase text-[#15803d] tracking-wider">Risolte: {stats.resolved}</span>
-              </div>
+            <div className="px-3.5 py-1.5 border border-amber-500/20 rounded-xl flex items-center gap-2 bg-amber-500/10 backdrop-blur-md">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+              <span className="text-[10px] md:text-xs font-black uppercase text-amber-300 tracking-wider">Attive: {stats.active}</span>
+            </div>
+            <div className="px-3.5 py-1.5 border border-emerald-500/20 rounded-xl flex items-center gap-2 bg-emerald-500/10 backdrop-blur-md">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-[10px] md:text-xs font-black uppercase text-emerald-300 tracking-wider">Risolte: {stats.resolved}</span>
             </div>
           </div>
+        </PageHeader>
 
-          {/* Integrated filter controls suite */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 pt-4 border-t border-slate-100">
+        {/* Integrated filter controls suite */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-sm flex flex-col gap-3 transition-all">
+          <span className="text-[10px] font-black uppercase tracking-widest text-[#1e3a5f]/60 block -mb-1">Filtra la Ricerca</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
             <div className="lg:col-span-4 relative">
               <input 
                 type="text" 

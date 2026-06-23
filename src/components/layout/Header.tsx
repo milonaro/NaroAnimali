@@ -149,6 +149,21 @@ export default function Header() {
 
   const transparentHeader = isHome && !isScrolled;
 
+  const isPathActive = (path: string) => {
+    if (path === '/') return location.pathname === '/';
+    return location.pathname.startsWith(path);
+  };
+
+  const getLinkClass = (path: string) => {
+    const active = isPathActive(path);
+    if (active) {
+      if (transparentHeader) return "transition-all duration-200 flex flex-col items-center gap-1.5 pb-0.5 text-emerald-400 font-extrabold scale-110";
+      return "transition-all duration-200 flex flex-col items-center gap-1.5 pb-0.5 text-[#15803d] font-extrabold scale-110 border-b-2 border-[#15803d]";
+    }
+    if (transparentHeader) return "transition-all duration-200 flex flex-col items-center gap-1.5 pb-0.5 text-white/80 hover:text-white hover:scale-110";
+    return "transition-all duration-200 flex flex-col items-center gap-1.5 pb-0.5 text-slate-500 hover:text-[#15803d] hover:scale-110";
+  };
+
   // Search items definition
   const searchItems = [
     { name: 'Segnala un cane o gatto randagio (Modulo A)', nameEn: 'Report a stray dog or cat (Module A)', path: '/segnala', tags: ['segnala', 'randagismo', 'soccorso', 'cane', 'gatto', 'segnalazione', 'report', 'stray'] },
@@ -180,7 +195,7 @@ export default function Header() {
 
   return (
     <header className={`fixed top-0 left-0 w-full z-[9999] transition-all duration-300 ${transparentHeader ? "bg-transparent border-none py-4" : "bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm py-0"}`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-12">
         <div className="flex justify-between h-20 md:h-24 items-center gap-4">
           
           {/* Brand Logo & Name */}
@@ -275,20 +290,20 @@ export default function Header() {
           {/* Navigation Links & Language Switcher - Right */}
           <div className="flex items-center gap-6 shrink-0">
             <nav className={`hidden md:flex items-center gap-6 text-[12px] font-bold tracking-wider uppercase transition-colors ${transparentHeader ? 'text-white/90' : 'text-[#64748b]'}`}>
-              <Link to="/" className={`transition-colors flex flex-col items-center gap-1.5 pb-0.5 ${transparentHeader ? 'hover:text-white text-white' : 'hover:text-[#101b3a]'}`}>
+              <Link to="/" className={getLinkClass('/')}>
                 <HomeIcon className="h-4.5 w-4.5" /> <span>{t('nav.home')}</span>
               </Link>
-              <Link to="/segnala" className={`transition-colors flex flex-col items-center gap-1.5 pb-0.5 ${transparentHeader ? 'hover:text-white text-white/80' : 'hover:text-[#101b3a]'}`}>
+              <Link to="/segnala" className={getLinkClass('/segnala')}>
                 <MapPin className="h-4.5 w-4.5" /> <span>{t('nav.report')}</span>
               </Link>
-              <Link to="/mappa" className={`transition-colors flex flex-col items-center gap-1.5 pb-0.5 ${transparentHeader ? 'hover:text-white text-white/80' : 'hover:text-[#101b3a]'}`}>
+              <Link to="/mappa" className={getLinkClass('/mappa')}>
                 <MapIcon className="h-4.5 w-4.5" /> <span>{t('nav.map')}</span>
               </Link>
-              <Link to="/assistente-ai" className={`transition-colors flex flex-col items-center gap-1.5 pb-0.5 ${transparentHeader ? 'hover:text-white text-emerald-400 hover:scale-105' : 'hover:text-[#15803d] text-[#15803d] hover:scale-105'}`}>
-                <Sparkles className="h-4.5 w-4.5 text-emerald-500 animate-pulse" /> <span className="font-extrabold">{t('nav.ai_assistant')}</span>
+              <Link to="/assistente-ai" className={getLinkClass('/assistente-ai')}>
+                <Sparkles className="h-4.5 w-4.5 animate-pulse" /> <span className="font-extrabold">{t('nav.ai_assistant')}</span>
               </Link>
               {!citizenEmail ? (
-                <Link to="/mia-area" className={`transition-colors flex flex-col items-center gap-1.5 pb-0.5 ${transparentHeader ? 'hover:text-white text-white/80' : 'hover:text-[#101b3a]'}`}>
+                <Link to="/mia-area" className={getLinkClass('/mia-area')}>
                   <UserCircle className="h-4.5 w-4.5" /> <span>{t('nav.myarea')}</span>
                 </Link>
               ) : (
@@ -296,7 +311,9 @@ export default function Header() {
                   <button
                     onClick={() => setIsCitizenDropdownOpen(!isCitizenDropdownOpen)}
                     className={`transition-colors flex flex-col items-center gap-1 bg-transparent border-none outline-none pb-0.5 relative cursor-pointer ${
-                      transparentHeader ? 'hover:text-white text-emerald-400' : 'hover:text-[#15803d] text-[#15803d]'
+                      isPathActive('/mia-area')
+                        ? transparentHeader ? 'text-emerald-400 font-extrabold scale-110' : 'text-[#15803d] font-extrabold scale-110 border-b-2 border-[#15803d]'
+                        : transparentHeader ? 'hover:text-white text-white/80' : 'text-slate-500 hover:text-[#15803d]'
                     }`}
                   >
                     <div className="relative">

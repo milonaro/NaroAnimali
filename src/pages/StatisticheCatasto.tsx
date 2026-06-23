@@ -22,6 +22,7 @@ import { db } from '@/src/lib/firebase';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { COMUNI } from '@/src/lib/geofence';
 import { useLanguage } from '@/src/contexts/LanguageContext';
+import PageHeader from '../components/layout/PageHeader';
 import { 
   ResponsiveContainer, 
   AreaChart, 
@@ -252,43 +253,31 @@ export default function StatisticheCatasto() {
   }, [estimatedStrays, targetChipRate]);
 
   return (
-    <div className="bg-slate-50 min-h-screen pt-32 pb-24">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="bg-slate-50 min-h-screen pt-32 pb-24" style={{ borderWidth: '0px', paddingTop: '110px' }}>
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-12 w-full flex flex-col gap-6 flex-1 animate-fadeIn">
         
         {/* Navigation Breadcrumb */}
-        <div className="mb-8">
-          <Link to="/" className="inline-flex items-center gap-2 text-emerald-700 hover:text-emerald-800 font-extrabold uppercase text-[11px] tracking-wider transition-all">
+        <div className="mb-2">
+          <Link to="/" className="inline-flex items-center gap-2 text-[#15803d] hover:text-[#166534] font-extrabold uppercase text-[10px] tracking-wider transition-all">
             <ArrowLeft className="h-4 w-4" />
             {language === 'it' ? 'Torna alla Home' : 'Back to Home'}
           </Link>
         </div>
 
-        {/* Dynamic & Modern Header */}
-        <div className="text-left mb-10">
-          <div className="inline-block px-3.5 py-1.5 bg-emerald-100 rounded-xl text-[10px] font-black uppercase tracking-[0.25em] text-[#15803d] mb-4 shadow-sm">
-            {language === 'it' ? 'Dati Istituzionali & Trasparenza' : 'Official Data & Transparency'}
+        <PageHeader
+          sopraTitolo={language === 'it' ? 'Dati Istituzionali & Trasparenza' : 'Official Data & Transparency'}
+          titolo={language === 'it' ? 'Statistiche & Inquadramento Catastale' : 'Statistics & Cadastral Mapping'}
+          sottotitolo={language === 'it' 
+            ? `Benvenuto nel portale della trasparenza del ${siteName}. Esplora i flussi della popolazione fluttuante locale, l'inquadramento catastale degli hub amministrativi e calcola l'efficacia finanziaria delle politiche sul territorio.` 
+            : `Welcome to the transparency portal of ${siteName}. Access and analyze details on stray populations, view local land sections and simulate municipal budget efficacy.`}
+        >
+          <div className="flex items-center gap-2 bg-white/10 border border-white/15 px-4 py-2 rounded-xl shadow-xs">
+            <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+            <span className="text-[10px] font-black uppercase text-emerald-300 tracking-wider">
+              {language === 'it' ? 'Aggiornato costantemente' : 'Live updates'}
+            </span>
           </div>
-          
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-            <div>
-              <h1 className="text-3xl sm:text-5xl font-black text-[#101b3a] tracking-tight leading-none">
-                {language === 'it' ? 'Statistiche & Inquadramento Catastale' : 'Statistics & Cadastral Mapping'}
-              </h1>
-              <p className="mt-3 text-slate-500 font-semibold text-base sm:text-lg max-w-3xl leading-relaxed">
-                {language === 'it' 
-                  ? `Benvenuto nel portale della trasparenza del ${siteName}. Esplora i flussi della popolazione fluttuante locale, l'inquadramento catastale degli hub amministrativi e calcola l'efficacia finanziaria delle politiche sul territorio.` 
-                  : `Welcome to the transparency portal of ${siteName}. Access and analyze details on stray populations, view local land sections and simulate municipal budget efficacy.`}
-              </p>
-            </div>
-            
-            <div className="flex items-center gap-1 bg-white border border-slate-200 px-4 py-2.5 rounded-2xl shadow-sm">
-              <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" />
-              <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">
-                {language === 'it' ? 'Aggiornato costantemente' : 'Live updates'}
-              </span>
-            </div>
-          </div>
-        </div>
+        </PageHeader>
 
         {/* Core Multi-indicator Stats Section */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">

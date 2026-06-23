@@ -9,6 +9,7 @@ import AppMap from '@/src/components/map/Map';
 import { AnimalSpecie, SegnalazioneStato, Segnalazione } from '../types';
 import GestioneOperatoriTab from '@/src/components/GestioneOperatoriTab';
 import { popup } from '../lib/popup';
+import PageHeader from '../components/layout/PageHeader';
 
 // Removed mock data variables
 interface RegistroAnimale {
@@ -1233,65 +1234,51 @@ export default function Operatori() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/70 pb-32 pt-24">
-      {/* Page Header */}
-      <div className="bg-[#101b3a] text-white py-12 shadow-inner">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-[#15803d] rounded-xl text-white">
-                <Briefcase className="h-8 w-8" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-black tracking-tight flex items-center gap-3">
-                  Portale Operativo Municipale 
-                  <span className="text-xs bg-emerald-500/20 text-emerald-300 font-bold px-3 py-1 rounded-full uppercase border border-emerald-500/30">
-                    {activeComune.toUpperCase()}
-                  </span>
-                </h1>
-                <p className="text-slate-300 text-sm mt-1">
-                  Pannello di controllo del {siteName} per la gestione territoriale del randagismo e archivio sanitario ASP.
-                </p>
-              </div>
-            </div>
-            
-            {/* Quick Export Badge */}
+    <div className="min-h-screen bg-slate-50/70 pb-32 pt-24" style={{ borderWidth: '0px', paddingTop: '110px' }}>
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-12 w-full flex flex-col gap-6 flex-1 animate-fadeIn">
+        
+        {/* Page Header */}
+        <PageHeader
+          sopraTitolo={`PORTALE OPERATIVO ${activeComune.toUpperCase()}`}
+          titolo="Portale Operativo Municipale"
+          sottotitolo={`Pannello di controllo del ${siteName} per la gestione territoriale del randagismo e archivio sanitario ASP.`}
+        >
+          <div className="flex justify-end">
             <button 
               onClick={handleExportRegional}
-              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 py-3 rounded-lg shadow-lg shadow-emerald-950/25 transition-all uppercase tracking-wider"
+              className="flex items-center gap-2 bg-[#15803d]/90 hover:bg-[#166534] text-white font-black text-[10px] uppercase tracking-wider py-3 px-5 rounded-xl border border-white/10 shadow-sm transition-all cursor-pointer"
             >
               <Download className="h-4 w-4" /> Esporta Flusso Regione Siciliana
             </button>
           </div>
+        </PageHeader>
 
-          {/* Tab Navigation */}
-          <div className="flex flex-col md:flex-row gap-4 mt-8 border-b border-white/10 items-stretch md:items-center">
-            <div className="flex flex-wrap gap-4">
-              {allowedTabs.filter(t => t.allowed).map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`pb-4 px-2 font-bold text-sm uppercase tracking-wider transition-all border-b-2 ${
-                    activeTab === tab.id ? 'border-[#15803d] text-white' : 'border-transparent text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {tab.name}
-                </button>
-              ))}
-            </div>
-            {(currentUser?.role === 'ADMIN' || currentUser?.role === 'Admin') && (
-              <a
-                href="/admin/config"
-                className="pb-4 px-2 font-bold text-sm uppercase tracking-wider transition-all border-b-2 border-transparent text-amber-400 hover:text-amber-300 flex items-center gap-1.5 md:ml-auto"
+        {/* Tab Navigation */}
+        <div className="flex flex-col md:flex-row gap-4 mt-2 border-b border-slate-200 items-stretch md:items-center">
+          <div className="flex flex-wrap gap-4">
+            {allowedTabs.filter(t => t.allowed).map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`pb-4 px-2 font-black text-xs uppercase tracking-wider transition-all border-b-2 cursor-pointer ${
+                  activeTab === tab.id ? 'border-[#15803d] text-[#15803d]' : 'border-transparent text-slate-400 hover:text-slate-600'
+                }`}
               >
-                Configurazione Sistema ⚙️
-              </a>
-            )}
+                {tab.name}
+              </button>
+            ))}
           </div>
+          {(currentUser?.role === 'ADMIN' || currentUser?.role === 'Admin') && (
+            <a
+              href="/admin/config"
+              className="pb-4 px-2 font-black text-xs uppercase tracking-wider transition-all border-b-2 border-transparent text-amber-600 hover:text-amber-700 flex items-center gap-1.5 md:ml-auto cursor-pointer"
+            >
+              Configurazione Sistema ⚙️
+            </a>
+          )}
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
+        <div className="w-full mt-6">
         {activeTab === 'statistiche' ? (
           /* ================= STATISTICHE ================= */
           <div className="space-y-8">
@@ -3520,5 +3507,6 @@ export default function Operatori() {
         ) : null}
       </div>
     </div>
-  );
+  </div>
+);
 }

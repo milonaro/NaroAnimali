@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { HelpCircle, ChevronRight, Search, Play, Volume2, Square, Dog, Cat, ShieldAlert, Award, FileText } from 'lucide-react';
 import { useAccessibility } from '@/src/contexts/AccessibilityContext';
+import PageHeader from '../components/layout/PageHeader';
 
 export default function Faq() {
   const { settings } = useAccessibility();
@@ -104,44 +105,39 @@ export default function Faq() {
   }, [searchQuery, selectedCategory]);
 
   return (
-    <div className="bg-gray-50 flex flex-col pt-28 pb-16 min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex flex-col gap-6 flex-1">
+    <div className="bg-gray-50 flex flex-col pt-28 pb-16 min-h-screen" style={{ borderWidth: '0px', paddingTop: '110px' }}>
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-12 w-full flex flex-col gap-6 flex-1 animate-fadeIn">
         
-        {/* Page Header */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-sm flex flex-col gap-5 transition-all">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15803d]">Risposte Rapide</span>
-              <h1 className="text-2xl sm:text-3xl font-black text-[#101b3a] tracking-tight mt-0.5">Domande Frequenti (FAQ)</h1>
-              <p className="text-xs text-slate-500 font-bold uppercase mt-1 tracking-wider text-left">
-                Tutto quello che c'è da sapere sulla tutela animale e l'utilizzo dei servizi del Comune di Naro.
-              </p>
-            </div>
-            
-            <div className="flex flex-wrap items-center gap-3">
+        <PageHeader
+          sopraTitolo="Risposte Rapide"
+          titolo="Domande Frequenti (FAQ)"
+          sottotitolo="Tutto quello che c'è da sapere sulla tutela animale e l'utilizzo dei servizi del Comune di Naro."
+        >
+          <div className="flex flex-col gap-2 items-end">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={handleSpeakAll}
                 disabled={isPlaying}
-                className="h-9 px-4 bg-[#15803d] hover:bg-[#166534] text-white rounded-xl font-bold text-[10px] uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                className="h-9 px-4 bg-[#15803d] hover:bg-[#166534] text-white rounded-xl font-black text-[10px] uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 shadow-sm"
               >
                 <Play className="h-3.5 w-3.5 fill-white" /> Leggi FAQs a Voce
               </button>
               {isPlaying && (
                 <button
                   onClick={stop}
-                  className="h-9 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-[10px] uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer border border-slate-200"
+                  className="h-9 px-4 bg-white/10 hover:bg-white/20 text-white rounded-xl font-black text-[10px] uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer border border-white/10 shadow-sm"
                 >
                   <Square className="h-3.5 w-3.5" /> Ferma
                 </button>
               )}
             </div>
+            {settings.textToSpeech && (
+              <p className="text-emerald-400 text-[9px] uppercase font-black tracking-widest animate-pulse mt-1">
+                Assistenza vocale attiva: Clicca sulla scheda di una domanda
+              </p>
+            )}
           </div>
-          {settings.textToSpeech && (
-            <p className="text-emerald-600 text-[9px] uppercase font-bold tracking-widest animate-pulse border-t border-slate-100 pt-3">
-              Assistenza vocale attiva: Clicca sulla scheda di una domanda per riprodurre vocalmente la risposta.
-            </p>
-          )}
-        </div>
+        </PageHeader>
 
         {/* Filters and Search Search Panel */}
         <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
