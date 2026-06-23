@@ -32,6 +32,12 @@ function getGenAI() {
   return genAIInstance;
 }
 
+async function getActiveComune(): Promise<string> {
+  if (!mysqlPool || !getIsMysqlHealthy()) return 'default';
+  const [activeRow]: any = await mysqlPool.execute("SELECT value_data FROM admin_config WHERE key_name = 'activeComune'");
+  return activeRow[0]?.value_data || 'default';
+}
+
 const app = express();
 const PORT = 3000;
 
@@ -684,8 +690,7 @@ app.post("/api/track-visit", async (req, res) => {
 
 app.get("/api/interventi_logs", requireAuth(["ADMIN", "POLIZIA_LOCALE", "CANILE_SANITARIO", "VOLONTARIO"]), async (req, res) => {
   if (!mysqlPool || !getIsMysqlHealthy()) return res.json([]);
-  const [activeRow]: any = await mysqlPool.execute("SELECT value_data FROM admin_config WHERE key_name = 'activeComune'");
-  const comune = activeRow[0]?.value_data || 'naro';
+  const comune = await getActiveComune();
   const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
   const offset = req.query.offset ? parseInt(req.query.offset as string) : 0;
   
@@ -835,9 +840,7 @@ async function logAdozioneOperazione(comuneKey: string, adozioneId: number | nul
 
 app.get("/api/adozioni", async (req, res) => {
   if (!mysqlPool || !getIsMysqlHealthy()) return res.json([]);
-  const [activeRow]: any = await mysqlPool.execute("SELECT value_data FROM admin_config WHERE key_name = 'activeComune'");
-  const comune = activeRow[0]?.value_data || 'naro';
-  
+  const comune = await getActiveComune();
   const queryStr = `
     SELECT a.*, r.nome as animal_nome, r.specie as animal_specie, r.foto_url as animal_foto
     FROM adozioni a
