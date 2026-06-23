@@ -158,10 +158,10 @@ export default function Header() {
     const active = isPathActive(path);
     if (active) {
       if (transparentHeader) return "transition-all duration-200 flex flex-col items-center gap-1.5 pb-0.5 text-emerald-400 font-extrabold scale-110";
-      return "transition-all duration-200 flex flex-col items-center gap-1.5 pb-0.5 text-[#15803d] font-extrabold scale-110 border-b-2 border-[#15803d]";
+      return "transition-all duration-200 flex flex-col items-center gap-1.5 pb-0.5 text-[#1e3a5f] font-extrabold scale-110 border-b-2 border-[#1e3a5f]";
     }
     if (transparentHeader) return "transition-all duration-200 flex flex-col items-center gap-1.5 pb-0.5 text-white/80 hover:text-white hover:scale-110";
-    return "transition-all duration-200 flex flex-col items-center gap-1.5 pb-0.5 text-slate-500 hover:text-[#15803d] hover:scale-110";
+    return "transition-all duration-200 flex flex-col items-center gap-1.5 pb-0.5 text-slate-500 hover:text-[#1e3a5f] hover:scale-110";
   };
 
   // Search items definition

@@ -646,6 +646,11 @@ export default function Operatori() {
 
   // Search & add new states for Modulo C
   const [searchMicrochip, setSearchMicrochip] = useState<string>("");
+  const [filterModuloCSpecie, setFilterModuloCSpecie] = useState<string>('Tutte');
+  const [filterModuloCSesso, setFilterModuloCSesso] = useState<string>('Tutti');
+  const [filterModuloCTaglia, setFilterModuloCTaglia] = useState<string>('Tutte');
+  const [filterModuloCStato, setFilterModuloCStato] = useState<string>('Tutti');
+  const [moduloCViewMode, setModuloCViewMode] = useState<'card' | 'list' | 'table'>('card');
   const [showAddSoggetto, setShowAddSoggetto] = useState<boolean>(false);
   const [newSoggetto, setNewSoggetto] = useState<Partial<RegistroAnimale>>({
     nome: "",
@@ -890,6 +895,11 @@ export default function Operatori() {
   });
 
   const filteredRegistro = registro.filter(item => {
+    if (filterModuloCSpecie !== 'Tutte' && item.specie !== filterModuloCSpecie) return false;
+    if (filterModuloCSesso !== 'Tutti' && item.sesso !== filterModuloCSesso) return false;
+    if (filterModuloCTaglia !== 'Tutte' && item.taglia !== filterModuloCTaglia) return false;
+    if (filterModuloCStato !== 'Tutti' && item.stato !== filterModuloCStato) return false;
+    
     if (!searchMicrochip) return true;
     return item.microchip.includes(searchMicrochip) || 
            (item.nome && item.nome.toLowerCase().includes(searchMicrochip.toLowerCase())) ||
@@ -1879,164 +1889,367 @@ export default function Operatori() {
               /* REGULAR DATABASE VIEW */
               <>
                 {/* Tool Bar & Quick Sinc Badge */}
-                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
-                  {/* Search Bar */}
-                  <div className="relative w-full md:w-96">
-                    <input 
-                      type="text" 
-                      placeholder="Cerca per codice microchip, nome o colore..." 
-                      value={searchMicrochip}
-                      onChange={(e) => setSearchMicrochip(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-lg text-xs font-bold text-[#1e3a5f] outline-none focus:border-[#15803d]"
-                    />
-                    <Search className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
-                  </div>
-
-                  {/* Badges & Actions */}
-                  <div className="flex flex-wrap items-center gap-4">
-                    <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 text-emerald-700 px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap">
-                      <Star className="h-4 w-4 text-emerald-600 animate-pulse" /> Sincronizzato con Anagrafe Canina Regione Siciliana
-                    </div>
-
-                    {currentUser?.role === 'Volontario' ? (
-                      <div className="flex items-center gap-2 bg-amber-50 border border-amber-100 text-amber-700 px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap uppercase tracking-wider">
-                        <ShieldAlert className="h-4 w-4 text-amber-600" /> Sola Lettura (Volontario)
-                      </div>
-                    ) : (
-                      <>
-                        <div className="relative">
-                          <button 
-                            className="flex items-center gap-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 font-bold text-xs px-5 py-3 rounded-lg shadow-sm transition-all uppercase tracking-wider relative overflow-hidden"
-                          >
-                            <FileSpreadsheet className="h-4 w-4" /> Importa da CSV
-                            <input 
-                              type="file" 
-                              accept=".csv" 
-                              onChange={async (e) => {
-                                const file = e.target.files?.[0];
-                                if (!file) return;
-                                try {
-                                  const text = await file.text();
-                                  const rows = text.split('\n').map(r => r.trim()).filter(r => r);
-                                  let c = 0;
-                                  for(let i = 1; i<rows.length; i++) {
-                                    const cols = rows[i].split(',');
-                                    if(cols.length>=6) {
-                                      const rec = {
-                                        microchip: cols[0].trim(),
-                                        nome: cols[1].trim(),
-                                        specie: cols[2].trim(),
-                                        sesso: cols[3].trim(),
-                                        taglia: cols[4].trim(),
-                                        colore: cols[5].trim(),
-                                        condizioniSanitarie: "Sano",
-                                        stato: "LIBERO"
-                                      };
-                                      await fetch('/api/registro', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(rec) });
-                                      c++;
-                                    }
-                                  }
-                                  popup.success(`Caricati con successo ${c} record!`);
-                                } catch(err) {
-                                  popup.error("Errore caricamento CSV");
-                                }
-                              }}
-                              className="absolute inset-0 opacity-0 cursor-pointer" 
-                            />
-                          </button>
-                        </div>
-                        <button 
-                          onClick={() => setShowAddSoggetto(true)}
-                          className="flex items-center gap-2 bg-[#15803d] hover:bg-[#166534] text-white font-bold text-xs px-5 py-3 rounded-lg shadow-lg shadow-[#15803d]/20 transition-all uppercase tracking-wider"
-                        >
-                          <Plus className="h-4 w-4" /> Registra Nuovo Soggetto
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Database Animals Grid display */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredRegistro.length === 0 ? (
-                <div className="col-span-full p-12 text-center text-slate-400 bg-white rounded-xl border border-slate-200 font-medium font-sans">
-                  Nessun soggetto trovato nel database anagrafico comunale.
-                </div>
-              ) : (
-                filteredRegistro.map((item) => (
-                  <div key={item.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col">
-                    {/* Animal Photo with Status Overlay */}
-                    <div className="relative h-48 bg-slate-100">
-                      <img 
-                        src={item.fotoUrl} 
-                        alt={item.nome}
-                        referrerPolicy="no-referrer"
-                        className="w-full h-full object-cover" 
+                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-6">
+                  <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+                    {/* Search Bar */}
+                    <div className="relative w-full md:w-96">
+                      <input 
+                        type="text" 
+                        placeholder="Cerca per codice microchip, nome o colore..." 
+                        value={searchMicrochip}
+                        onChange={(e) => setSearchMicrochip(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-lg text-xs font-bold text-[#1e3a5f] outline-none focus:border-[#15803d]"
                       />
-                      <div className="absolute top-3 left-3 flex gap-2">
-                        <span className={`text-[9px] font-black uppercase px-2 py-1 rounded bg-slate-900/80 text-white`}>
-                          {item.specie} · {item.taglia}
-                        </span>
-                      </div>
-                      
-                      {/* Stato */}
-                      <div className="absolute bottom-3 right-3">
-                        <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full text-white shadow-md shadow-black/20 ${
-                          item.stato === 'LIBERO' ? 'bg-indigo-500' :
-                          item.stato === 'CATTURATO' ? 'bg-orange-500' :
-                          item.stato === 'IN_CANILE' ? 'bg-amber-600' :
-                          item.stato === 'ADOTTATO' ? 'bg-emerald-500' :
-                          item.stato === 'STERILIZZATO' ? 'bg-teal-500' : 'bg-red-600'
-                        }`}>
-                          {item.stato.replace('_', ' ')}
-                        </span>
-                      </div>
+                      <Search className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
                     </div>
 
-                    {/* Animal Details */}
-                    <div className="p-6 flex-1 flex flex-col justify-between">
-                      <div>
-                        {/* Name and Microchip */}
-                        <div className="flex justify-between items-center mb-4">
-                          <h4 className="text-lg font-black text-[#1e3a5f]">{item.nome}</h4>
-                          <span className="text-[10px] bg-slate-50 border border-slate-200 text-[#1e3a5f] font-mono font-bold px-2 py-0.5 rounded">
-                            {item.sesso === 'M' ? '♂ Maschio' : '♀ Femmina'}
+                    {/* Badges & Actions */}
+                    <div className="flex flex-wrap items-center gap-4">
+                      <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 text-emerald-700 px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap">
+                        <Star className="h-4 w-4 text-emerald-600 animate-pulse" /> Sincronizzato con Anagrafe
+                      </div>
+
+                      {currentUser?.role === 'Volontario' ? (
+                        <div className="flex items-center gap-2 bg-amber-50 border border-amber-100 text-amber-700 px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap uppercase tracking-wider">
+                          <ShieldAlert className="h-4 w-4 text-amber-600" /> Sola Lettura (Volontario)
+                        </div>
+                      ) : (
+                        <>
+                          <div className="relative">
+                            <button 
+                              className="flex items-center gap-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 font-bold text-xs px-5 py-3 rounded-lg shadow-sm transition-all uppercase tracking-wider relative overflow-hidden"
+                            >
+                              <FileSpreadsheet className="h-4 w-4" /> Importa da CSV
+                              <input 
+                                type="file" 
+                                accept=".csv" 
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  try {
+                                    const text = await file.text();
+                                    const rows = text.split('\n').map(r => r.trim()).filter(r => r);
+                                    let c = 0;
+                                    for(let i = 1; i<rows.length; i++) {
+                                      const cols = rows[i].split(',');
+                                      if(cols.length>=6) {
+                                        const rec = {
+                                          microchip: cols[0].trim(),
+                                          nome: cols[1].trim(),
+                                          specie: cols[2].trim(),
+                                          sesso: cols[3].trim(),
+                                          taglia: cols[4].trim(),
+                                          colore: cols[5].trim(),
+                                          condizioniSanitarie: "Sano",
+                                          stato: "LIBERO"
+                                        };
+                                        await fetch('/api/registro', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(rec) });
+                                        c++;
+                                      }
+                                    }
+                                    popup.success(`Caricati con successo ${c} record!`);
+                                  } catch(err) {
+                                    popup.error("Errore caricamento CSV");
+                                  }
+                                }}
+                                className="absolute inset-0 opacity-0 cursor-pointer" 
+                              />
+                            </button>
+                          </div>
+                          <button 
+                            onClick={() => setShowAddSoggetto(true)}
+                            className="flex items-center gap-2 bg-[#15803d] hover:bg-[#166534] text-white font-bold text-xs px-5 py-3 rounded-lg shadow-lg shadow-[#15803d]/20 transition-all uppercase tracking-wider cursor-pointer"
+                          >
+                            <Plus className="h-4 w-4" /> Registra Nuovo
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Filters Row */}
+                  <div className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 pt-4">
+                    <div className="flex flex-wrap items-center gap-4">
+                      {/* Specie */}
+                      <select
+                        value={filterModuloCSpecie}
+                        onChange={(e) => setFilterModuloCSpecie(e.target.value)}
+                        className="p-2 border border-slate-200 rounded text-xs font-bold text-[#1e3a5f] bg-slate-50 min-w-[120px]"
+                      >
+                        <option value="Tutte">Tutte le Specie</option>
+                        <option value="Cane">Cane</option>
+                        <option value="Gatto">Gatto</option>
+                      </select>
+                      {/* Sesso */}
+                      <select
+                        value={filterModuloCSesso}
+                        onChange={(e) => setFilterModuloCSesso(e.target.value)}
+                        className="p-2 border border-slate-200 rounded text-xs font-bold text-[#1e3a5f] bg-slate-50 min-w-[120px]"
+                      >
+                        <option value="Tutti">Tutti i Sessi</option>
+                        <option value="M">Maschio (M)</option>
+                        <option value="F">Femmina (F)</option>
+                      </select>
+                      {/* Taglia */}
+                      <select
+                        value={filterModuloCTaglia}
+                        onChange={(e) => setFilterModuloCTaglia(e.target.value)}
+                        className="p-2 border border-slate-200 rounded text-xs font-bold text-[#1e3a5f] bg-slate-50 min-w-[120px]"
+                      >
+                        <option value="Tutte">Tutte le Taglie</option>
+                        <option value="PICCOLA">Piccola</option>
+                        <option value="MEDIA">Media</option>
+                        <option value="GRANDE">Grande</option>
+                      </select>
+                      {/* Stato */}
+                      <select
+                        value={filterModuloCStato}
+                        onChange={(e) => setFilterModuloCStato(e.target.value)}
+                        className="p-2 border border-slate-200 rounded text-xs font-bold text-[#1e3a5f] bg-slate-50 min-w-[140px]"
+                      >
+                        <option value="Tutti">Tutti gli Stati</option>
+                        <option value="LIBERO">Libero sul Territorio</option>
+                        <option value="CATTURATO">Catturato</option>
+                        <option value="IN_CANILE">In Struttura</option>
+                        <option value="ADOTTATO">Adottato</option>
+                        <option value="STERILIZZATO">Sterilizzato/Reimmesso</option>
+                        <option value="DECEDUTO">Deceduto</option>
+                      </select>
+                    </div>
+
+                    <div className="flex bg-slate-100 p-1 rounded-lg">
+                      <button 
+                        onClick={() => setModuloCViewMode('card')}
+                        className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase ${moduloCViewMode === 'card' ? 'bg-white text-[#15803d] shadow-sm' : 'text-slate-500'}`}
+                        title="Vista a Griglia"
+                      >
+                        Card
+                      </button>
+                      <button 
+                        onClick={() => setModuloCViewMode('list')}
+                        className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase ${moduloCViewMode === 'list' ? 'bg-white text-[#15803d] shadow-sm' : 'text-slate-500'}`}
+                        title="Vista ad Elenco"
+                      >
+                        Elenco
+                      </button>
+                      <button 
+                        onClick={() => setModuloCViewMode('table')}
+                        className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase ${moduloCViewMode === 'table' ? 'bg-white text-[#15803d] shadow-sm' : 'text-slate-500'}`}
+                        title="Vista a Tabella"
+                      >
+                        Tabella
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Database Animals display */}
+            {moduloCViewMode === 'card' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {filteredRegistro.length === 0 ? (
+                  <div className="col-span-full p-12 text-center text-slate-400 bg-white rounded-xl border border-slate-200 font-medium font-sans">
+                    Nessun soggetto trovato nel database anagrafico comunale.
+                  </div>
+                ) : (
+                  filteredRegistro.map((item) => (
+                    <div key={item.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col">
+                      {/* Animal Photo with Status Overlay */}
+                      <div className="relative h-48 bg-slate-100">
+                        <img 
+                          src={item.fotoUrl} 
+                          alt={item.nome}
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover" 
+                        />
+                        <div className="absolute top-3 left-3 flex gap-2">
+                          <span className={`text-[9px] font-black uppercase px-2 py-1 rounded bg-slate-900/80 text-white`}>
+                            {item.specie} · {item.taglia}
                           </span>
                         </div>
-
-                        {/* Microchip detail */}
-                        <div className="bg-slate-50 border border-slate-100/80 p-3 rounded-lg mb-4">
-                          <span className="text-[8px] font-bold uppercase text-slate-400 block mb-0.5">Codice Microchip Obbligatorio</span>
-                          <span className="font-mono font-black text-sm text-[#1e3a5f] tracking-widest">{item.microchip}</span>
+                        
+                        {/* Stato */}
+                        <div className="absolute bottom-3 right-3">
+                          <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full text-white shadow-md shadow-black/20 ${
+                            item.stato === 'LIBERO' ? 'bg-indigo-500' :
+                            item.stato === 'CATTURATO' ? 'bg-orange-500' :
+                            item.stato === 'IN_CANILE' ? 'bg-amber-600' :
+                            item.stato === 'ADOTTATO' ? 'bg-emerald-500' :
+                            item.stato === 'STERILIZZATO' ? 'bg-teal-500' : 'bg-red-600'
+                          }`}>
+                            {item.stato.replace('_', ' ')}
+                          </span>
                         </div>
-
-                        <ul className="space-y-2 text-xs font-semibold text-slate-500 leading-relaxed">
-                          <li><strong>Mantello:</strong> {item.colore}</li>
-                          <li><strong className="text-red-500">Stato Sanitario:</strong> {item.condizioniSanitarie}</li>
-                          {item.notes && <li className="text-xs italic bg-amber-500/5 text-slate-600 p-2.5 rounded border border-amber-500/10 mt-3">{item.notes}</li>}
-                        </ul>
                       </div>
 
-                      {/* Sync Info Footer */}
-                      <div className="mt-6 pt-4 border-t border-slate-100 text-[9px] font-bold text-slate-400 flex flex-col gap-2">
-                        <div className="flex items-center justify-between">
-                          <span>Ultimo agg: {item.dataSincronizzazione}</span>
-                          <span className="text-emerald-600 flex items-center gap-1">✔ Sincronizzato ASP AG</span>
+                      {/* Animal Details */}
+                      <div className="p-6 flex-1 flex flex-col justify-between">
+                        <div>
+                          {/* Name and Microchip */}
+                          <div className="flex justify-between items-center mb-4">
+                            <h4 className="text-lg font-black text-[#1e3a5f]">{item.nome}</h4>
+                            <span className="text-[10px] bg-slate-50 border border-slate-200 text-[#1e3a5f] font-mono font-bold px-2 py-0.5 rounded">
+                              {item.sesso === 'M' ? '♂ Maschio' : '♀ Femmina'}
+                            </span>
+                          </div>
+
+                          {/* Microchip detail */}
+                          <div className="bg-slate-50 border border-slate-100/80 p-3 rounded-lg mb-4">
+                            <span className="text-[8px] font-bold uppercase text-slate-400 block mb-0.5">Codice Microchip Obbligatorio</span>
+                            <span className="font-mono font-black text-sm text-[#1e3a5f] tracking-widest">{item.microchip}</span>
+                          </div>
+
+                          <ul className="space-y-2 text-xs font-semibold text-slate-500 leading-relaxed">
+                            <li><strong>Mantello:</strong> {item.colore}</li>
+                            <li><strong className="text-red-500">Stato Sanitario:</strong> {item.condizioniSanitarie}</li>
+                            {item.notes && <li className="text-xs italic bg-amber-500/5 text-slate-600 p-2.5 rounded border border-amber-500/10 mt-3">{item.notes}</li>}
+                          </ul>
                         </div>
+
+                        {/* Sync Info Footer */}
+                        <div className="mt-6 pt-4 border-t border-slate-100 text-[9px] font-bold text-slate-400 flex flex-col gap-2">
+                          <div className="flex items-center justify-between">
+                            <span>Ultimo agg: {item.dataSincronizzazione}</span>
+                            <span className="text-emerald-600 flex items-center gap-1">✔ Sincronizzato ASP AG</span>
+                          </div>
+                          {currentUser?.role !== 'Volontario' && (
+                            <button 
+                              onClick={() => setEditingSoggetto(item)}
+                              className="w-full mt-2 font-bold uppercase tracking-wider text-[10px] text-center border-t border-slate-100 py-2 hover:bg-slate-50 text-blue-600 rounded-b animate-fade-in"
+                            >
+                              Modifica
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            ) : moduloCViewMode === 'list' ? (
+              <div className="flex flex-col gap-4">
+                {filteredRegistro.length === 0 ? (
+                  <div className="p-12 text-center text-slate-400 bg-white rounded-xl border border-slate-200 font-medium font-sans">
+                    Nessun soggetto trovato nel database anagrafico comunale.
+                  </div>
+                ) : (
+                  filteredRegistro.map((item) => (
+                    <div key={item.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row gap-4 p-4 items-center">
+                      <div className="w-24 h-24 sm:w-32 sm:h-32 shrink-0 bg-slate-100 rounded-lg overflow-hidden relative">
+                        <img 
+                          src={item.fotoUrl} 
+                          alt={item.nome}
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover" 
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                          <h4 className="text-lg font-black text-[#1e3a5f] truncate">{item.nome}</h4>
+                          <span className={`text-[9px] font-black uppercase px-3 py-1 rounded-full text-white shadow-sm inline-block w-max ${
+                            item.stato === 'LIBERO' ? 'bg-indigo-500' :
+                            item.stato === 'CATTURATO' ? 'bg-orange-500' :
+                            item.stato === 'IN_CANILE' ? 'bg-amber-600' :
+                            item.stato === 'ADOTTATO' ? 'bg-emerald-500' :
+                            item.stato === 'STERILIZZATO' ? 'bg-teal-500' : 'bg-red-600'
+                          }`}>
+                            {item.stato.replace('_', ' ')}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                          <div>
+                            <span className="text-[9px] font-bold uppercase text-slate-400 block">Microchip</span>
+                            <span className="font-mono font-black text-[#1e3a5f]">{item.microchip}</span>
+                          </div>
+                          <div>
+                            <span className="text-[9px] font-bold uppercase text-slate-400 block">Identikit</span>
+                            <span className="font-semibold text-slate-600">{item.specie} · {item.sesso === 'M' ? 'M' : 'F'} · {item.taglia}</span>
+                          </div>
+                          <div>
+                            <span className="text-[9px] font-bold uppercase text-slate-400 block">Colore</span>
+                            <span className="font-semibold text-slate-600">{item.colore}</span>
+                          </div>
+                          <div>
+                            <span className="text-[9px] font-bold uppercase text-slate-400 block">Condizioni</span>
+                            <span className="font-semibold text-red-600">{item.condizioniSanitarie}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-2 shrink-0 border-t sm:border-t-0 sm:border-l border-slate-100 pt-4 sm:pt-0 sm:pl-4">
+                        <div className="text-[9px] font-bold text-slate-400">Agg: {item.dataSincronizzazione}</div>
                         {currentUser?.role !== 'Volontario' && (
                           <button 
                             onClick={() => setEditingSoggetto(item)}
-                            className="w-full mt-2 font-bold uppercase tracking-wider text-[10px] text-center border-t border-slate-100 py-2 hover:bg-slate-50 text-blue-600 rounded-b animate-fade-in"
+                            className="bg-slate-100 hover:bg-slate-200 text-blue-600 font-bold px-4 py-2 rounded text-[10px] uppercase tracking-wider"
                           >
                             Modifica
                           </button>
                         )}
                       </div>
                     </div>
-                  </div>
-                ))
-              )}
-            </div>
+                  ))
+                )}
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[800px]">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-400 text-[10px] uppercase font-black tracking-widest border-b border-slate-200">
+                      <th className="p-4">Animale</th>
+                      <th className="p-4">Microchip</th>
+                      <th className="p-4">Identikit</th>
+                      <th className="p-4">Stato</th>
+                      <th className="p-4">Sanità</th>
+                      <th className="p-4 text-right">Azioni</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-sm font-semibold text-slate-700">
+                    {filteredRegistro.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="p-10 text-center text-slate-400 font-medium">Nessun soggetto trovato.</td>
+                      </tr>
+                    ) : (
+                      filteredRegistro.map((item) => (
+                        <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="p-4 flex items-center gap-3">
+                            <img src={item.fotoUrl} alt="" className="w-10 h-10 rounded object-cover" />
+                            <div>
+                              <div className="font-black text-[#1e3a5f]">{item.nome}</div>
+                              <div className="text-[10px] text-slate-400 tracking-wider uppercase">Agg: {item.dataSincronizzazione}</div>
+                            </div>
+                          </td>
+                          <td className="p-4 font-mono font-black text-[#1e3a5f] text-xs tracking-wider">{item.microchip}</td>
+                          <td className="p-4 text-xs text-slate-500">
+                            {item.specie} · {item.sesso} · {item.taglia} · {item.colore}
+                          </td>
+                          <td className="p-4">
+                            <span className={`text-[9px] font-black uppercase px-2 py-1 rounded text-white shadow-sm inline-block ${
+                              item.stato === 'LIBERO' ? 'bg-indigo-500' :
+                              item.stato === 'CATTURATO' ? 'bg-orange-500' :
+                              item.stato === 'IN_CANILE' ? 'bg-amber-600' :
+                              item.stato === 'ADOTTATO' ? 'bg-emerald-500' :
+                              item.stato === 'STERILIZZATO' ? 'bg-teal-500' : 'bg-red-600'
+                            }`}>
+                              {item.stato.replace('_', ' ')}
+                            </span>
+                          </td>
+                          <td className="p-4 text-xs font-bold text-red-600">{item.condizioniSanitarie}</td>
+                          <td className="p-4 text-right">
+                            {currentUser?.role !== 'Volontario' && (
+                              <button 
+                                onClick={() => setEditingSoggetto(item)}
+                                className="text-blue-600 hover:text-blue-800 font-bold text-[10px] uppercase tracking-wider underline underline-offset-2"
+                              >
+                                Modifica
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             {/* Editing Modal */}
             {editingSoggetto && (
@@ -2096,43 +2309,45 @@ export default function Operatori() {
           /* ================= MODULO ADOZIONI & COSTI ================= */
           <div className="space-y-8 animate-fade-in text-left">
             
-            {/* KPI OVERVIEW */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 border border-indigo-200 p-6 rounded-2xl shadow-sm relative overflow-hidden">
-                <div className="absolute top-4 right-4 text-indigo-400">
-                  <Activity className="h-10 w-10 opacity-30" />
-                </div>
-                <h3 className="font-extrabold text-indigo-900 uppercase tracking-wider text-xs mb-1">Pratiche in Valutazione</h3>
-                <div className="text-4xl font-black text-indigo-900">
-                  {adozioni.filter(a => a.stato === 'IN_VALUTAZIONE' || a.stato === 'CREATA').length} Attive
-                </div>
-                <p className="text-xs text-indigo-600 font-bold mt-2">Dossier di affido in carico alle associazioni</p>
-              </div>
+            {!showNuovaAdozioneModal && (
+              <>
+                {/* KPI OVERVIEW */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 border border-indigo-200 p-6 rounded-2xl shadow-sm relative overflow-hidden">
+                    <div className="absolute top-4 right-4 text-indigo-400">
+                      <Activity className="h-10 w-10 opacity-30" />
+                    </div>
+                    <h3 className="font-extrabold text-indigo-900 uppercase tracking-wider text-xs mb-1">Pratiche in Valutazione</h3>
+                    <div className="text-4xl font-black text-indigo-900">
+                      {adozioni.filter(a => a.stato === 'IN_VALUTAZIONE' || a.stato === 'CREATA').length} Attive
+                    </div>
+                    <p className="text-xs text-indigo-600 font-bold mt-2">Dossier di affido in carico alle associazioni</p>
+                  </div>
 
-              <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 p-6 rounded-2xl shadow-sm relative overflow-hidden">
-                <div className="absolute top-4 right-4 text-emerald-400">
-                  <Building className="h-10 w-10 opacity-30" />
-                </div>
-                <h3 className="font-extrabold text-emerald-900 uppercase tracking-wider text-xs mb-1">Capacità Canili & Gattili</h3>
-                <div className="text-4xl font-black text-emerald-900">
-                  {strutture.reduce((acc, curr) => acc + (curr.postazioni_occupate || 0), 0)} / {strutture.reduce((acc, curr) => acc + (curr.capacita_max || 100), 0)}
-                </div>
-                <p className="text-xs text-emerald-600 font-bold mt-2">Posti occupati in strutture convenzionate</p>
-              </div>
+                  <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 p-6 rounded-2xl shadow-sm relative overflow-hidden">
+                    <div className="absolute top-4 right-4 text-emerald-400">
+                      <Building className="h-10 w-10 opacity-30" />
+                    </div>
+                    <h3 className="font-extrabold text-emerald-900 uppercase tracking-wider text-xs mb-1">Capacità Canili & Gattili</h3>
+                    <div className="text-4xl font-black text-emerald-900">
+                      {strutture.reduce((acc, curr) => acc + (curr.postazioni_occupate || 0), 0)} / {strutture.reduce((acc, curr) => acc + (curr.capacita_max || 100), 0)}
+                    </div>
+                    <p className="text-xs text-emerald-600 font-bold mt-2">Posti occupati in strutture convenzionate</p>
+                  </div>
 
-              <div className="bg-gradient-to-br from-rose-50 to-rose-100 border border-rose-200 p-6 rounded-2xl shadow-sm relative overflow-hidden">
-                <div className="absolute top-4 right-4 text-rose-400">
-                  <Briefcase className="h-10 w-10 opacity-30" />
+                  <div className="bg-gradient-to-br from-rose-50 to-rose-100 border border-rose-200 p-6 rounded-2xl shadow-sm relative overflow-hidden">
+                    <div className="absolute top-4 right-4 text-rose-400">
+                      <Briefcase className="h-10 w-10 opacity-30" />
+                    </div>
+                    <h3 className="font-extrabold text-rose-900 uppercase tracking-wider text-xs mb-1">Costi Totali Liquidati</h3>
+                    <div className="text-4xl font-black text-rose-900">
+                      € {fatture.reduce((acc, curr) => acc + (parseFloat(curr.importo_totale) || 0), 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}
+                    </div>
+                    <p className="text-xs text-rose-600 font-bold mt-2">Spese complessive per ricoveri e assistenza</p>
+                  </div>
                 </div>
-                <h3 className="font-extrabold text-rose-900 uppercase tracking-wider text-xs mb-1">Costi Totali Liquidati</h3>
-                <div className="text-4xl font-black text-rose-900">
-                  € {fatture.reduce((acc, curr) => acc + (parseFloat(curr.importo_totale) || 0), 0).toLocaleString('it-IT', { minimumFractionDigits: 2 })}
-                </div>
-                <p className="text-xs text-rose-600 font-bold mt-2">Spese complessive per ricoveri e assistenza</p>
-              </div>
-            </div>
 
-            {/* SEZIONE 1: ANAGRAFE DELLE ADOZIONI & AFFIDAMENTI */}
+                {/* SEZIONE 1: ANAGRAFE DELLE ADOZIONI & AFFIDAMENTI */}
             <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
                 <div className="flex items-center gap-3">
@@ -2219,7 +2434,7 @@ export default function Operatori() {
                           </td>
                           <td className="p-4 text-right">
                             <div className="flex flex-wrap items-center justify-end gap-1.5 list-none">
-                              {(adop.stato === "IN_VALUTAZIONE" || adop.stato === "CREATA") && (
+                              {(adop.stato === "IN_VALUTAZIONE" || adop.stato === "CREATA") && currentUser?.role !== 'Volontario' && (
                                 <>
                                   <button
                                     onClick={() => handleApproveAdoption(adop.id)}
@@ -2238,13 +2453,15 @@ export default function Operatori() {
                                 </>
                               )}
 
-                              <button
-                                onClick={() => startEditingAdozione(adop)}
-                                title="Modifica Dati"
-                                className="bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-[10px] uppercase tracking-wider px-2.5 py-1.5 rounded-lg transition-all"
-                              >
-                                Modifica
-                              </button>
+                              {currentUser?.role !== 'Volontario' && (
+                                <button
+                                  onClick={() => startEditingAdozione(adop)}
+                                  title="Modifica Dati"
+                                  className="bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-[10px] uppercase tracking-wider px-2.5 py-1.5 rounded-lg transition-all"
+                                >
+                                  Modifica
+                                </button>
+                              )}
 
                               <button
                                 onClick={() => setPrintingAdozione(adop)}
@@ -2254,21 +2471,25 @@ export default function Operatori() {
                                 <Printer className="h-3 w-3" /> Stampa
                               </button>
 
-                              <button
-                                onClick={() => handleCloneAdoption(adop.id)}
-                                title="Clona Pratica"
-                                className="bg-indigo-500 hover:bg-indigo-600 text-white font-extrabold text-[10px] uppercase tracking-wider px-2.5 py-1.5 rounded-lg transition-all"
-                              >
-                                Clona
-                              </button>
+                              {currentUser?.role !== 'Volontario' && (
+                                <>
+                                  <button
+                                    onClick={() => handleCloneAdoption(adop.id)}
+                                    title="Clona Pratica"
+                                    className="bg-indigo-500 hover:bg-indigo-600 text-white font-extrabold text-[10px] uppercase tracking-wider px-2.5 py-1.5 rounded-lg transition-all"
+                                  >
+                                    Clona
+                                  </button>
 
-                              <button
-                                onClick={() => handleDeleteAdoption(adop.id)}
-                                title="Elimina"
-                                className="bg-red-600 hover:bg-red-700 text-white font-extrabold text-[10px] uppercase tracking-wider px-2.5 py-1.5 rounded-lg transition-all"
-                              >
-                                Elimina
-                              </button>
+                                  <button
+                                    onClick={() => handleDeleteAdoption(adop.id)}
+                                    title="Elimina"
+                                    className="bg-red-600 hover:bg-red-700 text-white font-extrabold text-[10px] uppercase tracking-wider px-2.5 py-1.5 rounded-lg transition-all"
+                                  >
+                                    Elimina
+                                  </button>
+                                </>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -2280,6 +2501,7 @@ export default function Operatori() {
             </div>
 
             {/* AUDIT TRAIL LOG PANEL */}
+            {currentUser?.role !== 'Volontario' && (
             <div className="bg-[#1e293b] text-slate-100 p-6 sm:p-8 rounded-2xl border border-slate-700 shadow-xl space-y-4">
               <div className="flex items-center justify-between pb-4 border-b border-slate-705">
                 <div className="flex items-center gap-2">
@@ -2306,6 +2528,7 @@ export default function Operatori() {
                 )}
               </div>
             </div>
+            )}
 
             {/* SEZIONE 2: STRUTTURE ECOSYSTEM & CONVENZIONI ATTIVE */}
             {currentUser?.role === 'ADMIN' || currentUser?.role === 'Admin' ? (
@@ -2510,31 +2733,32 @@ export default function Operatori() {
                 )}
               </div>
             )}
+            </>
+            )}
             {showNuovaAdozioneModal && (
-              <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden max-w-3xl w-full flex flex-col max-h-[90vh]">
-                  <div className="bg-[#1e3a5f] px-6 py-4 flex items-center justify-between text-white border-b border-slate-800">
-                    <h3 className="font-extrabold uppercase tracking-wide text-sm flex items-center gap-2">
-                      <Plus className="h-5 w-5 text-emerald-400" /> Avvia Nuova Istruttoria Pratica Adozione
-                    </h3>
-                    <button onClick={() => setShowNuovaAdozioneModal(false)} className="text-slate-400 hover:text-white transition-colors">
-                      <X className="h-5 w-5" />
-                    </button>
-                  </div>
-                  <form onSubmit={handleCreaAdozione} className="p-6 space-y-6 overflow-y-auto w-full text-left">
-                    
-                    {/* SEZIONE 1: SCELTA SOGGETTO DA ARCHIVIO */}
-                    <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                      <h4 className="text-xs font-black text-[#1e3a5f] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200 pb-2">
-                        🐕 1. Soggetto da Affidare / Adottare (da Archivio)
-                      </h4>
-                      <div>
-                        <select
-                          required
-                          value={formAdozione.registroId}
-                          onChange={(e) => setFormAdozione({ ...formAdozione, registroId: e.target.value })}
-                          className="w-full p-2.5 border border-slate-200 rounded-lg text-xs text-slate-800 font-extrabold outline-none focus:border-[#1e3a5f] bg-white transition-colors"
-                        >
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden w-full flex flex-col mb-8">
+                <div className="bg-white px-6 py-4 flex items-center justify-between border-b border-slate-100">
+                  <h3 className="font-black uppercase tracking-wide text-[#1e3a5f] text-sm flex items-center gap-2">
+                    <Plus className="h-5 w-5 text-emerald-600" /> Avvia Nuova Istruttoria Pratica Adozione
+                  </h3>
+                  <button onClick={() => setShowNuovaAdozioneModal(false)} className="text-slate-400 hover:text-rose-600 font-bold bg-slate-50 px-3 py-1 text-[10px] rounded uppercase transition-colors">
+                    Chiudi/Annulla
+                  </button>
+                </div>
+                <form onSubmit={handleCreaAdozione} className="p-6 md:p-8 space-y-8 w-full text-left">
+                  
+                  {/* SEZIONE 1: SCELTA SOGGETTO DA ARCHIVIO */}
+                  <div className="space-y-4 bg-slate-50 p-6 rounded-xl border border-slate-200">
+                    <h4 className="text-xs font-black text-[#1e3a5f] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200 pb-2">
+                      🐕 1. Soggetto da Affidare / Adottare (da Archivio)
+                    </h4>
+                    <div>
+                      <select
+                        required
+                        value={formAdozione.registroId}
+                        onChange={(e) => setFormAdozione({ ...formAdozione, registroId: e.target.value })}
+                        className="w-full p-3 border border-slate-200 rounded-lg text-sm text-slate-800 font-extrabold outline-none focus:border-[#1e3a5f] bg-white transition-colors"
+                      >
                           <option value="">Scegli l'animale registrato dal canile comunale...</option>
                           {registro
                             .filter((animal) => animal.stato !== 'ADOTTATO')
@@ -2863,7 +3087,6 @@ export default function Operatori() {
                       </button>
                     </div>
                   </form>
-                </div>
               </div>
             )}
 

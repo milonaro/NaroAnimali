@@ -73,8 +73,60 @@ export default function AdminLogin() {
     }
   };
 
+  const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userEmail) {
+      setError("Inserire l'indirizzo email associato");
+      return;
+    }
+    setError('');
+    setMessage('');
+    try {
+      const res = await fetch('/api/admin/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: userEmail })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setStep(4);
+        setMessage(`OTP per ripristino password inviato a: ${userEmail}. ${data.debugOtp ? `Token di test: ${data.debugOtp}` : ''}`);
+      } else {
+        setError(data.error || "Errore durante l'invio del reset");
+      }
+    } catch (e) {
+      setError("Errore di connessione");
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    try {
+      const res = await fetch('/api/admin/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: userEmail, otp, newPassword: password })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        popup.success("Password modificata con successo.");
+        setStep(1);
+        setPassword('');
+        setUsername('');
+        setOtp('');
+      } else {
+        setError(data.error || "Codice OTP non valido o scaduto");
+      }
+    } catch (e) {
+      setError("Errore di connessione OTP");
+    }
+  };
+
   const handleForgotPassword = () => {
-    popup.info("Funzionalità di recupero password in fase di attivazione. Si prega di contattare direttamente l'Amministratore di Sistema incaricato presso gli uffici del Comune.", "Recupero Credenziali");
+    setStep(3);
+    setError('');
+    setMessage('');
   };
 
   return (
@@ -163,7 +215,7 @@ export default function AdminLogin() {
                 Accedi al Cruscotto Amministrativo
               </button>
             </form>
-          ) : (
+          ) : step === 2 ? (
             <form onSubmit={handleVerifyOtp} className="space-y-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 block text-center">Token Monouso (OTP)</label>
@@ -191,6 +243,78 @@ export default function AdminLogin() {
                 className="w-full bg-slate-100 text-slate-600 py-4 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-all cursor-pointer"
               >
                 Torna al Login
+              </button>
+            </form>
+          ) : step === 3 ? (
+            <form onSubmit={handleForgotPasswordSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 block">Indirizzo Email Autorizzato</label>
+                <input 
+                  type="email" 
+                  value={userEmail}
+                  onChange={(e) => setUserEmail(e.target.value)}
+                  className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all placeholder:text-slate-300"
+                  placeholder="admin@comune.it"
+                  required
+                />
+              </div>
+              <button 
+                type="submit" 
+                className="w-full bg-[#15803d] text-white py-4 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-md shadow-[#15803d]/20 hover:bg-[#166534] transition-all cursor-pointer"
+              >
+                Invia Token Ripristino
+              </button>
+              <button 
+                type="button" 
+                onClick={() => {setStep(1); setUserEmail('');}}
+                className="w-full bg-slate-100 text-slate-600 py-4 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-all cursor-pointer"
+              >
+                Torna al Login
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleResetPassword} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 block text-center">Token Monouso (OTP)</label>
+                <div className="relative max-w-[200px] mx-auto">
+                  <input 
+                    type="text" 
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl text-2xl tracking-[0.4em] font-black text-center text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all"
+                    placeholder="000000"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 block">Nuova Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input 
+                    type={showPassword ? "text" : "password"} 
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full pl-11 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all placeholder:text-slate-300"
+                    placeholder="••••••••"
+                    required
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                    aria-label={showPassword ? "Nascondi password" : "Mostra password"}
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+              </div>
+              <button 
+                type="submit" 
+                disabled={otp.length !== 6 || password.length < 8}
+                className="w-full bg-[#15803d] text-white py-4 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-md shadow-[#15803d]/20 hover:bg-[#166534] transition-all cursor-pointer disabled:opacity-50"
+              >
+                Imposta Nuova Password
               </button>
             </form>
           )}

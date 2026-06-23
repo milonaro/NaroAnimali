@@ -8,7 +8,7 @@ export default function BottomNavigation() {
         to="/"
         className={({ isActive }) =>
           `flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all text-[9px] font-black uppercase tracking-wider ${
-            isActive ? 'text-[#15803d] scale-105' : 'text-slate-400 hover:text-[#15803d]'
+            isActive ? 'text-[#1e3a5f] scale-105' : 'text-slate-400 hover:text-[#1e3a5f]'
           }`
         }
       >
@@ -20,7 +20,7 @@ export default function BottomNavigation() {
         to="/segnala"
         className={({ isActive }) =>
           `flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all text-[9px] font-black uppercase tracking-wider ${
-            isActive ? 'text-[#15803d] scale-105' : 'text-slate-400 hover:text-[#15803d]'
+            isActive ? 'text-[#1e3a5f] scale-105' : 'text-slate-400 hover:text-[#1e3a5f]'
           }`
         }
       >
@@ -32,7 +32,7 @@ export default function BottomNavigation() {
         to="/mappa"
         className={({ isActive }) =>
           `flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all text-[9px] font-black uppercase tracking-wider ${
-            isActive ? 'text-[#15803d] scale-105' : 'text-slate-400 hover:text-[#15803d]'
+            isActive ? 'text-[#1e3a5f] scale-105' : 'text-slate-400 hover:text-[#1e3a5f]'
           }`
         }
       >
@@ -44,7 +44,7 @@ export default function BottomNavigation() {
         to="/mia-area"
         className={({ isActive }) =>
           `flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all text-[9px] font-black uppercase tracking-wider ${
-            isActive ? 'text-[#15803d] scale-105' : 'text-slate-400 hover:text-[#15803d]'
+            isActive ? 'text-[#1e3a5f] scale-105' : 'text-slate-400 hover:text-[#1e3a5f]'
           }`
         }
       >

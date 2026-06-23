@@ -489,7 +489,7 @@ export default function MiaArea() {
                   </button>
                 </div>
                 <p className="text-center text-[9px] font-bold uppercase tracking-widest text-slate-400 mt-8 flex items-center justify-center gap-2">
-                  <ShieldCheck className="h-3 w-3 text-emerald-600" /> Servizio di Sicurezza Certificato AGID
+                  <ShieldCheck className="h-3 w-3 text-emerald-600" /> Servizio di Sicurezza attivo
                 </p>
               </motion.div>
             )}
