@@ -12,6 +12,7 @@ import mysqlPool, { getIsMysqlHealthy, setMysqlHealthy } from "./src/lib/mysql.j
 import { sendOtpEmail } from "./src/lib/mailer.js";
 import segnalazioniRouter from "./src/pages/api/segnalazioni.js";
 import otpRouter from "./src/pages/api/otp.js";
+import { notifyAdminLoginAttempt, notifyAdminOtpVerify, notifyGeneralAccess } from "./src/lib/telegram.js";
 import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
 import { createMySQLTables, addMySQLColumns } from "./src/lib/mysql_init.js";
@@ -103,6 +104,30 @@ app.use(async (req, res, next) => {
   }
 });
 
+const generalAccessCache = new Map<string, number>();
+
+app.use((req, res, next) => {
+  const path = req.path;
+  if (
+    req.method === "GET" &&
+    !path.startsWith("/api") &&
+    !path.startsWith("/assets") &&
+    !path.includes(".")
+  ) {
+    const ipHeader = req.ip || (req.headers['x-forwarded-for'] as string) || '';
+    const ip = ipHeader.substring(0, 45);
+    const userAgent = (req.headers['user-agent'] || '').substring(0, 255);
+    const now = Date.now();
+    const lastAccess = generalAccessCache.get(ip);
+    
+    if (!lastAccess || now - lastAccess > 10 * 60 * 1000) {
+      generalAccessCache.set(ip, now);
+      notifyGeneralAccess(ip, userAgent).catch(() => {});
+    }
+  }
+  next();
+});
+
 app.use("/api/segnalazioni", segnalazioniRouter);
 app.use("/api/otp", otpRouter);
 
@@ -175,6 +200,9 @@ app.post("/api/admin/login", async (req, res) => {
           [username, user.comune_key || "naro", ip, userAgent, 1, "Password valida - Richiesto OTP"]
         );
 
+        // Telegram notification
+        await notifyAdminLoginAttempt(username, true, ip, userAgent, "Password valida - Richiesto OTP").catch(() => {});
+
         // Check if SMTP or Resend is configured
         const isSmtpConfigured = !!(process.env.SMTP_HOST && process.env.SMTP_USER) || !!process.env.RESEND_API_KEY;
 
@@ -195,6 +223,9 @@ app.post("/api/admin/login", async (req, res) => {
           [username, user.comune_key || "naro", ip, userAgent, 1, "Accesso eseguito (senza OTP)"]
         );
 
+        // Telegram notification
+        await notifyAdminLoginAttempt(username, true, ip, userAgent, "Accesso eseguito (senza OTP)").catch(() => {});
+
         res.json({ success: true, token });
       }
     } else {
@@ -203,6 +234,9 @@ app.post("/api/admin/login", async (req, res) => {
         "INSERT INTO admin_access_logs (username, comune_key, ip_address, user_agent, accesso_riuscito, note) VALUES (?, ?, ?, ?, ?, ?)",
         [username || "sconosciuto", "naro", ip, userAgent, 0, "Credenziali non valide"]
       );
+
+      // Telegram notification
+      await notifyAdminLoginAttempt(username || "sconosciuto", false, ip, userAgent, "Credenziali non valide").catch(() => {});
 
       res.status(401).json({ error: "Credenziali non valide" });
     }
@@ -282,6 +316,9 @@ app.post("/api/admin/login/verify-otp", async (req, res) => {
         [username, user.comune_key || "naro", ip, userAgent, 1, isMasterOtp ? "OTP Master di Backup verificato con successo (SMTP assente)" : "OTP verificato con successo"]
       );
 
+      // Telegram notification
+      await notifyAdminOtpVerify(username, true, ip, userAgent, isMasterOtp ? "OTP Master di Backup verificato con successo (SMTP assente)" : "OTP verificato con successo").catch(() => {});
+
       res.json({ success: true, token });
     } else {
       // Brute-force failure tracking
@@ -295,6 +332,9 @@ app.post("/api/admin/login/verify-otp", async (req, res) => {
           [username, user.comune_key || "naro", ip, userAgent, 0, "BLOCCO_BRUTE_FORCE_ADMIN_15M"]
         );
 
+        // Telegram notification
+        await notifyAdminOtpVerify(username, false, ip, userAgent, "Blocco Brute Force 15m (5/5 tentativi errati)").catch(() => {});
+
         return res.status(403).json({
           error: `Rilevati troppi tentativi errati di verifica OTP (5/5). Per motivi di sicurezza e tutela anti-hacker della PA, l'utenza amministrativa "${username}" è stata memorizzata come sospesa per 15 minuti. L'OTP attivo è stato revocato.`
         });
@@ -304,6 +344,9 @@ app.post("/api/admin/login/verify-otp", async (req, res) => {
           "INSERT INTO admin_access_logs (username, comune_key, ip_address, user_agent, accesso_riuscito, note) VALUES (?, ?, ?, ?, ?, ?)",
           [username, user.comune_key || "naro", ip, userAgent, 0, `Codice OTP non valido o scaduto. Prove: ${currentFailures}/5`]
         );
+
+        // Telegram notification
+        await notifyAdminOtpVerify(username, false, ip, userAgent, `OTP errato/scaduto (Prove: ${currentFailures}/5)`).catch(() => {});
 
         const rem = 5 - currentFailures;
         return res.status(401).json({ error: `Codice OTP non valido o scaduto. Rimangono ${rem} tentativi prima del blocco di sicurezza di 15 minuti.` });

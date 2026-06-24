@@ -3,6 +3,7 @@ import mysqlPool, { getIsMysqlHealthy } from "../../../src/lib/mysql.js";
 import jwt from "jsonwebtoken";
 import { Resend } from "resend";
 import { sendOtpEmail } from "../../lib/mailer.js";
+import { notifyCitizenOtpRequest, notifyCitizenOtpVerify } from "../../lib/telegram.js";
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || "animal-hub-secret-otp";
@@ -79,6 +80,9 @@ router.post("/request", async (req, res) => {
       [email, ip, userAgent, 'RICHIESTA_OTP']
     );
 
+    // Telegram notification
+    await notifyCitizenOtpRequest(email, ip, userAgent).catch(() => {});
+
     // Invia email di OTP reale tramite Mailer Unificato (SMTP / Resend)
     await sendOtpEmail(email, otp, false);
 
@@ -150,6 +154,9 @@ router.post("/verify", async (req, res) => {
           [email, ip, userAgent, 'BLOCCO_BRUTE_FORCE_15M']
         );
 
+        // Telegram notification
+        await notifyCitizenOtpVerify(email, false, ip, userAgent, "Blocco Brute Force (5/5 tentativi errati)").catch(() => {});
+
         return res.status(403).json({
           error: `Rilevati troppi tentativi errati di verifica OTP (5/5). Per motivi di sicurezza e tutela anti-hacker, l'e-mail "${email}" è stata temporaneamente sospesa per 15 minuti e l'OTP revocato. Potrai inviare un nuovo codice scaduto il timer di blocco.`
         });
@@ -159,7 +166,10 @@ router.post("/verify", async (req, res) => {
           "INSERT INTO citizen_access_logs (email, ip_address, user_agent, azione) VALUES (?, ?, ?, ?)",
           [email, ip, userAgent, 'VERIFICA_OTP_FALLITA_ERRATO']
         );
+
         const rem = 5 - currentFailures;
+        // Telegram notification
+        await notifyCitizenOtpVerify(email, false, ip, userAgent, `OTP errato (Rimanenti: ${rem} tentativi)`).catch(() => {});
         return res.status(401).json({ 
           error: `Codice OTP non valido o errato. Rimangono ${rem} tentativi prima del blocco di sicurezza di 15 minuti.` 
         });
@@ -187,6 +197,9 @@ router.post("/verify", async (req, res) => {
         "INSERT INTO citizen_access_logs (email, ip_address, user_agent, azione) VALUES (?, ?, ?, ?)",
         [email, ip, userAgent, 'VERIFICA_OTP_FALLITA_SCADUTO']
       );
+
+      // Telegram notification
+      await notifyCitizenOtpVerify(email, false, ip, userAgent, "OTP scaduto").catch(() => {});
       return res.status(401).json({ error: "Codice OTP scaduto" });
     }
 
@@ -206,6 +219,9 @@ router.post("/verify", async (req, res) => {
       "INSERT INTO citizen_access_logs (email, ip_address, user_agent, azione) VALUES (?, ?, ?, ?)",
       [email, ip, userAgent, 'VERIFICA_OTP_SUCCESSO']
     );
+
+    // Telegram notification
+    await notifyCitizenOtpVerify(email, true, ip, userAgent).catch(() => {});
 
     res.json({ success: true, token });
   } catch (err: any) {
