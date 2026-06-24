@@ -35,6 +35,8 @@ export default function MiaArea() {
   });
 
   const [reports, setReports] = useState<Report[]>([]);
+  const [reportLogs, setReportLogs] = useState<any[]>([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
   
     // --- NUOVI STATI ANAGRAFE CANINA ---
   const [activeTab, setActiveTab] = useState<'segnalazioni' | 'anagrafe' | 'profilo'>('segnalazioni');
@@ -81,6 +83,8 @@ export default function MiaArea() {
     const handleTabChange = (e: any) => {
       const targetTab = e.detail;
       setActiveTab(targetTab);
+      setSelectedReport(null);
+      setReportLogs([]);
     };
 
     const handleLogoutEvent = () => {
@@ -197,6 +201,21 @@ export default function MiaArea() {
       }
     } catch (e: any) {
       setError(e.message || "Errore di connessione o caricamento dei dati.");
+    }
+  };
+
+  const fetchReportLogs = async (code: string) => {
+    setLoadingLogs(true);
+    try {
+      const res = await fetch(`/api/segnalazioni/${code}/logs`);
+      if (res.ok) {
+        const data = await res.json();
+        setReportLogs(data);
+      }
+    } catch (err) {
+      console.error("Errore caricamento log report:", err);
+    } finally {
+      setLoadingLogs(false);
     }
   };
 
@@ -617,74 +636,44 @@ export default function MiaArea() {
 
                       {activeTab === 'segnalazioni' ? (
                         <>
-                          {/* Chart Section */}
-                          <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200/80 shadow-sm">
-                            <div className="flex items-center gap-3 mb-6">
-                              <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
-                                <BarChart3 className="h-6 w-6" />
-                              </div>
-                              <div>
-                                <h2 className="text-2xl font-bold text-[#1e3a5f]">Statistiche Segnalazioni</h2>
-                                <p className="text-gray-400 text-sm font-medium">Andamento degli ultimi 6 mesi nel territorio di Naro</p>
-                              </div>
+                          {/* Riepilogo Segnalazioni ed Info Utente */}
+                          <div className="bg-white p-6 sm:p-10 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                            <div>
+                              <h2 className="text-xl sm:text-2xl font-black text-[#1e3a5f] tracking-tight mb-2">Le Mie Segnalazioni</h2>
+                              <p className="text-gray-500 text-xs sm:text-sm font-medium leading-relaxed max-w-2xl">
+                                Elenco e stato di avanzamento delle segnalazioni di soccorso inviate da questa utenza nel territorio di Naro.
+                              </p>
                             </div>
                             
-                            <div className="h-[300px] w-full min-w-0">
-                              <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={[
-                                  { name: 'Dic', total: 12 },
-                                  { name: 'Gen', total: 18 },
-                                  { name: 'Feb', total: 14 },
-                                  { name: 'Mar', total: 22 },
-                                  { name: 'Apr', total: 28 },
-                                  { name: 'Mag', total: 25 },
-                                ]}>
-                                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                  <XAxis 
-                                    dataKey="name" 
-                                    axisLine={false} 
-                                    tickLine={false} 
-                                    tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }}
-                                    dy={10}
-                                  />
-                                  <YAxis 
-                                    axisLine={false} 
-                                    tickLine={false} 
-                                    tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }}
-                                  />
-                                  <Tooltip 
-                                    cursor={{ fill: '#f8fafc' }}
-                                    content={({ active, payload }) => {
-                                      if (active && payload && payload.length) {
-                                        return (
-                                          <div className="bg-[#101b3a] p-4 rounded-lg shadow-2xl border border-white/10">
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-white/50 mb-1">{payload[0].payload.name}</p>
-                                            <p className="text-xl font-bold text-white">{payload[0].value} <span className="text-xs font-medium text-emerald-400">Segnalazioni</span></p>
-                                          </div>
-                                        );
-                                      }
-                                      return null;
-                                    }}
-                                  />
-                                  <Bar 
-                                    dataKey="total" 
-                                    radius={[8, 8, 0, 0]} 
-                                    barSize={40}
-                                  >
-                                    {[1, 2, 3, 4, 5, 6].map((_, index) => (
-                                      <Cell key={`cell-${index}`} fill={index === 5 ? '#15803d' : '#e2e8f0'} className="hover:fill-blue-500 transition-colors" />
-                                    ))}
-                                  </Bar>
-                                </BarChart>
-                              </ResponsiveContainer>
+                            {/* Aggregated KPI Cards */}
+                            <div className="flex gap-4 sm:gap-6 w-full md:w-auto">
+                              <div className="bg-slate-50 border border-slate-100 p-4 rounded-xl text-center flex-1 md:min-w-[110px]">
+                                <span className="text-slate-400 text-[9px] font-black uppercase tracking-wider block">Totali</span>
+                                <span className="text-2xl font-black text-[#1e3a5f] mt-1 block">{reports.length}</span>
+                              </div>
+                              <div className="bg-amber-50/50 border border-amber-100/60 p-4 rounded-xl text-center flex-1 md:min-w-[110px]">
+                                <span className="text-amber-600/80 text-[9px] font-black uppercase tracking-wider block">In Gestione</span>
+                                <span className="text-2xl font-black text-amber-600 mt-1 block">
+                                  {reports.filter(r => r.status !== 'CHIUSA').length}
+                                </span>
+                              </div>
+                              <div className="bg-emerald-50/50 border border-emerald-100/60 p-4 rounded-xl text-center flex-1 md:min-w-[110px]">
+                                <span className="text-emerald-600/80 text-[9px] font-black uppercase tracking-wider block">Risolte</span>
+                                <span className="text-2xl font-black text-emerald-600 mt-1 block">
+                                  {reports.filter(r => r.status === 'CHIUSA').length}
+                                </span>
+                              </div>
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-4 sm:gap-8">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
                             {reports.map((item, i) => (
                               <div 
                                 key={i} 
-                                onClick={() => setSelectedReport(item)}
+                                onClick={() => {
+                                  setSelectedReport(item);
+                                  fetchReportLogs(item.code);
+                                }}
                                 className="bg-white border-2 border-transparent p-4 sm:p-10 rounded-xl shadow-md sm:shadow-xl hover:shadow-2xl hover:border-[#15803d]/20 transition-all cursor-pointer group relative overflow-hidden"
                               >
                                  {/* Status Bar */}
@@ -1252,6 +1241,42 @@ export default function MiaArea() {
                              })}
                           </div>
                           
+                           {/* Registro Cronologico Dettagliato degli Interventi */}
+                           <div className="mt-16 pt-12 border-t border-slate-100">
+                             <h3 className="text-[11px] font-bold uppercase tracking-[0.4em] text-gray-400 mb-8 flex items-center gap-4">
+                                Cronologia Attività & Eventi <span className="h-px bg-gray-100 flex-1" />
+                             </h3>
+
+                             {loadingLogs ? (
+                               <div className="flex justify-center py-8">
+                                 <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+                               </div>
+                             ) : reportLogs.length === 0 ? (
+                               <p className="text-xs text-slate-400 font-semibold italic">Nessun log o annotazione aggiuntiva inserita per questa pratica.</p>
+                             ) : (
+                               <div className="space-y-6">
+                                 {reportLogs.map((log: any, idx: number) => (
+                                   <div key={idx} className="bg-slate-50 border border-slate-100 rounded-xl p-5 text-left space-y-2 animate-fadeIn">
+                                     <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                                       <span className="bg-emerald-50 text-emerald-800 text-[8px] font-black uppercase tracking-wider px-2 py-1 rounded border border-emerald-100 w-fit">
+                                         👤 {log.operatore}
+                                       </span>
+                                       <span className="text-[10px] text-slate-400 font-bold">
+                                         📅 {new Date(log.timestamp).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                       </span>
+                                     </div>
+                                     <p className="text-xs font-bold text-[#1e3a5f] leading-normal">{log.azione}</p>
+                                     {log.note && (
+                                       <div className="bg-white border border-slate-200/60 p-3 rounded-lg text-xs font-medium text-slate-500 leading-relaxed">
+                                         <strong>Note dell'operatore:</strong> {log.note}
+                                       </div>
+                                     )}
+                                   </div>
+                                 ))}
+                               </div>
+                             )}
+                           </div>
+
                           <div className="mt-20 p-8 bg-gray-50 rounded-lg border border-gray-100">
                              <div className="flex items-start gap-4">
                                <Info className="h-5 w-5 text-gray-400 shrink-0 mt-0.5" />

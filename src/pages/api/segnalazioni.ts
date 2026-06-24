@@ -288,6 +288,23 @@ router.post("/:codiceTracking/log", async (req, res) => {
   }
 });
 
+router.get("/:codiceTracking/logs", async (req, res) => {
+  try {
+    const { codiceTracking } = req.params;
+    let list = [];
+    if (getIsMysqlHealthy() && pool) {
+      const [rows]: any = await pool.query(
+        "SELECT * FROM interventi_logs WHERE segnalazione_codice = ? ORDER BY timestamp DESC",
+        [codiceTracking]
+      );
+      list = rows;
+    }
+    res.json(list);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.post("/upload", async (req, res) => {
     try {
         const { name, base64 } = req.body;
