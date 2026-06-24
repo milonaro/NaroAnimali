@@ -141,7 +141,7 @@ export async function createMySQLTables() {
         colore VARCHAR(100),
         condizioni_sanitarie TEXT,
         stato VARCHAR(50),
-        foto_url TEXT,
+        foto_url LONGTEXT,
         proprietario_email VARCHAR(150) DEFAULT NULL,
         data_registrazione TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`,
@@ -161,7 +161,7 @@ export async function createMySQLTables() {
         specie VARCHAR(50),
         condizioni VARCHAR(255),
         descrizione TEXT,
-        foto_url TEXT,
+        foto_url LONGTEXT,
         latitudine DECIMAL(10, 8),
         longitudine DECIMAL(11, 8),
         indirizzo VARCHAR(255),

@@ -419,6 +419,24 @@ async function initSqliteSchema(db: any) {
     if (tableExists) {
       console.log("Database SQLite già esistente e strutturato. Sincronizzazione contatti e-mail amministratori...");
       try {
+        await db.run(`CREATE TABLE IF NOT EXISTS citizen_profiles (
+          email VARCHAR(150) PRIMARY KEY,
+          nome VARCHAR(100),
+          cognome VARCHAR(100),
+          codice_fiscale VARCHAR(16),
+          telefono VARCHAR(30),
+          indirizzo VARCHAR(255),
+          comune_residenza VARCHAR(100),
+          sesso VARCHAR(10),
+          comune_nascita VARCHAR(100),
+          data_nascita VARCHAR(20),
+          is_spid_verified TINYINT(1) DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`);
+      } catch (cpErr: any) {
+        console.warn("Avviso: Impossibile creare citizen_profiles in SQLite esistente:", cpErr.message);
+      }
+      try {
         await db.run("UPDATE admin_users SET email = ? WHERE username = ?", ["franco.tese@gmail.com", "admin"]);
         await db.run("UPDATE admin_users SET email = ? WHERE username = ?", ["polizia@animalhubpa.it", "polizia"]);
         await db.run("UPDATE admin_users SET email = ? WHERE username = ?", ["canile@animalhubpa.it", "canile"]);

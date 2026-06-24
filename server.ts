@@ -182,9 +182,10 @@ app.post("/api/admin/login", async (req, res) => {
         // Generate and store OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+        const expiresAtStr = expiresAt.toISOString().replace('T', ' ').substring(0, 19);
         await mysqlPool.execute(
           "INSERT INTO user_otps (email, otp_code, expires_at) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE otp_code = ?, expires_at = ?",
-          [user.email, otp, expiresAt, otp, expiresAt]
+          [user.email, otp, expiresAtStr, otp, expiresAtStr]
         );
         
         // Send real email through nodemailer/resend helper
@@ -283,15 +284,27 @@ app.post("/api/admin/login/verify-otp", async (req, res) => {
     const otpRecord = otpRows[0];
 
     const parseExpiresAt = (val: any): Date => {
-      if (val instanceof Date) return val;
+      if (val instanceof Date) {
+        return new Date(Date.UTC(
+          val.getFullYear(),
+          val.getMonth(),
+          val.getDate(),
+          val.getHours(),
+          val.getMinutes(),
+          val.getSeconds()
+        ));
+      }
       if (typeof val === "number") return new Date(val);
       if (typeof val === "string") {
         if (/^\d+$/.test(val)) {
           return new Date(parseInt(val, 10));
         }
-        let cleanVal = val;
-        if (val.includes(" ") && !val.includes("T")) {
-          cleanVal = val.replace(" ", "T");
+        let cleanVal = val.trim();
+        if (!cleanVal.endsWith("Z") && !cleanVal.includes("+") && !cleanVal.includes("GMT")) {
+          if (cleanVal.includes(" ") && !cleanVal.includes("T")) {
+            cleanVal = cleanVal.replace(" ", "T");
+          }
+          cleanVal += "Z";
         }
         return new Date(cleanVal);
       }
@@ -373,9 +386,10 @@ app.post("/api/admin/forgot-password", async (req, res) => {
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    const expiresAtStr = expiresAt.toISOString().replace('T', ' ').substring(0, 19);
     await mysqlPool.execute(
       "INSERT INTO user_otps (email, otp_code, expires_at) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE otp_code = ?, expires_at = ?",
-      [email, otp, expiresAt, otp, expiresAt]
+      [email, otp, expiresAtStr, otp, expiresAtStr]
     );
 
     let debugOtp = "";
@@ -402,11 +416,27 @@ app.post("/api/admin/reset-password", async (req, res) => {
     const otpRecord = otpRows[0];
 
     const parseExpiresAt = (val: any): Date => {
-      if (val instanceof Date) return val;
+      if (val instanceof Date) {
+        return new Date(Date.UTC(
+          val.getFullYear(),
+          val.getMonth(),
+          val.getDate(),
+          val.getHours(),
+          val.getMinutes(),
+          val.getSeconds()
+        ));
+      }
       if (typeof val === "number") return new Date(val);
       if (typeof val === "string") {
         if (/^\d+$/.test(val)) return new Date(parseInt(val, 10));
-        return new Date(val);
+        let cleanVal = val.trim();
+        if (!cleanVal.endsWith("Z") && !cleanVal.includes("+") && !cleanVal.includes("GMT")) {
+          if (cleanVal.includes(" ") && !cleanVal.includes("T")) {
+            cleanVal = cleanVal.replace(" ", "T");
+          }
+          cleanVal += "Z";
+        }
+        return new Date(cleanVal);
       }
       return new Date(0);
     };

@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS segnalazioni (
   specie VARCHAR(50) NOT NULL,
   condizioni VARCHAR(255),
   descrizione TEXT,
-  foto_url TEXT,
+  foto_url LONGTEXT,
   latitudine DECIMAL(10, 8) NOT NULL,
   longitudine DECIMAL(11, 8) NOT NULL,
   indirizzo VARCHAR(255),
@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS registro_anagrafica (
   colore VARCHAR(100) NOT NULL,
   condizioni_sanitarie TEXT,
   stato VARCHAR(50) NOT NULL,
-  foto_url TEXT,
+  foto_url LONGTEXT,
   data_registrazione TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -491,6 +491,21 @@ CREATE TABLE IF NOT EXISTS admin_access_logs (
     user_agent TEXT,
     accesso_riuscito TINYINT(1) DEFAULT 1,
     note VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS citizen_profiles (
+    email VARCHAR(150) PRIMARY KEY,
+    nome VARCHAR(100),
+    cognome VARCHAR(100),
+    codice_fiscale VARCHAR(16),
+    telefono VARCHAR(30),
+    indirizzo VARCHAR(255),
+    comune_residenza VARCHAR(100),
+    sesso VARCHAR(10),
+    comune_nascita VARCHAR(100),
+    data_nascita VARCHAR(20),
+    is_spid_verified TINYINT(1) DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -529,6 +529,13 @@ export default function MiaArea() {
                       onChange={(e) => setOtp(e.target.value)}
                     />
                   </div>
+
+                  {error && (
+                    <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-xl text-xs font-bold text-center">
+                      {error}
+                    </div>
+                  )}
+
                   <button
                     disabled={otp.length !== 6 || loading}
                     onClick={handleVerifyOTP}

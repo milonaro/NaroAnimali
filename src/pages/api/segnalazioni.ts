@@ -296,12 +296,20 @@ router.post("/upload", async (req, res) => {
         const cleanBase64 = base64.replace(/^data:image\/\w+;base64,/, "");
         const buffer = Buffer.from(cleanBase64, 'base64');
         const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
-        if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
         
-        const fileExt = name ? (name.split('.').pop() || 'jpg') : 'jpg';
-        const fileName = `${Date.now()}_${name ? name.replace(/[^a-zA-Z0-9]/g, '_') : 'image'}.${fileExt}`;
-        await fs.promises.writeFile(path.join(uploadsDir, fileName), buffer);
-        res.json({ url: `/uploads/${fileName}` });
+        try {
+            if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+            
+            const fileExt = name ? (name.split('.').pop() || 'jpg') : 'jpg';
+            const fileName = `${Date.now()}_${name ? name.replace(/[^a-zA-Z0-9]/g, '_') : 'image'}.${fileExt}`;
+            await fs.promises.writeFile(path.join(uploadsDir, fileName), buffer);
+            return res.json({ url: `/uploads/${fileName}` });
+        } catch (writeError: any) {
+            console.warn("[Upload Resiliency Fallback] Scrittura locale su disco non consentita o fallita (ambiente serverless o di sola lettura):", writeError.message);
+            // Fallback: return direct base64 data URL which renders perfectly in any browser
+            const finalBase64 = base64.startsWith("data:") ? base64 : `data:image/jpeg;base64,${base64}`;
+            return res.json({ url: finalBase64 });
+        }
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }

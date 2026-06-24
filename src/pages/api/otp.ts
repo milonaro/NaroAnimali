@@ -65,11 +65,12 @@ router.post("/request", async (req, res) => {
   try {
     const otp = generateOTP();
     const expiresAt = new Date(Date.now() + 15 * 60000); // 15 minuti di validita'
+    const expiresAtStr = expiresAt.toISOString().replace('T', ' ').substring(0, 19);
 
     // Inserisce o aggiorna l'OTP per questa email
     await mysqlPool.execute(
       "INSERT INTO user_otps (email, otp_code, expires_at) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE otp_code = ?, expires_at = ?",
-      [email, otp, expiresAt, otp, expiresAt]
+      [email, otp, expiresAtStr, otp, expiresAtStr]
     );
 
     const ipHeader = req.ip || (req.headers['x-forwarded-for'] as string) || '';
@@ -177,15 +178,29 @@ router.post("/verify", async (req, res) => {
     }
 
     const parseExpiresAt = (val: any): Date => {
-      if (val instanceof Date) return val;
+      if (val instanceof Date) {
+        // extract year, month, date, hours, mins, secs as UTC components
+        // to counter any timezone shifting introduced by database drivers
+        return new Date(Date.UTC(
+          val.getFullYear(),
+          val.getMonth(),
+          val.getDate(),
+          val.getHours(),
+          val.getMinutes(),
+          val.getSeconds()
+        ));
+      }
       if (typeof val === "number") return new Date(val);
       if (typeof val === "string") {
         if (/^\d+$/.test(val)) {
           return new Date(parseInt(val, 10));
         }
-        let cleanVal = val;
-        if (val.includes(" ") && !val.includes("T")) {
-          cleanVal = val.replace(" ", "T");
+        let cleanVal = val.trim();
+        if (!cleanVal.endsWith("Z") && !cleanVal.includes("+") && !cleanVal.includes("GMT")) {
+          if (cleanVal.includes(" ") && !cleanVal.includes("T")) {
+            cleanVal = cleanVal.replace(" ", "T");
+          }
+          cleanVal += "Z";
         }
         return new Date(cleanVal);
       }
@@ -256,7 +271,7 @@ router.get("/me", async (req, res) => {
       } else {
         // Create default record if not present
         await mysqlPool.execute(
-          "INSERT INTO citizen_profiles (email, is_spid_verified) VALUES (?, 0) ON DUPLICATE KEY UPDATE email=email",
+          "INSERT INTO citizen_profiles (email, is_spid_verified) VALUES (?, 0)",
           [email]
         );
         profile = { email, is_spid_verified: 0 };
