@@ -5,7 +5,7 @@ import {
   Download, Filter, Search, User, FileSpreadsheet, Plus, 
   Activity, Star, Sparkles, Building, Phone, Calendar, CheckSquare,
   Dog, Cat, FileText, AlertTriangle, X, Printer, Lock,
-  GitMerge, GitCompare
+  GitMerge, GitCompare, Loader2, RefreshCw
 } from 'lucide-react';
 import AppMap from '@/src/components/map/Map';
 import { AnimalSpecie, SegnalazioneStato, Segnalazione } from '../types';
@@ -41,7 +41,7 @@ interface LogIntervento {
 }
 
 export default function Operatori() {
-  const [activeTab, setActiveTab] = useState<'statistiche' | 'modulo-b' | 'modulo-c' | 'modulo-adozioni' | 'gestione-operatori'>('statistiche');
+  const [activeTab, setActiveTab] = useState<'statistiche' | 'modulo-b' | 'modulo-c' | 'modulo-adozioni' | 'gestione-operatori' | 'richieste-iscrizione'>('statistiche');
   const [activeComune, setActiveComune] = useState(() => (localStorage.getItem('active_comune') || 'naro').toLowerCase());
   const [siteName, setSiteName] = useState("Comune di Naro");
   const [reports, setReports] = useState<Segnalazione[]>([]);
@@ -52,6 +52,14 @@ export default function Operatori() {
   const [logsOffset, setLogsOffset] = useState(0);
   const [hasMoreLogs, setHasMoreLogs] = useState(false);
   const [totalLogs, setTotalLogs] = useState(0);
+
+  // STATO GESTIONE RICHIESTE ISCRIZIONE ANAGRAFE CANINA DA CITTADINI
+  const [richieste, setRichieste] = useState<any[]>([]);
+  const [loadingRichieste, setLoadingRichieste] = useState(false);
+  const [selectedRichiesta, setSelectedRichiesta] = useState<any | null>(null);
+  const [noteRichiesta, setNoteRichiesta] = useState('');
+  const [filterStatoRichiesta, setFilterStatoRichiesta] = useState<string>('Tutte');
+  const [searchRichiesta, setSearchRichiesta] = useState('');
 
   // ECOSYSTEM STATE VARIABLES FOR ADOPTIONS & FINANCES
   const [adozioni, setAdozioni] = useState<any[]>([]);
@@ -1055,6 +1063,7 @@ export default function Operatori() {
     { id: 'statistiche', name: 'Dashboard Statistiche', allowed: currentUser?.role === 'ADMIN' || currentUser?.role === 'Admin' || currentUser?.visible_modules?.includes('statistiche') },
     { id: 'modulo-b', name: 'Modulo B — Operativa Uffici', allowed: !currentUser?.visible_modules || currentUser.visible_modules.includes('modulo-b') },
     { id: 'modulo-c', name: 'Modulo C — Archivio Digitale', allowed: !currentUser?.visible_modules || currentUser.visible_modules.includes('modulo-c') },
+    { id: 'richieste-iscrizione', name: 'Richieste Iscrizione 🐾', allowed: !currentUser?.visible_modules || currentUser.visible_modules.includes('modulo-c') },
     { id: 'modulo-adozioni', name: 'Modulo Adozioni & Costi', allowed: !currentUser?.visible_modules || currentUser.visible_modules.includes('modulo-adozioni') },
     { id: 'gestione-operatori', name: 'Gestione Operatori 👥', allowed: currentUser?.role === 'ADMIN' || currentUser?.role === 'Admin' }
   ];
@@ -1556,6 +1565,385 @@ export default function Operatori() {
       </div>
     );
   }
+
+  const loadRichieste = async () => {
+    setLoadingRichieste(true);
+    try {
+      const res = await fetch('/api/registro/richieste');
+      if (res.ok) {
+        const data = await res.json();
+        setRichieste(data);
+      }
+    } catch (e) {
+      console.error("Errore nel caricamento delle richieste:", e);
+    } finally {
+      setLoadingRichieste(false);
+    }
+  };
+
+  const handleUpdateRichiestaStato = async (id: number, nuovoStato: string) => {
+    try {
+      const res = await fetch(`/api/registro/richieste/${id}/stato`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stato: nuovoStato, note: noteRichiesta })
+      });
+      if (res.ok) {
+        setNoteRichiesta('');
+        setSelectedRichiesta(null);
+        loadRichieste();
+        // Also refresh regular registry in case it changed to registered/approved
+        const regRes = await fetch('/api/registro');
+        if (regRes.ok) {
+          const regData = await regRes.json();
+          setRegistro(regData);
+        }
+      } else {
+        const errData = await res.json();
+        alert("Errore: " + (errData.error || "Impossibile aggiornare lo stato"));
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Errore di connessione");
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'richieste-iscrizione') {
+      loadRichieste();
+    }
+  }, [activeTab]);
+
+  const renderRichiesteIscrizione = () => {
+    const filtered = richieste.filter((item) => {
+      // Filter by status
+      if (filterStatoRichiesta !== 'Tutte') {
+        if (filterStatoRichiesta === 'In attesa' && item.stato !== 'IN_ATTESA') return false;
+        if (filterStatoRichiesta === 'In transito' && item.stato !== 'IN_LAVORAZIONE') return false;
+        if (filterStatoRichiesta === 'Approvate' && (item.stato !== 'APPROVATA' && item.stato !== 'ISCRITTO' && item.stato !== 'REGISTRATO' && item.stato !== 'LIBERO' && item.stato !== 'ADOTTATO')) return false;
+        if (filterStatoRichiesta === 'Respinte' && item.stato !== 'RESPINTA') return false;
+      }
+      // Filter by search
+      if (searchRichiesta) {
+        const s = searchRichiesta.toLowerCase();
+        return (
+          item.nome?.toLowerCase().includes(s) ||
+          item.microchip?.includes(s) ||
+          item.proprietario_email?.toLowerCase().includes(s) ||
+          item.citizen_nome?.toLowerCase().includes(s) ||
+          item.citizen_cognome?.toLowerCase().includes(s) ||
+          item.citizen_cf?.toLowerCase().includes(s)
+        );
+      }
+      return true;
+    });
+
+    return (
+      <div className="space-y-6">
+        {/* Module Header */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h3 className="text-xl font-black text-[#1e3a5f] flex items-center gap-2">
+              <span>Gestione Iscrizioni Anagrafe Canina</span>
+              <span className="bg-emerald-100 text-emerald-800 text-[10px] uppercase font-black tracking-widest px-2.5 py-1 rounded-full">
+                Cittadini 🐾
+              </span>
+            </h3>
+            <p className="text-xs text-slate-500 font-semibold mt-1">
+              Pannello di verifica e approvazione delle pratiche di prima iscrizione inserite in autonomia dai cittadini.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={loadRichieste}
+              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all cursor-pointer"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${loadingRichieste ? 'animate-spin' : ''}`} /> Aggiorna Lista
+            </button>
+          </div>
+        </div>
+
+        {/* Filters Panel */}
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Cerca per microchip, cane, cittadino, CF..."
+              value={searchRichiesta}
+              onChange={(e) => setSearchRichiesta(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm text-[#1e3a5f] focus:bg-white focus:border-[#15803d] outline-none transition-all"
+            />
+          </div>
+
+          {/* Status Tabs */}
+          <div className="col-span-2 flex flex-wrap gap-2 md:justify-end">
+            {['Tutte', 'In attesa', 'In transito', 'Approvate', 'Respinte'].map((st) => {
+              const count = richieste.filter((r) => {
+                if (st === 'Tutte') return true;
+                if (st === 'In attesa') return r.stato === 'IN_ATTESA';
+                if (st === 'In transito') return r.stato === 'IN_LAVORAZIONE';
+                if (st === 'Approvate') return r.stato === 'APPROVATA' || r.stato === 'ISCRITTO' || r.stato === 'REGISTRATO' || r.stato === 'LIBERO' || r.stato === 'ADOTTATO';
+                if (st === 'Respinte') return r.stato === 'RESPINTA';
+                return false;
+              }).length;
+
+              return (
+                <button
+                  key={st}
+                  onClick={() => setFilterStatoRichiesta(st)}
+                  className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer ${
+                    filterStatoRichiesta === st
+                      ? 'bg-[#15803d] text-white shadow-sm shadow-[#15803d]/10'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                  }`}
+                >
+                  {st} ({count})
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* List & Detail Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* List of Requests */}
+          <div className={`${selectedRichiesta ? 'lg:col-span-7' : 'lg:col-span-12'} space-y-4`}>
+            {loadingRichieste ? (
+              <div className="p-16 text-center text-slate-500 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-3">
+                <Loader2 className="h-8 w-8 text-[#15803d] animate-spin" />
+                <span className="font-bold text-sm uppercase tracking-wider">Caricamento pratiche in corso...</span>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="p-16 text-center text-slate-400 bg-white rounded-2xl border border-slate-200/80 shadow-sm font-medium">
+                Nessuna richiesta di iscrizione corrisponde ai filtri selezionati.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-4">
+                {filtered.map((item) => {
+                  const isSelected = selectedRichiesta?.id === item.id;
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => {
+                        setSelectedRichiesta(item);
+                        setNoteRichiesta('');
+                      }}
+                      className={`bg-white rounded-2xl border p-5 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between relative overflow-hidden ${
+                        isSelected ? 'ring-2 ring-[#15803d] border-transparent' : 'border-slate-200/80'
+                      }`}
+                    >
+                      {/* Left accent strip by status */}
+                      <div className={`absolute top-0 bottom-0 left-0 w-1.5 ${
+                        item.stato === 'IN_ATTESA' ? 'bg-amber-500' :
+                        item.stato === 'IN_LAVORAZIONE' ? 'bg-blue-500' :
+                        item.stato === 'RESPINTA' ? 'bg-red-500' : 'bg-emerald-500'
+                      }`} />
+
+                      <div>
+                        {/* Card Header */}
+                        <div className="flex justify-between items-start gap-2 mb-3 pl-2">
+                          <div>
+                            <span className="text-[10px] font-mono font-black text-[#1e3a5f] tracking-widest block bg-slate-100 px-2.5 py-1 rounded">
+                              MC: {item.microchip}
+                            </span>
+                          </div>
+                          <span className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-full text-white ${
+                            item.stato === 'IN_ATTESA' ? 'bg-amber-500' :
+                            item.stato === 'IN_LAVORAZIONE' ? 'bg-blue-500' :
+                            item.stato === 'RESPINTA' ? 'bg-red-500' : 'bg-emerald-500'
+                          }`}>
+                            {item.stato === 'IN_ATTESA' ? "In attesa d'ufficio" :
+                             item.stato === 'IN_LAVORAZIONE' ? "In transito" :
+                             item.stato === 'RESPINTA' ? "Respinta" : "Approvata/Iscritta"}
+                          </span>
+                        </div>
+
+                        {/* Dog info */}
+                        <div className="flex gap-4 items-center pl-2 my-3">
+                          <img
+                            src={item.foto_url || item.fotoUrl || 'https://images.unsplash.com/photo-1544568100-847a948585b9?auto=format&fit=crop&q=80&w=300'}
+                            alt={item.nome}
+                            referrerPolicy="no-referrer"
+                            className="w-14 h-14 object-cover rounded-xl border border-slate-100"
+                          />
+                          <div>
+                            <h4 className="text-base font-black text-[#1e3a5f]">{item.nome}</h4>
+                            <p className="text-xs text-slate-500 font-semibold">
+                              {item.specie} · {item.sesso === 'M' ? '♀ Maschio' : '♂ Femmina'} · {item.colore}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Owner minimal */}
+                        <div className="mt-4 pt-3 border-t border-slate-100 pl-2 text-xs font-semibold text-slate-600">
+                          <div className="flex justify-between">
+                            <span className="text-slate-400 text-[10px] uppercase font-bold">Cittadino</span>
+                            <span className="text-slate-400 text-[10px] uppercase font-bold">Codice Fiscale</span>
+                          </div>
+                          <div className="flex justify-between mt-1">
+                            <span className="font-extrabold text-[#1e3a5f]">
+                              {item.citizen_nome && item.citizen_cognome ? `${item.citizen_nome} ${item.citizen_cognome}` : item.proprietario_email}
+                            </span>
+                            <span className="font-mono text-slate-500">{item.citizen_cf || 'N/D'}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-[10px] font-bold text-slate-400 pl-2">
+                        <span>Caricato: {item.dataSincronizzazione || 'Di recente'}</span>
+                        <span className="text-[#15803d] hover:underline uppercase tracking-wider font-extrabold flex items-center gap-1.5">
+                          Gestisci Pratica →
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Details Sidebar / Panel */}
+          {selectedRichiesta && (
+            <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-200/80 p-6 shadow-md space-y-6 sticky top-24 animate-fadeIn">
+              <div className="flex justify-between items-center pb-4 border-b border-slate-100">
+                <h4 className="text-base font-black text-[#1e3a5f] uppercase tracking-wider">
+                  Dettagli Pratica Iscrizione
+                </h4>
+                <button
+                  onClick={() => setSelectedRichiesta(null)}
+                  className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-all cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Status banner */}
+              <div className={`p-3.5 rounded-xl text-center text-xs font-black uppercase tracking-wider border ${
+                selectedRichiesta.stato === 'IN_ATTESA' ? 'bg-amber-50 text-amber-600 border-amber-200' :
+                selectedRichiesta.stato === 'IN_LAVORAZIONE' ? 'bg-blue-50 text-blue-600 border-blue-200' :
+                selectedRichiesta.stato === 'RESPINTA' ? 'bg-red-50 text-red-600 border-red-200' :
+                'bg-emerald-50 text-emerald-600 border-emerald-200'
+              }`}>
+                {selectedRichiesta.stato === 'IN_ATTESA' ? "Stato attuale: IN ATTESA DI VERIFICA" :
+                 selectedRichiesta.stato === 'IN_LAVORAZIONE' ? "Stato attuale: IN TRANSITO / IN LAVORAZIONE" :
+                 selectedRichiesta.stato === 'RESPINTA' ? "Stato attuale: PRATICA RESPINTA" :
+                 "Stato attuale: ISCRITTO / APPROVATA"}
+              </div>
+
+              {/* Dog Section */}
+              <div className="space-y-3">
+                <h5 className="text-[11px] font-black uppercase tracking-wider text-slate-400 border-b pb-1.5">Soggetto da Iscrivere</h5>
+                <div className="flex gap-4 items-start bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <img
+                    src={selectedRichiesta.foto_url || selectedRichiesta.fotoUrl || 'https://images.unsplash.com/photo-1544568100-847a948585b9?auto=format&fit=crop&q=80&w=300'}
+                    alt={selectedRichiesta.nome}
+                    referrerPolicy="no-referrer"
+                    className="w-20 h-20 object-cover rounded-xl border border-slate-200 shrink-0"
+                  />
+                  <div className="text-xs space-y-1.5 font-semibold text-slate-600">
+                    <p className="text-sm font-black text-[#1e3a5f]">{selectedRichiesta.nome}</p>
+                    <p><strong>Microchip:</strong> <span className="font-mono bg-white border border-slate-100 px-1 rounded text-sm text-[#1e3a5f] font-black">{selectedRichiesta.microchip}</span></p>
+                    <p><strong>Identikit:</strong> {selectedRichiesta.specie} · {selectedRichiesta.sesso === 'M' ? '♂ Maschio' : '♀ Femmina'}</p>
+                    <p><strong>Taglia / Colore:</strong> {selectedRichiesta.taglia} · {selectedRichiesta.colore}</p>
+                    <p><strong>Salute:</strong> <span className="text-red-500 font-bold">{selectedRichiesta.condizioni_sanitarie || selectedRichiesta.condizioniSanitarie || 'Sano'}</span></p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Citizen Section */}
+              <div className="space-y-3">
+                <h5 className="text-[11px] font-black uppercase tracking-wider text-slate-400 border-b pb-1.5">Richiedente (Proprietario)</h5>
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3 text-xs font-semibold text-slate-600">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block uppercase font-bold">Cognome e Nome</span>
+                      <span className="text-sm font-black text-[#1e3a5f]">
+                        {selectedRichiesta.citizen_cognome || ''} {selectedRichiesta.citizen_nome || 'Utente SPID/OTP'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block uppercase font-bold">Codice Fiscale</span>
+                      <span className="font-mono text-sm font-black text-[#1e3a5f] uppercase">
+                        {selectedRichiesta.citizen_cf || 'Non calcolato'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 pt-2.5 border-t border-slate-200/50">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block uppercase font-bold">Telefono</span>
+                      <span className="text-[#1e3a5f] font-extrabold">{selectedRichiesta.citizen_telefono || 'N/D'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block uppercase font-bold">Indirizzo Residenza</span>
+                      <span className="text-[#1e3a5f] font-extrabold truncate block">
+                        {selectedRichiesta.citizen_indirizzo || 'N/D'} {selectedRichiesta.citizen_comune_residenza ? `(${selectedRichiesta.citizen_comune_residenza})` : ''}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="pt-2.5 border-t border-slate-200/50">
+                    <span className="text-[10px] text-slate-400 block uppercase font-bold">Email Registrata</span>
+                    <span className="text-slate-500 font-bold font-mono">{selectedRichiesta.proprietario_email}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Notes Input */}
+              {currentUser?.role !== 'Volontario' && (
+                <div className="space-y-4 pt-4 border-t border-slate-100">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      Note Interne / Motivazione (opzionale)
+                    </label>
+                    <textarea
+                      placeholder="Scrivi qui eventuali note di istruttoria o la motivazione del rigetto della pratica..."
+                      value={noteRichiesta}
+                      onChange={(e) => setNoteRichiesta(e.target.value)}
+                      rows={3}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 font-semibold text-slate-800 focus:bg-white focus:border-[#15803d] outline-none transition-all text-sm resize-none"
+                    />
+                  </div>
+
+                  {/* Operational buttons */}
+                  <div className="grid grid-cols-2 gap-3">
+                    {selectedRichiesta.stato === 'IN_ATTESA' && (
+                      <button
+                        onClick={() => handleUpdateRichiestaStato(selectedRichiesta.id, 'IN_LAVORAZIONE')}
+                        className="col-span-2 py-3 bg-blue-50 hover:bg-blue-100 text-blue-700 font-black text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer border border-blue-200/80 flex items-center justify-center gap-1.5"
+                      >
+                        Metti in lavorazione ⚙️
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => handleUpdateRichiestaStato(selectedRichiesta.id, 'RESPINTA')}
+                      className="py-3 bg-red-50 hover:bg-red-100 text-red-600 font-black text-[11px] uppercase tracking-wider rounded-xl transition-all cursor-pointer border border-red-200/80 flex items-center justify-center gap-1.5"
+                    >
+                      Respingi Pratica ✖
+                    </button>
+
+                    <button
+                      onClick={() => handleUpdateRichiestaStato(selectedRichiesta.id, 'APPROVATA')}
+                      className="py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[11px] uppercase tracking-wider rounded-xl shadow-sm transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      Approva Iscrizione ✔
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {currentUser?.role === 'Volontario' && (
+                <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-center text-[11px] font-bold text-amber-700">
+                  ⚠️ In qualità di Volontario, non hai i privileges amministrativi per variare lo stato delle pratiche dei cittadini.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-slate-50/70 pb-32 pt-24" style={{ borderWidth: '0px', paddingTop: '110px' }}>
@@ -4120,6 +4508,8 @@ export default function Operatori() {
             )}
 
           </div>
+        ) : activeTab === 'richieste-iscrizione' ? (
+          renderRichiesteIscrizione()
         ) : activeTab === 'gestione-operatori' ? (
           <GestioneOperatoriTab currentUser={currentUser} />
         ) : null}

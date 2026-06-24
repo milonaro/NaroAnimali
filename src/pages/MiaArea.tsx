@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Mail, ShieldCheck, Search, Clock, CheckCircle2, ChevronRight, ChevronDown, ArrowLeft, Loader2, MapPin, Activity, HelpCircle, Info, Download, BarChart3, Maximize2, Plus, FileText, Cloud, Upload, Database, Trash2, RefreshCw, LogOut } from 'lucide-react';
+import { Mail, ShieldCheck, Search, Clock, CheckCircle2, ChevronRight, ChevronDown, ArrowLeft, Loader2, MapPin, Activity, HelpCircle, Info, Download, BarChart3, Maximize2, Plus, FileText, Cloud, Upload, Database, Trash2, RefreshCw, LogOut, AlertTriangle, Dog } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
@@ -641,7 +641,7 @@ export default function MiaArea() {
                             <div>
                               <h2 className="text-xl sm:text-2xl font-black text-[#1e3a5f] tracking-tight mb-2">Le Mie Segnalazioni</h2>
                               <p className="text-gray-500 text-xs sm:text-sm font-medium leading-relaxed max-w-2xl">
-                                Elenco e stato di avanzamento delle segnalazioni di soccorso inviate da questa utenza nel territorio di Naro.
+                                Elenco e stato di avanzamento delle segnalazioni di soccorso inviate da questa utenza nel territory di Naro.
                               </p>
                             </div>
                             
@@ -666,49 +666,137 @@ export default function MiaArea() {
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8">
-                            {reports.map((item, i) => (
-                              <div 
-                                key={i} 
-                                onClick={() => {
-                                  setSelectedReport(item);
-                                  fetchReportLogs(item.code);
-                                }}
-                                className="bg-white border-2 border-transparent p-4 sm:p-10 rounded-xl shadow-md sm:shadow-xl hover:shadow-2xl hover:border-[#15803d]/20 transition-all cursor-pointer group relative overflow-hidden"
-                              >
-                                 {/* Status Bar */}
-                                <div className={`absolute top-0 left-0 right-0 h-1.5 sm:h-2 ${
-                                  item.status === 'CHIUSA' ? 'bg-emerald-500' : 'bg-amber-500'
-                                }`} />
+                          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start mt-6">
+                            {/* Colonna Sinistra: Segnalazioni Soccorso (col-span-7) */}
+                            <div className="lg:col-span-7 space-y-6">
+                              {reports.length === 0 ? (
+                                <div className="bg-white border border-slate-200/85 p-12 rounded-2xl text-center text-slate-400 shadow-sm">
+                                  <AlertTriangle className="h-10 w-10 text-slate-350 mx-auto mb-3" />
+                                  <p className="font-bold text-sm text-[#1e3a5f] uppercase tracking-wider">Nessuna Segnalazione</p>
+                                  <p className="text-xs text-slate-500 mt-1">Non risultano segnalazioni di soccorso inviate da questo indirizzo email.</p>
+                                </div>
+                              ) : (
+                                <div className="space-y-6">
+                                  {reports.map((item, i) => (
+                                    <div 
+                                      key={i} 
+                                      onClick={() => {
+                                        setSelectedReport(item);
+                                        fetchReportLogs(item.code);
+                                      }}
+                                      className="bg-white border-2 border-transparent p-6 sm:p-8 rounded-xl shadow-md hover:shadow-lg hover:border-[#15803d]/20 transition-all cursor-pointer group relative overflow-hidden text-left"
+                                    >
+                                      {/* Status Bar */}
+                                      <div className={`absolute top-0 left-0 right-0 h-1.5 ${
+                                        item.status === 'CHIUSA' ? 'bg-emerald-500' : 'bg-amber-500'
+                                      }`} />
 
-                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1.5 sm:gap-4 mb-3 sm:mb-8">
-                                  <span className="bg-gray-50 text-[#1e3a5f] px-1.5 py-0.5 sm:px-3 sm:py-1.5 rounded-md sm:rounded-lg text-[8px] sm:text-[10px] font-bold uppercase tracking-widest border border-gray-100">{item.code}</span>
-                                  <span className={`px-1.5 py-0.5 sm:px-4 sm:py-1.5 rounded-md sm:rounded-full text-[7px] sm:text-[9px] font-bold uppercase tracking-widest ${
-                                    item.status === 'CHIUSA' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100'
-                                  }`}>
-                                    {item.status.replace('_', ' ')}
-                                  </span>
+                                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1.5 sm:gap-4 mb-3 sm:mb-6">
+                                        <span className="bg-gray-50 text-[#1e3a5f] px-3 py-1 rounded-md text-[9px] font-bold uppercase tracking-widest border border-gray-100">{item.code}</span>
+                                        <span className={`px-3 py-1 rounded-full text-[8px] font-bold uppercase tracking-widest ${
+                                          item.status === 'CHIUSA' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100'
+                                        }`}>
+                                          {item.status.replace('_', ' ')}
+                                        </span>
+                                      </div>
+                                      <h3 className="text-base sm:text-xl font-bold text-[#1e3a5f] mb-2 leading-tight group-hover:text-[#15803d] transition-colors line-clamp-2">{item.desc}</h3>
+                                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-6 mt-4">
+                                        <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-400">
+                                          <Clock className="h-3.5 w-3.5" /> {item.date}
+                                        </div>
+                                        <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-400">
+                                          <MapPin className="h-3.5 w-3.5" /> {item.specie}
+                                        </div>
+                                      </div>
+                                      <div className="mt-6 pt-4 border-t border-gray-50 flex justify-between items-center text-[9px] uppercase tracking-widest font-bold text-[#15803d] group-hover:translate-x-1.5 transition-transform">
+                                        <span>Dettagli e storico intervento</span> <ChevronRight className="h-3.5 w-3.5" />
+                                      </div>
+                                    </div>
+                                  ))}
                                 </div>
-                                <h3 className="text-xs sm:text-2xl font-bold text-[#1e3a5f] mb-1 sm:mb-4 leading-tight group-hover:text-[#15803d] transition-colors line-clamp-2 sm:line-clamp-none">{item.desc}</h3>
-                                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-6">
-                                   <div className="flex items-center gap-1 sm:gap-2 text-[8px] sm:text-xs font-semibold text-gray-400">
-                                     <Clock className="h-3 w-3 sm:h-4 sm:w-4" /> {item.date}
-                                   </div>
-                                   <div className="flex items-center gap-1 sm:gap-2 text-[8px] sm:text-xs font-semibold text-gray-400">
-                                     <MapPin className="h-3 w-3 sm:h-4 sm:w-4" /> {item.specie}
-                                   </div>
+                              )}
+                            </div>
+
+                            {/* Colonna Destra: Cani Registrati & Stato Pratiche (col-span-5) */}
+                            <div className="lg:col-span-5 space-y-6">
+                              <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4 text-left">
+                                <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+                                  <h3 className="text-sm font-black text-[#1e3a5f] uppercase tracking-wider flex items-center gap-2">
+                                    <span>I Miei Cani / Animali</span>
+                                    <span className="bg-[#15803d] text-white text-[9px] font-black px-2.5 py-0.5 rounded-full">
+                                      {animals.length}
+                                    </span>
+                                  </h3>
+                                  <button
+                                    onClick={() => setActiveTab('anagrafe')}
+                                    className="text-xs font-black text-[#15803d] hover:underline cursor-pointer"
+                                  >
+                                    Nuova Registrazione +
+                                  </button>
                                 </div>
-                                <div className="mt-3 sm:mt-10 pt-3 sm:pt-8 border-t border-gray-50 flex justify-between items-center text-[8px] sm:text-[10px] uppercase tracking-widest font-bold text-[#15803d] group-hover:translate-x-1 sm:group-hover:translate-x-2 transition-transform">
-                                  <span>Gestione Pratica</span> <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
-                                </div>
+
+                                {animals.length === 0 ? (
+                                  <div className="p-6 text-center text-slate-400 border-2 border-dashed border-slate-100 rounded-xl space-y-2">
+                                    <Dog className="h-8 w-8 text-slate-350 mx-auto mb-2" />
+                                    <p className="text-xs font-bold text-[#1e3a5f]">Nessun cane registrato</p>
+                                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                                      Non hai ancora inserito nessun animale nell'Anagrafe Canina di Naro. Clicca sul tasto sopra per iniziare.
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <div className="space-y-4 max-h-[480px] overflow-y-auto pr-1">
+                                    {animals.map((anim, idx) => (
+                                      <div key={anim.id || idx} className="p-4 bg-slate-50 border border-slate-200/80 rounded-xl relative overflow-hidden flex flex-col justify-between gap-3 shadow-sm">
+                                        <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${
+                                          anim.stato === 'IN_ATTESA' ? 'bg-amber-400' :
+                                          anim.stato === 'IN_LAVORAZIONE' ? 'bg-blue-400' :
+                                          anim.stato === 'RESPINTA' ? 'bg-red-400' : 'bg-emerald-400'
+                                        }`} />
+                                        <div className="pl-2 flex justify-between items-start">
+                                          <div>
+                                            <h4 className="text-sm font-black text-[#1e3a5f] flex items-center gap-1.5">
+                                              <span>{anim.nome}</span>
+                                              <span className="text-[9px] text-slate-400">({anim.specie})</span>
+                                            </h4>
+                                            <p className="text-[10px] text-slate-400 font-mono mt-0.5">MC: {anim.microchip}</p>
+                                          </div>
+                                          <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full border ${
+                                            anim.stato === 'IN_ATTESA' ? 'bg-amber-50 text-amber-600 border-amber-200' :
+                                            anim.stato === 'IN_LAVORAZIONE' ? 'bg-blue-50 text-blue-600 border-blue-200' :
+                                            anim.stato === 'RESPINTA' ? 'bg-red-50 text-red-600 border-red-200' :
+                                            'bg-emerald-50 text-emerald-600 border-emerald-200'
+                                          }`}>
+                                            {anim.stato === 'IN_ATTESA' ? "In attesa" :
+                                             anim.stato === 'IN_LAVORAZIONE' ? "In transito" :
+                                             anim.stato === 'RESPINTA' ? "Respinta" : "Approvata"}
+                                          </span>
+                                        </div>
+
+                                        {anim.last_log_note && (
+                                          <div className="ml-2 p-2 bg-white rounded border border-slate-100 text-[10px] text-slate-500 font-semibold italic">
+                                            Aggiornamento d'ufficio: "{anim.last_log_note}"
+                                          </div>
+                                        )}
+
+                                        {anim.stato !== 'RESPINTA' && (
+                                          <div className="pl-2 flex justify-end">
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                generateAnimalCertificate(anim);
+                                              }}
+                                              className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-slate-200 hover:border-emerald-250 text-slate-700 hover:text-[#15803d] rounded-lg text-[9px] font-black uppercase tracking-wider cursor-pointer shadow-sm"
+                                            >
+                                              <Download className="h-3 w-3" /> Attestato {anim.stato === 'IN_ATTESA' || anim.stato === 'IN_LAVORAZIONE' ? 'Provv.' : 'Ufficiale'}
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
-                            ))}
-                          </div>
-
-                          <div className="bg-emerald-50/30 rounded-lg p-24 text-center border-4 border-dashed border-emerald-100">
-                            <Search className="h-16 w-16 text-emerald-200 mx-auto mb-8" />
-                            <h3 className="text-xl font-bold text-[#1e3a5f]">Nessun altro record</h3>
-                            <p className="text-gray-500 font-medium max-w-xs mx-auto mt-4 px-8 leading-relaxed">Il tuo archivio storico mostra solo le attività recenti associate a questa utenza.</p>
+                            </div>
                           </div>
                         </>
                       ) : activeTab === 'anagrafe' ? (
@@ -895,47 +983,70 @@ export default function MiaArea() {
                                   {animals.map((anim, idx) => (
                                     <div 
                                       key={anim.id || idx} 
-                                      className="bg-slate-50 border border-slate-200/80 rounded-xl p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative overflow-hidden"
+                                      className="bg-slate-50 border border-slate-200/80 rounded-xl p-5 flex flex-col justify-between gap-4 relative overflow-hidden"
                                     >
                                       {/* Barretta di stato colorata */}
                                       <div className={`absolute top-0 bottom-0 left-0 w-1.5 ${
-                                        anim.stato === 'IN_ATTESA' ? 'bg-amber-400' : 'bg-emerald-500'
+                                        anim.stato === 'IN_ATTESA' ? 'bg-amber-400' :
+                                        anim.stato === 'IN_LAVORAZIONE' ? 'bg-blue-500' :
+                                        anim.stato === 'RESPINTA' ? 'bg-red-500' : 'bg-emerald-500'
                                       }`} />
 
-                                      <div className="pl-3 space-y-1 text-left">
-                                        <div className="flex items-center gap-3">
-                                          <h4 className="text-base font-black text-[#101b3a] leading-none mb-0.5">{anim.nome}</h4>
-                                          <span className="bg-white border border-slate-200 text-[#101b3a] text-[9px] font-mono font-bold px-2 py-0.5 rounded-md">
-                                            {anim.specie === 'Cane' ? '🐶 CANE' : anim.specie === 'Gatto' ? '🐱 GATTO' : `🐾 ${anim.specie.toUpperCase()}`}
-                                          </span>
+                                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 w-full">
+                                        <div className="pl-3 space-y-1 text-left">
+                                          <div className="flex items-center gap-3">
+                                            <h4 className="text-base font-black text-[#101b3a] leading-none mb-0.5">{anim.nome}</h4>
+                                            <span className="bg-white border border-slate-200 text-[#101b3a] text-[9px] font-mono font-bold px-2 py-0.5 rounded-md">
+                                              {anim.specie === 'Cane' ? '🐶 CANE' : anim.specie === 'Gatto' ? '🐱 GATTO' : `🐾 ${anim.specie.toUpperCase()}`}
+                                            </span>
+                                          </div>
+                                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">
+                                            Microchip: <span className="font-mono text-xs font-bold text-slate-600 tracking-wider font-semibold">{anim.microchip}</span>
+                                          </p>
+                                          <div className="flex items-center gap-4 text-xs font-medium text-slate-500 mt-1.5">
+                                            <span>Sesso: <strong>{anim.sesso === 'M' ? 'M' : 'F'}</strong></span>
+                                            <span className="w-1.5 h-1.5 bg-slate-300 rounded-full" />
+                                            <span>Taglia: <strong>{anim.taglia}</strong></span>
+                                            <span className="w-1.5 h-1.5 bg-slate-300 rounded-full" />
+                                            <span>Mantello: <strong>{anim.colore}</strong></span>
+                                          </div>
                                         </div>
-                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">
-                                          Microchip: <span className="font-mono text-xs font-bold text-slate-600 tracking-wider font-semibold">{anim.microchip}</span>
-                                        </p>
-                                        <div className="flex items-center gap-4 text-xs font-medium text-slate-500 mt-1.5">
-                                          <span>Sesso: <strong>{anim.sesso === 'M' ? 'M' : 'F'}</strong></span>
-                                          <span className="w-1.5 h-1.5 bg-slate-300 rounded-full" />
-                                          <span>Taglia: <strong>{anim.taglia}</strong></span>
-                                          <span className="w-1.5 h-1.5 bg-slate-300 rounded-full" />
-                                          <span>Mantello: <strong>{anim.colore}</strong></span>
+
+                                        <div className="flex sm:flex-col items-start sm:items-end gap-3 w-full sm:w-auto">
+                                          <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border ${
+                                            anim.stato === 'IN_ATTESA'
+                                              ? 'bg-amber-50 text-amber-600 border-amber-200'
+                                              : anim.stato === 'IN_LAVORAZIONE'
+                                              ? 'bg-blue-50 text-blue-600 border-blue-200'
+                                              : anim.stato === 'RESPINTA'
+                                              ? 'bg-red-50 text-red-600 border-red-200'
+                                              : 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                                          }`}>
+                                            {anim.stato === 'IN_ATTESA' ? "In attesa d'ufficio" :
+                                             anim.stato === 'IN_LAVORAZIONE' ? "In transito / In lavorazione" :
+                                             anim.stato === 'RESPINTA' ? "Pratica Respinta" :
+                                             "Iscritto all'Anagrafe"}
+                                          </span>
+                                          {anim.stato !== 'RESPINTA' ? (
+                                            <button 
+                                              onClick={() => generateAnimalCertificate(anim)}
+                                              className="flex items-center gap-1.5 bg-white border border-slate-200 hover:border-emerald-200 text-[#101b3a] hover:text-[#15803d] transition-all px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider shadow-sm cursor-pointer ml-auto sm:ml-0"
+                                            >
+                                              <Download className="h-3.5 w-3.5" /> Scarica Attestato {anim.stato === 'IN_ATTESA' || anim.stato === 'IN_LAVORAZIONE' ? 'Provv.' : ''}
+                                            </button>
+                                          ) : (
+                                            <span className="text-[10px] text-red-500 font-extrabold uppercase">Pratica Chiusa</span>
+                                          )}
                                         </div>
                                       </div>
 
-                                      <div className="flex sm:flex-col items-start sm:items-end gap-3 w-full sm:w-auto">
-                                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border ${
-                                          anim.stato === 'IN_ATTESA'
-                                            ? 'bg-amber-50 text-amber-600 border-amber-200'
-                                            : 'bg-emerald-50 text-emerald-600 border-emerald-200'
-                                        }`}>
-                                          {anim.stato === 'IN_ATTESA' ? "In attesa d'ufficio" : "Iscritto all'Anagrafe"}
-                                        </span>
-                                        <button 
-                                          onClick={() => generateAnimalCertificate(anim)}
-                                          className="flex items-center gap-1.5 bg-white border border-slate-200 hover:border-emerald-200 text-[#101b3a] hover:text-[#15803d] transition-all px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider shadow-sm cursor-pointer ml-auto sm:ml-0"
-                                        >
-                                          <Download className="h-3.5 w-3.5" /> Scarica Attestato
-                                        </button>
-                                      </div>
+                                      {/* Se presente una nota dell'operatore o stato, mostriamola per dare totale trasparenza al cittadino */}
+                                      {anim.last_log_note && (
+                                        <div className="mt-2 ml-3 p-3 bg-slate-100 rounded-lg border border-slate-200 text-xs text-slate-600">
+                                          <p className="font-bold text-[10px] text-slate-400 uppercase tracking-wider mb-1">Nota dell'Ufficio Comunale</p>
+                                          <p className="font-semibold">{anim.last_log_note}</p>
+                                        </div>
+                                      )}
                                     </div>
                                   ))}
                                 </div>

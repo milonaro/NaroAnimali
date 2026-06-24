@@ -786,10 +786,25 @@ app.get("/api/registro/my-animals", async (req, res) => {
   
   if (!mysqlPool || !getIsMysqlHealthy()) return res.json([]);
   try {
-    const [rows] = await mysqlPool.execute("SELECT * FROM registro_anagrafica WHERE proprietario_email = ? ORDER BY id DESC", [email]);
-    res.json(rows);
+    const [rows]: any = await mysqlPool.execute("SELECT * FROM registro_anagrafica WHERE proprietario_email = ? ORDER BY id DESC", [email]);
+    
+    // Fetch the latest log notes for each animal to show transition notes (e.g. rejection reason)
+    const animalsWithLogs = [];
+    for (const anim of rows) {
+      const code = `ISCR-${anim.microchip.substring(0, 6)}`;
+      const [logRows]: any = await mysqlPool.execute(
+        "SELECT note FROM interventi_logs WHERE (segnalazione_codice = ? OR note LIKE ?) ORDER BY id DESC LIMIT 1",
+        [code, `%microchip: ${anim.microchip}%`]
+      );
+      animalsWithLogs.push({
+        ...anim,
+        last_log_note: logRows && logRows[0] ? logRows[0].note : null
+      });
+    }
+    
+    res.json(animalsWithLogs);
   } catch (err: any) {
-    console.error("Errore recupero animali cittadino:", err.message);
+    console.error("Errore recupero animali cittadino con logs:", err.message);
     res.status(500).json({ error: "Errore interno del server" });
   }
 });
@@ -890,6 +905,66 @@ app.put("/api/registro/:id", requireAuth(["ADMIN", "POLIZIA_LOCALE", "CANILE_SAN
     [data.nome, data.specie, data.sesso, data.taglia, data.colore, data.condizioniSanitarie, data.stato, data.fotoUrl, id]
   );
   res.json({ success: true });
+});
+
+app.get("/api/registro/richieste", requireAuth(["ADMIN", "POLIZIA_LOCALE", "CANILE_SANITARIO", "VOLONTARIO"]), async (req, res) => {
+  if (!mysqlPool || !getIsMysqlHealthy()) return res.json([]);
+  try {
+    const [rows] = await mysqlPool.execute(`
+      SELECT r.*, 
+             c.nome as citizen_nome, 
+             c.cognome as citizen_cognome, 
+             c.codice_fiscale as citizen_cf, 
+             c.telefono as citizen_telefono, 
+             c.indirizzo as citizen_indirizzo, 
+             c.comune_residenza as citizen_comune_residenza
+      FROM registro_anagrafica r
+      LEFT JOIN citizen_profiles c ON r.proprietario_email = c.email
+      WHERE r.proprietario_email IS NOT NULL
+      ORDER BY r.id DESC
+    `);
+    res.json(rows);
+  } catch (err: any) {
+    console.error("Errore recupero richieste iscrizione:", err);
+    res.status(500).json({ error: "Errore interno del server: " + err.message });
+  }
+});
+
+app.put("/api/registro/richieste/:id/stato", requireAuth(["ADMIN", "POLIZIA_LOCALE", "CANILE_SANITARIO"]), async (req, res) => {
+  const { id } = req.params;
+  const { stato, note } = req.body;
+  if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
+  try {
+    const [activeRow]: any = await mysqlPool.execute("SELECT value_data FROM admin_config WHERE key_name = 'activeComune'");
+    const comune = activeRow[0]?.value_data || 'naro';
+    
+    // Get the animal name and microchip for logging
+    const [animalRows]: any = await mysqlPool.execute("SELECT nome, microchip, proprietario_email FROM registro_anagrafica WHERE id = ?", [id]);
+    if (!animalRows || animalRows.length === 0) {
+      return res.status(404).json({ error: "Soggetto non trovato." });
+    }
+    const anim = animalRows[0];
+    
+    await mysqlPool.execute("UPDATE registro_anagrafica SET stato = ? WHERE id = ?", [stato, id]);
+    
+    // Log the change
+    const operatore = (req as any).user?.username || 'Operatore';
+    await mysqlPool.execute(
+      "INSERT INTO interventi_logs (comune_key, segnalazione_codice, operatore, azione, note) VALUES (?, ?, ?, ?, ?)",
+      [
+        comune, 
+        `ISCR-${anim.microchip.substring(0, 6)}`, 
+        operatore, 
+        `Variazione Stato Richiesta Iscrizione a ${stato}`, 
+        `La richiesta di iscrizione per ${anim.nome} (microchip: ${anim.microchip}, proprietario: ${anim.proprietario_email}) è stata aggiornata a stato: ${stato}. Note: ${note || 'Nessuna nota aggiuntiva'}`
+      ]
+    );
+    
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error("Errore aggiornamento stato richiesta:", err);
+    res.status(500).json({ error: "Errore interno del server: " + err.message });
+  }
 });
 
 // --- ECOSYSTEM ENDPOINTS FOR ADOPTIONS & FINANCES ---

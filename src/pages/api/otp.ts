@@ -292,9 +292,15 @@ router.post("/profile", async (req, res) => {
   const token = req.cookies.citizen_token || req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(401).json({ error: "Non autenticato" });
   
+  let email;
   try {
     const decoded: any = jwt.verify(token, JWT_SECRET);
-    const email = decoded.email;
+    email = decoded.email;
+  } catch (err) {
+    return res.status(401).json({ error: "Sessione non valida o scaduta" });
+  }
+  
+  try {
     const { nome, cognome, codice_fiscale, telefono, indirizzo, comune_residenza, sesso, comune_nascita, data_nascita } = req.body;
     
     if (mysqlPool && getIsMysqlHealthy()) {
@@ -321,8 +327,9 @@ router.post("/profile", async (req, res) => {
       return res.json({ success: true });
     }
     res.status(500).json({ error: "Database non connesso" });
-  } catch (err) {
-    res.status(401).json({ error: "Sessione non valida" });
+  } catch (err: any) {
+    console.error("ERRORE Salvataggio Profilo:", err.message);
+    res.status(500).json({ error: "Errore durante il salvataggio dei dati nel database: " + err.message });
   }
 });
 
