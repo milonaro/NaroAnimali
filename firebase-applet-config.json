@@ -3,7 +3,9 @@
   "appId": "1:766098419020:web:b3e6838a71e5314826b3e9",
   "apiKey": "AIzaSyCDo5BVuj91ha8CxcHRpSs4Wd8SLvbeObE",
   "authDomain": "bookping.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-animalhubpa-f145a859-0368-41b3-a89f-0b6e524a3625",
   "storageBucket": "bookping.firebasestorage.app",
   "messagingSenderId": "766098419020",
-  "measurementId": "G-LDJM27EM31"
+  "measurementId": "G-LDJM27EM31",
+  "oAuthClientId": "766098419020-l3t9u7mju8i31ujk0tck6tp004vsf1ev.apps.googleusercontent.com"
 }
