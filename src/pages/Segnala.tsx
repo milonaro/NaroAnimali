@@ -786,6 +786,19 @@ export default function Segnala() {
           </div>
 
           <div className="p-6 md:p-10 flex-1">
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }} 
+                animate={{ opacity: 1, y: 0 }}
+                className="p-5 bg-red-50 border border-red-200 text-red-900 rounded-xl flex items-start gap-3.5 mb-6 shadow-sm text-left"
+              >
+                <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h4 className="font-bold text-sm text-red-850">Errore durante l'invio della segnalazione</h4>
+                  <p className="text-xs text-red-700 mt-1 font-semibold leading-relaxed">{error}</p>
+                </div>
+              </motion.div>
+            )}
             {step === 1 && (
               <div className="space-y-8 flex flex-col h-full">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -808,7 +821,6 @@ export default function Segnala() {
                 <div className="h-[450px] md:h-[550px] w-full rounded-lg overflow-hidden border border-gray-100 relative shadow-inner">
                   <AppMap interactive onLocationSelect={handleLocationSelect} hideFilters />
                 </div>
-                {error && <p className="text-red-500 font-bold text-xs">{error}</p>}
                 {location && (
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <div className="flex-1 space-y-1">
