@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AppMap from '@/src/components/map/Map';
-import { PawPrint, MapPin, CheckCircle2, User, WifiOff, Dog, Cat, MoreHorizontal, ShieldCheck, Info, Heart, AlertTriangle, Users, Baby, Thermometer, ChevronRight, ArrowLeft, ArrowRight, Camera, Download, FileText } from 'lucide-react';
+import { PawPrint, MapPin, CheckCircle2, User, WifiOff, Dog, Cat, MoreHorizontal, ShieldCheck, Info, Heart, AlertTriangle, Users, Baby, Thermometer, ChevronRight, ArrowLeft, ArrowRight, Camera, Download, FileText, Copy, ExternalLink } from 'lucide-react';
 import { Segnalazione, AnimalSpecie } from '@/src/types';
 import { isInTerritorio } from '@/src/lib/geofence';
 import { motion, AnimatePresence } from 'motion/react';
@@ -42,6 +42,8 @@ export default function Segnala() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [duplicateReport, setDuplicateReport] = useState<{ message: string; code: string } | null>(null);
+  const [copiedCode, setCopiedCode] = useState(false);
 
   const [formData, setFormData] = useState<Partial<Segnalazione>>({
     specie: undefined,
@@ -664,11 +666,20 @@ export default function Segnala() {
       });
 
       const data = await res.json();
-      if (data.error) throw new Error(data.error);
+      if (data.error) {
+        if (data.duplicateReportDetected) {
+          setDuplicateReport({
+            message: data.error,
+            code: data.duplicateCode || "TRK-2026-N1"
+          });
+        }
+        throw new Error(data.error);
+      }
 
       setSuccess(data.codiceTracking);
     } catch (err: any) {
       setError(err.message);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setLoading(false);
     }
@@ -1457,6 +1468,93 @@ export default function Segnala() {
         Il sistema AnimalHub PA è una piattaforma ufficiale del {siteName}. Le segnalazioni mendaci sono punite ai sensi della legge italiana (art. 76 del D.P.R. 445/2000 e art. 483 del Codice Penale).
       </p>
     </div>
+
+    <AnimatePresence>
+      {duplicateReport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="bg-white rounded-2xl border border-amber-200 shadow-2xl p-6 md:p-8 max-w-lg w-full relative overflow-hidden text-left"
+          >
+            {/* Decorative top amber bar */}
+            <div className="absolute top-0 left-0 right-0 h-2 bg-amber-500 animate-pulse" />
+            
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="w-16 h-16 bg-amber-50 border border-amber-100 rounded-full flex items-center justify-center text-amber-600 shadow-inner">
+                <AlertTriangle className="h-8 w-8 animate-bounce" />
+              </div>
+              
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-black text-amber-600 bg-amber-50 border border-amber-100/60 rounded-full px-3 py-1 uppercase tracking-widest inline-block">
+                  Segnalazione Duplicata Rilevata
+                </span>
+                <h3 className="text-xl md:text-2xl font-black text-[#1e3a5f] tracking-tight leading-snug">
+                  Intervento Già Attivo
+                </h3>
+              </div>
+              
+              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 w-full text-left space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
+                  <div>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Codice Tracking</span>
+                    <span className="text-base font-mono font-black text-[#1e3a5f] uppercase tracking-wider">
+                      {duplicateReport.code}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(duplicateReport.code);
+                      setCopiedCode(true);
+                      setTimeout(() => setCopiedCode(false), 2000);
+                    }}
+                    className="flex items-center gap-1 text-[10px] font-black text-[#15803d] hover:text-[#166534] bg-emerald-50 hover:bg-emerald-100/60 border border-emerald-200 rounded-lg px-2.5 py-1.5 transition-all active:scale-95 cursor-pointer"
+                  >
+                    {copiedCode ? (
+                      <>
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                        <span>Copiato!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3.5 w-3.5" />
+                        <span>Copia Codice</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                
+                <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                  {duplicateReport.message}
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDuplicateReport(null);
+                    setError(null);
+                  }}
+                  className="w-full bg-white border border-gray-200 text-slate-600 hover:bg-slate-50 font-extrabold px-5 py-3 rounded-xl text-xs uppercase tracking-wider transition-all active:scale-95 shadow-sm cursor-pointer"
+                >
+                  Ho Capito
+                </button>
+                <Link
+                  to="/mia-area"
+                  className="w-full bg-[#15803d] hover:bg-[#166534] text-white font-extrabold px-5 py-3 rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/10 transition-all active:scale-95 cursor-pointer"
+                >
+                  <span>Traccia Interventi</span>
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
     </div>
   );
 }
