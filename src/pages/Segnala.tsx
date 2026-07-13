@@ -87,6 +87,37 @@ export default function Segnala() {
     };
     fetchConfig();
 
+    const checkCitizenAuth = async () => {
+      try {
+        const storedToken = localStorage.getItem("local_citizen_token");
+        const headers: any = {};
+        if (storedToken) {
+          headers["Authorization"] = `Bearer ${storedToken}`;
+        }
+        const res = await fetch("/api/otp/me", { headers });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.user && data.profile) {
+            const profile = data.profile;
+            setFormData(prev => ({
+              ...prev,
+              nomeSegnalante: prev.nomeSegnalante || profile.nome || '',
+              cognomeSegnalante: prev.cognomeSegnalante || profile.cognome || '',
+              telefonoSegnalante: prev.telefonoSegnalante || profile.telefono || '',
+              emailSegnalante: prev.emailSegnalante || profile.email || data.user.email || '',
+            }));
+            setAutoRecoverStatus({
+              type: 'success',
+              message: `🟢 ACCESSO RILEVATO: I tuoi dati personali sono stati precompilati automaticamente grazie al tuo accesso autenticato.`
+            });
+          }
+        }
+      } catch (e) {
+        console.error("Errore recupero autenticazione cittadino:", e);
+      }
+    };
+    checkCitizenAuth();
+
     const handleSync = async () => {
       if (!navigator.onLine) return;
       const pending = OfflineStore.getAll();
