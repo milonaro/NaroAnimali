@@ -95,6 +95,7 @@ CREATE TABLE IF NOT EXISTS registro_anagrafica (
   condizioni_sanitarie TEXT,
   stato VARCHAR(50) NOT NULL,
   foto_url LONGTEXT,
+  proprietario_email VARCHAR(150),
   data_registrazione TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

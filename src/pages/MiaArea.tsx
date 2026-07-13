@@ -116,10 +116,18 @@ export default function MiaArea() {
         if (data && data.user) {
           setEmail(data.user.email);
           setProfile(data.profile);
-          await Promise.all([
-            loadReports(data.user.email),
-            loadAnimals()
-          ]);
+          try {
+            await Promise.all([
+              loadReports(data.user.email).catch(e => {
+                console.error("Non è stato possibile caricare le segnalazioni:", e);
+              }),
+              loadAnimals().catch(e => {
+                console.error("Non è stato possibile caricare gli animali:", e);
+              })
+            ]);
+          } catch (loadErr) {
+            console.error("Errore generico caricamento dati:", loadErr);
+          }
           setStep(3);
         }
       }
@@ -188,7 +196,12 @@ export default function MiaArea() {
         const mapped: Report[] = data.map((item: any) => ({
           code: item.codice_tracking || item.codiceTracking || 'N/A',
           status: item.stato as Report['status'],
-          date: new Date(item.created_at || item.createdAt).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }),
+          date: (() => {
+            const rawDate = item.created_at || item.createdAt;
+            if (!rawDate) return "N/D";
+            const parsed = new Date(rawDate);
+            return isNaN(parsed.getTime()) ? "N/D" : parsed.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
+          })(),
           desc: item.descrizione,
           location: item.indirizzo,
           specie: item.specie,

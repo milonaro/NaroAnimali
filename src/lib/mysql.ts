@@ -445,6 +445,21 @@ async function initSqliteSchema(db: any) {
       } catch (e: any) {
         console.warn("Avviso: Impossibile aggiornare i contatti e-mail degli amministratori esistenti:", e.message);
       }
+      try {
+        await db.run("ALTER TABLE registro_anagrafica ADD COLUMN proprietario_email VARCHAR(150) DEFAULT NULL");
+        console.log("SQLite: Colonna proprietario_email aggiunta con successo a registro_anagrafica.");
+      } catch (e: any) {
+        // Ignora se la colonna esiste già
+      }
+      try {
+        await db.run("ALTER TABLE citizen_profiles ADD COLUMN sesso VARCHAR(10) DEFAULT NULL");
+      } catch (e: any) {}
+      try {
+        await db.run("ALTER TABLE citizen_profiles ADD COLUMN comune_nascita VARCHAR(100) DEFAULT NULL");
+      } catch (e: any) {}
+      try {
+        await db.run("ALTER TABLE citizen_profiles ADD COLUMN data_nascita VARCHAR(20) DEFAULT NULL");
+      } catch (e: any) {}
       return;
     }
 
