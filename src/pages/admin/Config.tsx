@@ -4,6 +4,8 @@ import { COMUNI } from '@/src/lib/geofence';
 import { showPopup, popup } from '../../lib/popup';
 import AdvancedPolicyEditor from '../../components/admin/AdvancedPolicyEditor';
 import { DEFAULT_PRIVACY_TEXT, DEFAULT_COOKIE_TEXT } from '../../lib/defaultTexts';
+import SetupDashboard from '../../components/admin/SetupDashboard';
+import ManualeInstallazione from '../../components/admin/ManualeInstallazione';
 
 const DEFAULT_SLIDERS = [
   {
@@ -65,6 +67,7 @@ export default function Config() {
   const [siteName, setSiteName] = useState<string>("Comune di Naro");
   const [role, setRole] = useState<string | null>(null);
   const [checkingRole, setCheckingRole] = useState(true);
+  const [activeTab, setActiveTab] = useState<'cms' | 'diagnostics' | 'guide'>('cms');
 
   // New CMS States for customized logos & compliance
   const [animalhubLogo, setAnimalhubLogo] = useState<string>("");
@@ -294,8 +297,38 @@ export default function Config() {
     <div className="pt-32 pb-16 min-h-screen bg-slate-50 font-sans">
       <div className="max-w-4xl mx-auto px-4 space-y-8">
         
-        {/* Card 1: Standard Config Settings */}
-        <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
+        {/* Titolo e Navigazione a Schede */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+          <div className="text-left">
+            <h1 className="text-3xl font-black text-[#1e3a5f] uppercase tracking-wider">Centro di Controllo Ente</h1>
+            <p className="text-xs text-slate-500">Gestisci i dati istituzionali dell'ente, esegui la diagnostica cloud e consulta la guida di installazione.</p>
+          </div>
+          <div className="flex bg-slate-200/60 p-1.5 rounded-xl gap-1 shrink-0 select-none">
+            <button
+              onClick={() => setActiveTab('cms')}
+              className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${activeTab === 'cms' ? 'bg-white text-[#1e3a5f] shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+            >
+              CMS Portale
+            </button>
+            <button
+              onClick={() => setActiveTab('diagnostics')}
+              className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${activeTab === 'diagnostics' ? 'bg-white text-[#1e3a5f] shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+            >
+              Diagnostica Firebase
+            </button>
+            <button
+              onClick={() => setActiveTab('guide')}
+              className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${activeTab === 'guide' ? 'bg-white text-[#1e3a5f] shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+            >
+              Guida Installazione
+            </button>
+          </div>
+        </div>
+
+        {activeTab === 'cms' && (
+          <>
+            {/* Card 1: Standard Config Settings */}
+            <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
           <div className="absolute top-0 left-0 w-1.5 h-full bg-[#15803d]" />
           <h2 className="text-2xl font-black text-[#1e3a5f] mb-6 flex items-center gap-3">
             <Building className="h-6 w-6 text-[#15803d]" /> 
@@ -1132,7 +1165,22 @@ export default function Config() {
           </div>
         )}
 
+          </>
+        )}
 
+        {activeTab === 'diagnostics' && (
+          <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-[#15803d]" />
+            <SetupDashboard />
+          </div>
+        )}
+
+        {activeTab === 'guide' && (
+          <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-[#15803d]" />
+            <ManualeInstallazione />
+          </div>
+        )}
 
       </div>
     </div>

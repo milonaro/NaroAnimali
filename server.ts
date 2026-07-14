@@ -580,6 +580,142 @@ app.post("/api/admin/config", async (req, res) => {
   }
 });
 
+app.get("/api/admin/firebase-diagnostic", requireAuth(["ADMIN"]), async (req, res) => {
+  const client = {
+    hasApiKey: !!(process.env.VITE_FIREBASE_API_KEY || process.env.NEXT_PUBLIC_FIREBASE_API_KEY),
+    hasAuthDomain: !!(process.env.VITE_FIREBASE_AUTH_DOMAIN || process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN),
+    hasProjectId: !!(process.env.VITE_FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID),
+    hasAppId: !!(process.env.VITE_FIREBASE_APP_ID || process.env.NEXT_PUBLIC_FIREBASE_APP_ID),
+    hasStorageBucket: !!(process.env.VITE_FIREBASE_STORAGE_BUCKET || process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET),
+    projectId: process.env.VITE_FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || '',
+    databaseId: process.env.VITE_FIREBASE_DATABASE_ID || '',
+  };
+
+  let hasServiceAccount = false;
+  let isServiceAccountValid = false;
+  let serverProjectId = '';
+  let clientEmail = '';
+
+  const saKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  if (saKey) {
+    hasServiceAccount = true;
+    try {
+      const parsed = JSON.parse(saKey);
+      isServiceAccountValid = true;
+      serverProjectId = parsed.project_id || '';
+      clientEmail = parsed.client_email || '';
+    } catch (e) {
+      isServiceAccountValid = false;
+    }
+  }
+
+  // File alignment check
+  let envAndConfigMatch = true;
+  const mismatchFields: string[] = [];
+
+  try {
+    const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
+    if (fs.existsSync(configPath)) {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      
+      const apiKeyEnv = process.env.VITE_FIREBASE_API_KEY || process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+      if (apiKeyEnv && apiKeyEnv !== config.apiKey) {
+        envAndConfigMatch = false;
+        mismatchFields.push('apiKey');
+      }
+      
+      const authDomainEnv = process.env.VITE_FIREBASE_AUTH_DOMAIN || process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
+      if (authDomainEnv && authDomainEnv !== config.authDomain) {
+        envAndConfigMatch = false;
+        mismatchFields.push('authDomain');
+      }
+
+      const projectIdEnv = process.env.VITE_FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+      if (projectIdEnv && projectIdEnv !== config.projectId) {
+        envAndConfigMatch = false;
+        mismatchFields.push('projectId');
+      }
+
+      const appIdEnv = process.env.VITE_FIREBASE_APP_ID || process.env.NEXT_PUBLIC_FIREBASE_APP_ID;
+      if (appIdEnv && appIdEnv !== config.appId) {
+        envAndConfigMatch = false;
+        mismatchFields.push('appId');
+      }
+    }
+  } catch (e) {
+    envAndConfigMatch = false;
+    mismatchFields.push('readError');
+  }
+
+  // Live connection check
+  let adminConnected = false;
+  let adminPingError: string | undefined = undefined;
+
+  if (hasServiceAccount && isServiceAccountValid) {
+    try {
+      let testDb: any = null;
+      if (!admin.apps.length) {
+        const parsed = JSON.parse(saKey!);
+        const tempApp = admin.initializeApp({
+          credential: admin.credential.cert(parsed)
+        }, 'diagnostic-temp');
+        
+        let dbId: string | undefined = process.env.VITE_FIREBASE_DATABASE_ID;
+        if (!dbId) {
+          try {
+            const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
+            if (fs.existsSync(configPath)) {
+              const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+              dbId = config.firestoreDatabaseId;
+            }
+          } catch(e) {}
+        }
+        testDb = dbId ? getFirestoreAdmin(tempApp, dbId) : getFirestoreAdmin(tempApp);
+      } else {
+        let dbId: string | undefined = process.env.VITE_FIREBASE_DATABASE_ID;
+        if (!dbId) {
+          try {
+            const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
+            if (fs.existsSync(configPath)) {
+              const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+              dbId = config.firestoreDatabaseId;
+            }
+          } catch(e) {}
+        }
+        testDb = dbId ? getFirestoreAdmin(admin.app(), dbId) : getFirestoreAdmin(admin.app());
+      }
+
+      if (testDb) {
+        // Simple fetch test to verify connection
+        await testDb.collection('registro_anagrafica').limit(1).get();
+        adminConnected = true;
+      }
+    } catch (e: any) {
+      adminConnected = false;
+      adminPingError = e.message;
+    }
+  }
+
+  res.json({
+    success: true,
+    client,
+    server: {
+      hasServiceAccount,
+      isServiceAccountValid,
+      projectId: serverProjectId,
+      clientEmail
+    },
+    firestore: {
+      adminConnected,
+      adminPingError
+    },
+    sync: {
+      envAndConfigMatch,
+      mismatchFields
+    }
+  });
+});
+
 app.get("/api/admin/proposal", async (req, res) => {
   try {
     const filePath = path.join(process.cwd(), "01-proposta.md");
