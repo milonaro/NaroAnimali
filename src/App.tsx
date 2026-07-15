@@ -15,6 +15,7 @@ import Faq from './pages/Faq';
 import Operatori from './pages/Operatori';
 import Config from './pages/admin/Config';
 import AdminLogin from './pages/admin/Login';
+import SetupWizard from './pages/admin/SetupWizard';
 import AdminRoute from './components/AdminRoute';
 import DebugDb from './pages/DebugDb';
 import { PrivacyPolicy, Accessibilita, CookiePolicy } from './pages/Compliance';
@@ -73,6 +74,7 @@ export default function App() {
                 <Route path="/guida" element={<Guida />} />
                 <Route path="/faq" element={<Faq />} />
                 <Route path="/admin/login" element={<AdminLogin />} />
+                <Route path="/admin/setup" element={<SetupWizard />} />
                 <Route path="/operatori" element={<AdminRoute><Operatori /></AdminRoute>} />
                 <Route path="/admin/config" element={<AdminRoute><Config /></AdminRoute>} />
                 <Route path="/privacy-policy" element={<PrivacyPolicy />} />

@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { UserCircle, Lock, ShieldCheck, Eye, EyeOff, KeyRound } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { UserCircle, Lock, ShieldCheck, Eye, EyeOff, KeyRound, Settings } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
 import { popup } from '../../lib/popup';
 
 export default function AdminLogin() {
@@ -12,7 +12,21 @@ export default function AdminLogin() {
   const [otp, setOtp] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [message, setMessage] = useState('');
+  const [isConfigured, setIsConfigured] = useState(true);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    fetch('/api/admin/setup-status')
+      .then(res => {
+        if (res.ok) return res.json();
+      })
+      .then(data => {
+        if (data) {
+          setIsConfigured(data.configured);
+        }
+      })
+      .catch(e => console.error(e));
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,6 +165,29 @@ export default function AdminLogin() {
               {step === 1 ? 'Inserisci la tua matricola o codice autorizzato' : 'Inserisci il token ricevuto via email per accedere'}
             </p>
           </div>
+
+          {!isConfigured && (
+            <div className="bg-amber-50 border border-amber-200 text-amber-950 p-4 rounded-xl text-xs space-y-2.5 relative overflow-hidden text-left">
+              <div className="absolute top-0 left-0 w-full h-1 bg-amber-500" />
+              <div className="flex items-start gap-2.5">
+                <Settings className="w-5 h-5 text-amber-600 shrink-0 mt-0.5 animate-spin" />
+                <div className="space-y-1">
+                  <h4 className="font-black text-amber-950 uppercase tracking-wide">
+                    Prima Installazione Rilevata
+                  </h4>
+                  <p className="text-slate-600 leading-relaxed font-normal">
+                    Questa istanza di AnimalHub non è agganciata a Firebase. L'autenticazione è bloccata finché non inserisci le chiavi.
+                  </p>
+                </div>
+              </div>
+              <Link
+                to="/admin/setup"
+                className="w-full inline-flex items-center justify-center gap-1.5 bg-[#15803d] hover:bg-[#15803d]/90 text-white font-black py-2.5 px-3 rounded-lg text-[10px] uppercase tracking-wider transition-all shadow-sm"
+              >
+                Avvia Installatore Esclusivo
+              </Link>
+            </div>
+          )}
           
           {error && (
             <div className="bg-red-50 border border-red-100 text-red-600 p-4 rounded-xl text-xs font-bold text-center">

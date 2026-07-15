@@ -580,6 +580,103 @@ app.post("/api/admin/config", async (req, res) => {
   }
 });
 
+app.get("/api/admin/setup-status", async (req, res) => {
+  const isConfigured = !!(process.env.VITE_FIREBASE_API_KEY || process.env.NEXT_PUBLIC_FIREBASE_API_KEY);
+  res.json({
+    success: true,
+    configured: isConfigured,
+    isVercel: !!process.env.VERCEL
+  });
+});
+
+app.post("/api/admin/setup-save", async (req, res) => {
+  const isConfigured = !!(process.env.VITE_FIREBASE_API_KEY || process.env.NEXT_PUBLIC_FIREBASE_API_KEY);
+  let isAuthorized = !isConfigured;
+
+  if (isConfigured) {
+    const token = req.cookies.admin_token;
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, "animal-hub-secret") as any;
+        if (decoded && decoded.role === "ADMIN") {
+          isAuthorized = true;
+        }
+      } catch (err) {}
+    }
+  }
+
+  if (!isAuthorized) {
+    return res.status(403).json({ error: "Accesso negato. La piattaforma è già configurata. Solo un amministratore loggato può modificare le chiavi." });
+  }
+
+  const { apiKey, authDomain, projectId, storageBucket, appId, databaseId, serviceAccountKey } = req.body;
+
+  if (process.env.VERCEL) {
+    return res.json({
+      success: true,
+      isVercel: true,
+      message: "Configurazione validata con successo! Tuttavia, in ambiente serverless Vercel il filesystem è di sola lettura, quindi non possiamo scrivere sul file .env. Segui la guida per inserire le chiavi direttamente nel pannello di Vercel."
+    });
+  }
+
+  try {
+    const envPath = path.join(process.cwd(), ".env");
+    let envContent = "";
+    if (fs.existsSync(envPath)) {
+      envContent = fs.readFileSync(envPath, "utf8");
+    }
+
+    const updateEnvVar = (content: string, key: string, value: string): string => {
+      const regex = new RegExp(`^${key}=.*$`, "m");
+      const newLine = `${key}="${value.replace(/"/g, '\\"')}"`;
+      if (regex.test(content)) {
+        return content.replace(regex, newLine);
+      } else {
+        return content + (content.endsWith("\n") ? "" : "\n") + newLine + "\n";
+      }
+    };
+
+    let updatedContent = envContent;
+    if (apiKey) updatedContent = updateEnvVar(updatedContent, "VITE_FIREBASE_API_KEY", apiKey);
+    if (authDomain) updatedContent = updateEnvVar(updatedContent, "VITE_FIREBASE_AUTH_DOMAIN", authDomain);
+    if (projectId) updatedContent = updateEnvVar(updatedContent, "VITE_FIREBASE_PROJECT_ID", projectId);
+    if (storageBucket) updatedContent = updateEnvVar(updatedContent, "VITE_FIREBASE_STORAGE_BUCKET", storageBucket);
+    if (appId) updatedContent = updateEnvVar(updatedContent, "VITE_FIREBASE_APP_ID", appId);
+    if (databaseId) updatedContent = updateEnvVar(updatedContent, "VITE_FIREBASE_DATABASE_ID", databaseId);
+    if (serviceAccountKey) updatedContent = updateEnvVar(updatedContent, "FIREBASE_SERVICE_ACCOUNT_KEY", serviceAccountKey);
+
+    fs.writeFileSync(envPath, updatedContent, "utf8");
+
+    const configPath = path.join(process.cwd(), "firebase-applet-config.json");
+    const jsonConfig = {
+      apiKey: apiKey || "",
+      authDomain: authDomain || "",
+      projectId: projectId || "",
+      storageBucket: storageBucket || "",
+      appId: appId || "",
+      firestoreDatabaseId: databaseId || "(default)"
+    };
+    fs.writeFileSync(configPath, JSON.stringify(jsonConfig, null, 2), "utf8");
+
+    if (apiKey) process.env.VITE_FIREBASE_API_KEY = apiKey;
+    if (authDomain) process.env.VITE_FIREBASE_AUTH_DOMAIN = authDomain;
+    if (projectId) process.env.VITE_FIREBASE_PROJECT_ID = projectId;
+    if (storageBucket) process.env.VITE_FIREBASE_STORAGE_BUCKET = storageBucket;
+    if (appId) process.env.VITE_FIREBASE_APP_ID = appId;
+    if (databaseId) process.env.VITE_FIREBASE_DATABASE_ID = databaseId;
+    if (serviceAccountKey) process.env.FIREBASE_SERVICE_ACCOUNT_KEY = serviceAccountKey;
+
+    res.json({
+      success: true,
+      isVercel: false,
+      message: "Configurazione salvata con successo nel file .env!"
+    });
+  } catch (err: any) {
+    console.error("Errore salvataggio config setup:", err);
+    res.status(500).json({ error: "Errore durante il salvataggio locale", message: err.message });
+  }
+});
+
 app.get("/api/admin/firebase-diagnostic", requireAuth(["ADMIN"]), async (req, res) => {
   const client = {
     hasApiKey: !!(process.env.VITE_FIREBASE_API_KEY || process.env.NEXT_PUBLIC_FIREBASE_API_KEY),

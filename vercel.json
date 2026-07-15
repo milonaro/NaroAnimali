@@ -1,7 +1,10 @@
 {
   "functions": {
     "api/**/*.ts": {
-      "includeFiles": "initialize_reference_tables.sql"
+      "includeFiles": [
+        "initialize_reference_tables.sql",
+        "dist/server.cjs"
+      ]
     }
   },
   "rewrites": [
