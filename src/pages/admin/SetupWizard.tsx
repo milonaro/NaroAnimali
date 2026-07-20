@@ -43,6 +43,9 @@ export default function SetupWizard() {
         const data = await res.json();
         setConfigured(data.configured);
         setIsVercel(data.isVercel);
+        if (data.configured) {
+          localStorage.setItem('animalhub_configured', 'true');
+        }
       }
     } catch (err) {
       console.error("Errore controllo stato setup:", err);
@@ -77,6 +80,7 @@ export default function SetupWizard() {
 
       const data = await res.json();
       if (res.ok) {
+        localStorage.setItem('animalhub_configured', 'true');
         popup.success(data.message || "Configurazione inviata correttamente!");
         setStep(3); // Go to final summary
       } else {

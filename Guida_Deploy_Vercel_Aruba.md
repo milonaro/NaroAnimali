@@ -57,11 +57,18 @@ Prima di cliccare "Deploy", vedrai una sezione chiamata **Environment Variables*
   - `DB_NAME` = `Sql1906971_1`
   - `DB_USER` = `Sql1906971`
   - `DB_PASS` = `[tua_password_aruba]`
-  - `FIREBASE_SERVICE_ACCOUNT_KEY` = `{ "type": "service_account", "project_id": "..." }` (L'intero JSON Firebase scaricato prima e incollato come unica riga).
+  - `FIREBASE_DATABASE_ID` = `[id_database_firestore]` (OPZIONALE: Incolla l'id del tuo database Firestore, ad esempio quello che vedi nel file `firebase-applet-config.json` se desideri mantenere il medesimo database, oppure lascialo vuoto per far sì che Vercel punti automaticamente all'istanza standard di Firestore chiamata `(default)`).
+  - `FIREBASE_SERVICE_ACCOUNT_KEY` = `{ "type": "service_account", "project_id": "..." }` (L'intero JSON della chiave privata Firebase generato ed incollato su un'unica riga).
 * Variabili Frontend (React/Vite):
   - Inserisci tutte quelle che iniziano con `VITE_FIREBASE_...` ottenute dalla console Firebase web.
 
-### Passo D: Avvia il Deploy
+### Passo D: Come Funziona il Serverless Routing (Sotto il Cofano)
+La nostra applicazione è configurata per funzionare nativamente su Vercel Serverless senza alcun aggiustamento manuale:
+- Il file `vercel.json` reindirizza dinamicamente tutte le richieste all'endpoint `/api/*` verso `api/handler.cjs`.
+- Durante la compilazione, esbuild impacchetta il server TypeScript in un unico file bundle CommonJS compresso situato in `dist/server.cjs`. Il wrapper `handler.cjs` lo esegue sulla piattaforma serverless di Vercel, eliminando i problemi di percorso tipici dei moduli ES.
+- Le pagine del frontend sono compilate in file statici pronti per la CDN di Vercel, garantendo caricamenti istantanei da ogni parte del mondo.
+
+### Passo E: Avvia il Deploy
 1. Clicca sul tastino blu **Deploy**.
 2. Vercel installerà i pacchetti (npm install), eseguirà il build (`npm run build`) e manderà online l'app. Avrai un link temporaneo funzionante (es. `animalhub.vercel.app`).
 

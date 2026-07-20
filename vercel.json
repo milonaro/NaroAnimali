@@ -1,10 +1,7 @@
 {
   "functions": {
     "api/handler.cjs": {
-      "includeFiles": [
-        "initialize_reference_tables.sql",
-        "dist/server.cjs"
-      ]
+      "includeFiles": "{dist/server.cjs,initialize_reference_tables.sql}"
     }
   },
   "rewrites": [

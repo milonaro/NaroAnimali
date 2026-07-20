@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 import Home from './pages/Home';
@@ -37,6 +37,22 @@ function ScrollToTop() {
   return null;
 }
 
+function FirstRunRedirector() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const isConfigured = localStorage.getItem('animalhub_configured');
+    // Exempt setup and essential compliance pages from auto-redirect to avoid infinite loops or blocking legal documents
+    const exemptPaths = ['/admin/setup', '/privacy-policy', '/cookie-policy', '/accessibilita'];
+    if (!isConfigured && !exemptPaths.includes(location.pathname)) {
+      navigate('/admin/setup');
+    }
+  }, [location.pathname, navigate]);
+
+  return null;
+}
+
 export default function App() {
   useEffect(() => {
     const initComuniCache = async () => {
@@ -63,6 +79,7 @@ export default function App() {
       <AccessibilityProvider>
         <Router>
           <ScrollToTop />
+          <FirstRunRedirector />
           <div className="flex flex-col min-h-screen bg-gray-50 font-sans selection:bg-[#15803d]/30 selection:text-[#1e3a5f] pb-16 md:pb-0">
             <Header />
             <main className="flex-grow">

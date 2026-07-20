@@ -280,23 +280,23 @@ Fornire agli amministratori comunali strumenti avanzati di monitoraggio.
 
 ---
 
-# Modulo H - Integrazione SPID e CIE
+# Modulo H - Autenticazione Sicura e Tracciabilità (OTP)
 
 ## Obiettivo
 
-Consentire l'identificazione certa dei cittadini che effettuano segnalazioni.
+Consentire l'identificazione sicura dei cittadini che effettuano segnalazioni o iscrizioni.
 
 ## Funzionalità
 
-* Accesso tramite SPID.
-* Accesso tramite Carta d'Identità Elettronica.
-* Associazione automatica dell'identità digitale alle segnalazioni.
+* Accesso tramite codice OTP temporaneo (One-Time Password) inviato all'e-mail.
+* Associazione automatica del profilo del cittadino (verificato) alle segnalazioni e pratiche di adozione.
+* Gestione protetta dei propri animali d'affezione iscritti.
 
 ## Benefici
 
-* Maggiore affidabilità delle informazioni ricevute.
+* Maggiore affidabilità delle informazioni ricevute e prevenzione dello spam.
 * Riduzione delle segnalazioni anonime o non verificabili.
-* Conformità agli standard della Pubblica Amministrazione.
+* Sicurezza e conformità nel trattamento dei dati per l'Anagrafe Canina.
 
 ---
 

@@ -1860,7 +1860,7 @@ export default function Operatori() {
                     <div>
                       <span className="text-[10px] text-slate-400 block uppercase font-bold">Cognome e Nome</span>
                       <span className="text-sm font-black text-[#1e3a5f]">
-                        {selectedRichiesta.citizen_cognome || ''} {selectedRichiesta.citizen_nome || 'Utente SPID/OTP'}
+                        {selectedRichiesta.citizen_cognome || ''} {selectedRichiesta.citizen_nome || 'Utente registrato via OTP'}
                       </span>
                     </div>
                     <div>
