@@ -7,5 +7,6 @@
   "storageBucket": "bookping.firebasestorage.app",
   "messagingSenderId": "766098419020",
   "measurementId": "G-LDJM27EM31",
-  "oAuthClientId": "766098419020-l3t9u7mju8i31ujk0tck6tp004vsf1ev.apps.googleusercontent.com"
+  "oAuthClientId": "766098419020-l3t9u7mju8i31ujk0tck6tp004vsf1ev.apps.googleusercontent.com",
+  "recaptchaSiteKey": ""
 }

@@ -7,29 +7,67 @@ import path from "path";
 let firestoreDatabaseId: string | undefined = undefined;
 try {
   const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
+  let loadedProjId = process.env.VITE_FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID;
   if (fs.existsSync(configPath)) {
     const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
     firestoreDatabaseId = config.firestoreDatabaseId;
-    if (config.firebaseProjectId && admin.apps.length === 0) {
-      admin.initializeApp({ projectId: config.firebaseProjectId });
+    loadedProjId = config.projectId || config.firebaseProjectId || loadedProjId;
+  }
+  
+  if (admin.apps.length === 0) {
+    let initialized = false;
+    
+    // 1. Prova a usare la chiave account di servizio se disponibile in ambiente
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+      try {
+        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+        if (serviceAccount.project_id) {
+          admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount)
+          });
+          initialized = true;
+          console.log("Firebase Admin inizializzato con successo tramite Service Account.");
+        }
+      } catch (e) {
+        console.error("Errore inizializzazione con FIREBASE_SERVICE_ACCOUNT_KEY:", e);
+      }
     }
-  } else if (process.env.FIREBASE_PROJECT_ID && admin.apps.length === 0) {
-      admin.initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID });
+    
+    // 2. Fallback per Cloud Run (dove ADC funziona in automatico)
+    if (!initialized && loadedProjId) {
+      const isVercel = process.env.VERCEL === "1";
+      if (!isVercel) {
+        admin.initializeApp({ projectId: loadedProjId });
+        initialized = true;
+        console.log("Firebase Admin inizializzato tramite ADC/Project ID.");
+      } else {
+        console.warn("Ambiente Vercel rilevato senza FIREBASE_SERVICE_ACCOUNT_KEY. Inizializzazione Admin saltata per evitare permission denied.");
+      }
+    }
   }
 } catch (e) {
   console.error("Error reading firebase-applet-config.json in API:", e);
 }
 
-if (admin.apps.length === 0) {
+if (admin.apps.length === 0 && process.env.VERCEL !== "1") {
    try { admin.initializeApp({ projectId: "demo-animalhub" }); } catch(e) {}
 }
 
 const router = Router();
 router.use(express.json({ limit: "20mb" }));
-const db = admin.apps.length ? (firestoreDatabaseId ? getFirestoreAdmin(admin.app(), firestoreDatabaseId) : admin.firestore()) : null;
+
 function getFirestoreAdmin(app: any, id: string) {
     const { getFirestore } = require('firebase-admin/firestore');
     return getFirestore(app, id);
+}
+
+let db: any = null;
+if (admin.apps.length) {
+  try {
+    db = firestoreDatabaseId ? getFirestoreAdmin(admin.app(), firestoreDatabaseId) : admin.firestore();
+  } catch (err) {
+    console.error("Errore inizializzazione istanza db Firestore Admin:", err);
+  }
 }
 
 async function getActiveComuneKeyServer(): Promise<string> {
@@ -194,19 +232,24 @@ router.post("/", async (req, res) => {
     let firestoreId = sqlId.toString();
 
     if (db) {
-      const docRef = await db.collection("segnalazioni").add({
-        relationalId: sqlId,
-        comuneKey: activeComune,
-        codiceTracking,
-        specie, condizioni,
-        descrizione: finalDesc,
-        fotoUrl, latitudine: lat, longitudine: lng,
-        indirizzo, stato: "CREATA", urgenza,
-        nomeSegnalante: fullName, emailSegnalante, telefonoSegnalante,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-      firestoreId = docRef.id;
+      try {
+        const docRef = await db.collection("segnalazioni").add({
+          relationalId: sqlId,
+          comuneKey: activeComune,
+          codiceTracking,
+          specie, condizioni,
+          descrizione: finalDesc,
+          fotoUrl, latitudine: lat, longitudine: lng,
+          indirizzo, stato: "CREATA", urgenza,
+          nomeSegnalante: fullName, emailSegnalante, telefonoSegnalante,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        firestoreId = docRef.id;
+        console.log("Segnalazione salvata con successo su Firestore:", firestoreId);
+      } catch (fsErr: any) {
+        console.error("Errore non-critico durante il salvataggio su Firestore:", fsErr.message || fsErr);
+      }
     }
 
     res.json({ id: firestoreId, codiceTracking });
@@ -230,11 +273,16 @@ router.put("/:codiceTracking/stato", async (req, res) => {
         }
     }
     if (db) {
-      const snapshot = await db.collection("segnalazioni").where("codiceTracking", "==", codiceTracking).get();
-      if (!snapshot.empty) {
-        const batch = db.batch();
-        snapshot.docs.forEach((doc) => batch.update(doc.ref, { stato, updatedAt: admin.firestore.FieldValue.serverTimestamp() }));
-        await batch.commit();
+      try {
+        const snapshot = await db.collection("segnalazioni").where("codiceTracking", "==", codiceTracking).get();
+        if (!snapshot.empty) {
+          const batch = db.batch();
+          snapshot.docs.forEach((doc) => batch.update(doc.ref, { stato, updatedAt: admin.firestore.FieldValue.serverTimestamp() }));
+          await batch.commit();
+          console.log("Stato segnalazione aggiornato con successo su Firestore per:", codiceTracking);
+        }
+      } catch (fsErr: any) {
+        console.error("Errore non-critico durante l'aggiornamento stato su Firestore:", fsErr.message || fsErr);
       }
     }
     res.json({ success: true, codiceTracking, stato });
@@ -267,13 +315,18 @@ router.post("/:codiceTracking/log", async (req, res) => {
 
     let userEmail = null; let userName = "Cittadino";
     if (nuovoStato && db) {
-      const snapshot = await db.collection("segnalazioni").where("codiceTracking", "==", codiceTracking).get();
-      if (!snapshot.empty) {
-        userEmail = snapshot.docs[0].data().emailSegnalante;
-        userName = snapshot.docs[0].data().nomeSegnalante;
-        const batch = db.batch();
-        snapshot.docs.forEach((doc) => batch.update(doc.ref, { stato: nuovoStato, updatedAt: admin.firestore.FieldValue.serverTimestamp() }));
-        await batch.commit();
+      try {
+        const snapshot = await db.collection("segnalazioni").where("codiceTracking", "==", codiceTracking).get();
+        if (!snapshot.empty) {
+          userEmail = snapshot.docs[0].data().emailSegnalante;
+          userName = snapshot.docs[0].data().nomeSegnalante;
+          const batch = db.batch();
+          snapshot.docs.forEach((doc) => batch.update(doc.ref, { stato: nuovoStato, updatedAt: admin.firestore.FieldValue.serverTimestamp() }));
+          await batch.commit();
+          console.log("Stato log segnalazione aggiornato con successo su Firestore per:", codiceTracking);
+        }
+      } catch (fsErr: any) {
+        console.error("Errore non-critico durante l'aggiornamento log/stato su Firestore:", fsErr.message || fsErr);
       }
     }
 
