@@ -15,6 +15,22 @@ const firebaseConfig = {
 
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 
-export const db = getFirestore(app, import.meta.env.VITE_FIREBASE_DATABASE_ID || (firebaseAppletConfig as any).firestoreDatabaseId || undefined);
+// Determina il database ID: in sandbox AI Studio usa quello custom, su Vercel/Produzione usa default (undefined) a meno che non sia specificato
+let dbId: string | undefined = import.meta.env.VITE_FIREBASE_DATABASE_ID;
+if (!dbId) {
+  const isSandbox = typeof window !== 'undefined' && (
+    window.location.hostname.includes('europe-west2.run.app') || 
+    window.location.hostname.includes('localhost') || 
+    window.location.hostname.includes('127.0.0.1')
+  );
+  if (isSandbox) {
+    dbId = (firebaseAppletConfig as any).firestoreDatabaseId;
+  } else {
+    // Su Vercel o domini esterni, usa il database (default) a meno che l'utente non lo imposti in VITE_FIREBASE_DATABASE_ID
+    dbId = undefined;
+  }
+}
+
+export const db = getFirestore(app, dbId || undefined);
 export const auth = getAuth(app);
 export const storage = getStorage(app);

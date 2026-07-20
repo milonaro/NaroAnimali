@@ -12,15 +12,17 @@ let mysqlPool: mysqlPromise.Pool | null = null;
 let sqliteDb: any = null;
 
 // Leggiamo la configurazione client per estrarre la corretta istanza di database Firestore
-let firestoreDatabaseId: string | undefined = undefined;
-try {
-  const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
-  if (fs.existsSync(configPath)) {
-    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    firestoreDatabaseId = config.firestoreDatabaseId;
+let firestoreDatabaseId: string | undefined = process.env.FIREBASE_DATABASE_ID || process.env.VITE_FIREBASE_DATABASE_ID;
+if (!firestoreDatabaseId && process.env.VERCEL !== "1") {
+  try {
+    const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
+    if (fs.existsSync(configPath)) {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      firestoreDatabaseId = config.firestoreDatabaseId;
+    }
+  } catch (e) {
+    console.error("Error reading firebase-applet-config.json in db.ts:", e);
   }
-} catch (e) {
-  console.error("Error reading firebase-applet-config.json in db.ts:", e);
 }
 
 // FIREBASE ADMIN

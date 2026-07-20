@@ -4,13 +4,15 @@ import admin from "firebase-admin";
 import fs from "fs";
 import path from "path";
 
-let firestoreDatabaseId: string | undefined = undefined;
+let firestoreDatabaseId: string | undefined = process.env.FIREBASE_DATABASE_ID || process.env.VITE_FIREBASE_DATABASE_ID;
 try {
   const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
   let loadedProjId = process.env.VITE_FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID;
   if (fs.existsSync(configPath)) {
     const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    firestoreDatabaseId = config.firestoreDatabaseId;
+    if (!firestoreDatabaseId && process.env.VERCEL !== "1") {
+      firestoreDatabaseId = config.firestoreDatabaseId;
+    }
     loadedProjId = config.projectId || config.firebaseProjectId || loadedProjId;
   }
   

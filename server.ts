@@ -757,8 +757,8 @@ app.get("/api/admin/firebase-diagnostic", requireAuth(["ADMIN"]), async (req, re
           credential: admin.credential.cert(parsed)
         }, 'diagnostic-temp');
         
-        let dbId: string | undefined = process.env.VITE_FIREBASE_DATABASE_ID;
-        if (!dbId) {
+        let dbId: string | undefined = process.env.FIREBASE_DATABASE_ID || process.env.VITE_FIREBASE_DATABASE_ID;
+        if (!dbId && process.env.VERCEL !== "1") {
           try {
             const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
             if (fs.existsSync(configPath)) {
@@ -769,8 +769,8 @@ app.get("/api/admin/firebase-diagnostic", requireAuth(["ADMIN"]), async (req, re
         }
         testDb = dbId ? getFirestoreAdmin(tempApp, dbId) : getFirestoreAdmin(tempApp);
       } else {
-        let dbId: string | undefined = process.env.VITE_FIREBASE_DATABASE_ID;
-        if (!dbId) {
+        let dbId: string | undefined = process.env.FIREBASE_DATABASE_ID || process.env.VITE_FIREBASE_DATABASE_ID;
+        if (!dbId && process.env.VERCEL !== "1") {
           try {
             const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
             if (fs.existsSync(configPath)) {
