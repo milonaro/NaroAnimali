@@ -1,6 +1,6 @@
 {
   "functions": {
-    "api/handler.cjs": {
+    "api/handler.js": {
       "includeFiles": "{dist/server.cjs,initialize_reference_tables.sql}"
     }
   },

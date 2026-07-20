@@ -17,7 +17,7 @@ La piattaforma supporta più comuni simultaneamente con isolamento logico dei da
 ### 1.2 Compilazione e Routing Serverless (Vercel Integration)
 Per supportare in modo ottimale il deploy serverless di un server Express senza incorrere nelle rigide limitazioni delle importazioni dei moduli ES nativi su Node.js:
 1. **Compilazione esbuild:** Durante il processo di build (`npm run build`), esbuild compila il server TypeScript (`server.ts`) in un unico pacchetto bundle CommonJS situato in `dist/server.cjs`.
-2. **Punto d'Ingresso Vercel:** Il file `vercel.json` instrada tutte le richieste `/api/*` verso il serverless function wrapper `api/handler.cjs`, che a sua volta carica ed esegue il file compilato `dist/server.cjs`.
+2. **Punto d'Ingresso Vercel:** Il file `vercel.json` instrada tutte le richieste `/api/*` verso il serverless function wrapper `api/handler.js`, che a sua volta carica ed esegue il file compilato `dist/server.cjs`.
 3. **SPA Fallback:** Tutte le altre rotte non API vengono reindirizzate su `index.html` per permettere al client React di gestire il routing in modalità SPA (Single Page Application).
 
 ### 1.3 Gestione Variabili d'Ambiente e Connessione Firestore

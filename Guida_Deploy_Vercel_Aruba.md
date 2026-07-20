@@ -64,8 +64,8 @@ Prima di cliccare "Deploy", vedrai una sezione chiamata **Environment Variables*
 
 ### Passo D: Come Funziona il Serverless Routing (Sotto il Cofano)
 La nostra applicazione è configurata per funzionare nativamente su Vercel Serverless senza alcun aggiustamento manuale:
-- Il file `vercel.json` reindirizza dinamicamente tutte le richieste all'endpoint `/api/*` verso `api/handler.cjs`.
-- Durante la compilazione, esbuild impacchetta il server TypeScript in un unico file bundle CommonJS compresso situato in `dist/server.cjs`. Il wrapper `handler.cjs` lo esegue sulla piattaforma serverless di Vercel, eliminando i problemi di percorso tipici dei moduli ES.
+- Il file `vercel.json` reindirizza dinamicamente tutte le richieste all'endpoint `/api/*` verso `api/handler.js`.
+- Durante la compilazione, esbuild impacchetta il server TypeScript in un unico file bundle CommonJS compresso situato in `dist/server.cjs`. Il wrapper `handler.js` lo esegue sulla piattaforma serverless di Vercel, eliminando i problemi di percorso tipici dei moduli ES.
 - Le pagine del frontend sono compilate in file statici pronti per la CDN di Vercel, garantendo caricamenti istantanei da ogni parte del mondo.
 
 ### Passo E: Avvia il Deploy
