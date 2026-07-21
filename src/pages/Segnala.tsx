@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AppMap from '@/src/components/map/Map';
-import { PawPrint, MapPin, CheckCircle2, User, WifiOff, Dog, Cat, MoreHorizontal, ShieldCheck, Info, Heart, AlertTriangle, Users, Baby, Thermometer, ChevronRight, ArrowLeft, ArrowRight, Camera, Download, FileText, Copy, ExternalLink } from 'lucide-react';
+import { PawPrint, MapPin, CheckCircle2, User, WifiOff, Dog, Cat, MoreHorizontal, ShieldCheck, Info, Heart, AlertTriangle, Users, Baby, Thermometer, ChevronRight, ArrowLeft, ArrowRight, Camera, Download, FileText, Copy, ExternalLink, X } from 'lucide-react';
 import { Segnalazione, AnimalSpecie } from '@/src/types';
 import { isInTerritorio } from '@/src/lib/geofence';
 import { motion, AnimatePresence } from 'motion/react';
@@ -8,6 +8,8 @@ import { OfflineStore } from '@/src/lib/offline';
 import { Link } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import PageHeader from '../components/layout/PageHeader';
+import { DEFAULT_PRIVACY_TEXT } from '@/src/lib/defaultTexts';
+import { parseMarkdownToReact } from '@/src/utils/markdownRenderer';
 
 const ANIMALI_GESTITI = [
   "Piccioni urbani (Columba livia domestica)",
@@ -69,6 +71,8 @@ export default function Segnala() {
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [photo, setPhoto] = useState<File | null>(null);
   const [isOfflineMode, setIsOfflineMode] = useState(false);
+  const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
+  const [privacyText, setPrivacyText] = useState("");
 
   // Dynamic CMS configurations 
   const [siteName, setSiteName] = useState("Comune di Naro");
@@ -82,8 +86,13 @@ export default function Segnala() {
           const config = await res.json();
           if (config.siteName) setSiteName(config.siteName);
           if (config.activeComune) setActiveComune(config.activeComune);
+          setPrivacyText(config.privacy_text || DEFAULT_PRIVACY_TEXT);
+        } else {
+          setPrivacyText(DEFAULT_PRIVACY_TEXT);
         }
-      } catch (e) {}
+      } catch (e) {
+        setPrivacyText(DEFAULT_PRIVACY_TEXT);
+      }
     };
     fetchConfig();
 
@@ -1264,9 +1273,57 @@ export default function Segnala() {
                     />
                     <div className="flex flex-col">
                       <span className="text-sm font-bold text-[#1e3a5f]">Accetto la Privacy Policy *</span>
-                      <span className="text-[10px] text-gray-400 mt-0.5">I dati forniti sono trattati secondo il Regolamento GDPR. <Link to="/privacy-policy" className="text-[#15803d] font-bold hover:underline">Leggi Privacy Policy</Link></span>
+                      <span className="text-[10px] text-gray-400 mt-0.5">
+                        I dati forniti sono trattati secondo il Regolamento GDPR.{" "}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setIsPrivacyModalOpen(true);
+                          }}
+                          className="text-[#15803d] font-bold hover:underline cursor-pointer focus:outline-none"
+                        >
+                          Leggi Privacy Policy
+                        </button>
+                      </span>
                     </div>
                   </label>
+
+                  {isPrivacyModalOpen && (
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/65 backdrop-blur-sm animate-fadeIn">
+                      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col overflow-hidden border border-slate-150 animate-scaleIn">
+                        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                          <h3 className="text-lg font-black text-[#1e3a5f] flex items-center gap-2">
+                            <ShieldCheck className="h-5 w-5 text-[#15803d]" />
+                            Informativa Privacy (Regolamento GDPR)
+                          </h3>
+                          <button
+                            type="button"
+                            onClick={() => setIsPrivacyModalOpen(false)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
+                          >
+                            <X className="h-5 w-5" />
+                          </button>
+                        </div>
+                        <div className="p-6 md:p-8 overflow-y-auto text-sm leading-relaxed text-slate-600 space-y-4 font-sans max-h-[55vh]">
+                          {parseMarkdownToReact(privacyText || DEFAULT_PRIVACY_TEXT)}
+                        </div>
+                        <div className="p-5 border-t border-slate-100 flex justify-end bg-slate-50">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFormData({ ...formData, consensoPrivacy: true });
+                              setIsPrivacyModalOpen(false);
+                            }}
+                            className="px-6 py-2.5 bg-[#15803d] text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-[#15803d]/90 shadow-md hover:shadow-lg transition-all"
+                          >
+                            Accetta e Chiudi
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Checkbox 2: Notifiche email (Optional) */}
                   <label className="flex gap-4 p-5 bg-white border border-gray-150 rounded-lg cursor-pointer hover:bg-slate-50/50 transition-colors">

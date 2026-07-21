@@ -1,11 +1,12 @@
 import { jsPDF } from 'jspdf';
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   Briefcase, MapPin, ShieldAlert, BadgeInfo, CheckCircle, 
   Download, Filter, Search, User, FileSpreadsheet, Plus, 
   Activity, Star, Sparkles, Building, Phone, Calendar, CheckSquare,
   Dog, Cat, FileText, AlertTriangle, X, Printer, Lock,
-  GitMerge, GitCompare, Loader2, RefreshCw
+  GitMerge, GitCompare, Loader2, RefreshCw, ArrowRight
 } from 'lucide-react';
 import AppMap from '@/src/components/map/Map';
 import { AnimalSpecie, SegnalazioneStato, Segnalazione } from '../types';
@@ -41,11 +42,12 @@ interface LogIntervento {
 }
 
 export default function Operatori() {
-  const [activeTab, setActiveTab] = useState<'statistiche' | 'modulo-b' | 'modulo-c' | 'modulo-adozioni' | 'gestione-operatori' | 'richieste-iscrizione'>('statistiche');
+  const [activeTab, setActiveTab] = useState<'statistiche' | 'modulo-b' | 'modulo-c' | 'modulo-adozioni' | 'gestione-operatori' | 'richieste-iscrizione' | 'guida-uso'>('statistiche');
   const [activeComune, setActiveComune] = useState(() => (localStorage.getItem('active_comune') || 'naro').toLowerCase());
   const [siteName, setSiteName] = useState("Comune di Naro");
   const [reports, setReports] = useState<Segnalazione[]>([]);
   const [selectedReport, setSelectedReport] = useState<Segnalazione | null>(null);
+  const [guidedStep, setGuidedStep] = useState<number>(1);
   const [registro, setRegistro] = useState<RegistroAnimale[]>([]);
   const [logs, setLogs] = useState<LogIntervento[]>([]);
   const [currentUser, setCurrentUser] = useState<{ id: number; username: string; role: string; comune_key: string; visible_modules?: ('statistiche' | 'modulo-b' | 'modulo-c' | 'modulo-adozioni')[] | null } | null>(null);
@@ -1065,7 +1067,8 @@ export default function Operatori() {
     { id: 'modulo-c', name: 'Modulo C — Archivio Digitale', allowed: !currentUser?.visible_modules || currentUser.visible_modules.includes('modulo-c') },
     { id: 'richieste-iscrizione', name: 'Richieste Iscrizione 🐾', allowed: !currentUser?.visible_modules || currentUser.visible_modules.includes('modulo-c') },
     { id: 'modulo-adozioni', name: 'Modulo Adozioni & Costi', allowed: !currentUser?.visible_modules || currentUser.visible_modules.includes('modulo-adozioni') },
-    { id: 'gestione-operatori', name: 'Gestione Operatori 👥', allowed: currentUser?.role === 'ADMIN' || currentUser?.role === 'Admin' }
+    { id: 'gestione-operatori', name: 'Gestione Operatori 👥', allowed: currentUser?.role === 'ADMIN' || currentUser?.role === 'Admin' },
+    { id: 'guida-uso', name: 'Guida all\'Utilizzo 📖', allowed: true }
   ];
 
   if (printingAdozione) {
@@ -1955,7 +1958,13 @@ export default function Operatori() {
           titolo="Portale Operativo Municipale"
           sottotitolo={`Pannello di controllo del ${siteName} per la gestione territoriale del randagismo e archivio sanitario ASP.`}
         >
-          <div className="flex justify-end">
+          <div className="flex flex-wrap gap-3 justify-end">
+            <Link 
+              to="/" 
+              className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white font-black text-[10px] uppercase tracking-wider py-3 px-5 rounded-xl border border-white/10 shadow-sm transition-all cursor-pointer"
+            >
+              🏠 Dashboard Pubblica
+            </Link>
             <button 
               onClick={handleExportRegional}
               className="flex items-center gap-2 bg-[#15803d]/90 hover:bg-[#166534] text-white font-black text-[10px] uppercase tracking-wider py-3 px-5 rounded-xl border border-white/10 shadow-sm transition-all cursor-pointer"
@@ -2084,8 +2093,488 @@ export default function Operatori() {
             </div>
           </div>
         ) : activeTab === 'modulo-b' ? (
-          /* ================= MODULO B: DASHBOARD OPERATIVA ================= */
-          <div className="space-y-8">
+          selectedReport ? (
+            /* ================= FLUSSO DI LAVORO GUIDATO A SCHERMO INTERO ================= */
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+              
+              {/* Intestazione Superiore */}
+              <div className="bg-slate-900 text-white p-6 flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={() => setSelectedReport(null)}
+                    className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-lg transition-all text-xs font-bold uppercase tracking-wider flex items-center gap-2"
+                  >
+                    <X className="h-4 w-4" /> Esci dal Flusso
+                  </button>
+                  <div className="h-8 w-[1px] bg-slate-800"></div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] uppercase font-black tracking-widest text-emerald-400">Pratica Attiva</span>
+                      <span className={`text-[9px] px-2 py-0.5 rounded font-black uppercase tracking-wider ${
+                        selectedReport.urgenza === 'ALTA' ? 'bg-red-500 text-white animate-pulse' : 
+                        selectedReport.urgenza === 'MEDIA' ? 'bg-amber-500 text-white' : 'bg-slate-700 text-white'
+                      }`}>
+                        Urgenza {selectedReport.urgenza}
+                      </span>
+                    </div>
+                    <h2 className="text-xl font-extrabold tracking-tight">{selectedReport.codiceTracking}</h2>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-slate-400 font-bold hidden sm:inline">Ufficio Randagismo Naro</span>
+                  <div className="px-4 py-2 bg-slate-800 rounded-lg text-xs font-bold text-slate-300">
+                    Soggetto: <strong className="text-white uppercase">{selectedReport.specie}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Progress Stepper */}
+              <div className="bg-slate-50 border-b border-slate-200 p-4 overflow-x-auto">
+                <div className="max-w-4xl mx-auto flex items-center justify-between min-w-[640px] px-4">
+                  {[
+                    { step: 1, label: "Verifica & Stato", icon: Activity },
+                    { step: 2, label: "Unificazione Duplicati", icon: GitMerge },
+                    { step: 3, label: "Assegnazione & Firma", icon: CheckSquare },
+                    { step: 4, label: "Cronologia Log", icon: FileText }
+                  ].map((s) => {
+                    const isCompleted = s.step < guidedStep;
+                    const isActive = s.step === guidedStep;
+                    const StepIcon = s.icon;
+                    return (
+                      <button
+                        key={s.step}
+                        onClick={() => setGuidedStep(s.step)}
+                        className={`flex items-center gap-2.5 pb-2 border-b-2 transition-all font-bold text-xs uppercase tracking-wider outline-none ${
+                          isActive 
+                            ? 'border-[#15803d] text-[#15803d]' 
+                            : isCompleted 
+                              ? 'border-emerald-500 text-emerald-600' 
+                              : 'border-transparent text-slate-400 hover:text-slate-600'
+                        }`}
+                      >
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black ${
+                          isActive 
+                            ? 'bg-[#15803d] text-white' 
+                            : isCompleted 
+                              ? 'bg-emerald-100 text-emerald-700' 
+                              : 'bg-slate-200 text-slate-500'
+                        }`}>
+                          {isCompleted ? "✓" : s.step}
+                        </div>
+                        <span className="flex items-center gap-1">
+                          <StepIcon className="h-3.5 w-3.5" />
+                          {s.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Contenuto di ciascuno Step */}
+              <div className="p-6 md:p-8 lg:p-10">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+                  
+                  {/* Left panel: Step-specific form actions */}
+                  <div className="lg:col-span-2 bg-slate-50 rounded-xl border border-slate-200/60 p-6 md:p-8 space-y-6">
+                    
+                    {guidedStep === 1 && (
+                      <div className="space-y-6">
+                        <div className="space-y-1 text-left">
+                          <h3 className="text-base font-extrabold text-[#1e3a5f] uppercase tracking-wide">Fase 1: Verifica Dati Anagrafici e Aggiorna Stato</h3>
+                          <p className="text-xs text-slate-500 leading-relaxed">
+                            Esamina le informazioni trasmesse dal segnalante. Imposta lo stato operativo coerente con le verifiche della Polizia Municipale o degli ispettori comunali.
+                          </p>
+                        </div>
+
+                        {/* Quick Grid Details */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-5 rounded-xl border border-slate-100 shadow-sm text-left">
+                          <div className="p-3 bg-slate-50 rounded-lg">
+                            <span className="text-[10px] font-black uppercase text-slate-400 block mb-0.5">Soggetto Specie</span>
+                            <span className="font-bold text-[#1e3a5f] text-sm uppercase flex items-center gap-1">
+                              {selectedReport.specie === AnimalSpecie.GATTO ? '🐱 Gatto' : '🐶 Cane'} · {selectedReport.taglia}
+                            </span>
+                          </div>
+                          <div className="p-3 bg-slate-50 rounded-lg">
+                            <span className="text-[10px] font-black uppercase text-slate-400 block mb-0.5">Condizioni Dichiarate</span>
+                            <span className="font-bold text-red-500 text-sm uppercase">
+                              ⚠️ {selectedReport.condizioni}
+                            </span>
+                          </div>
+                          <div className="p-3 bg-slate-50 rounded-lg md:col-span-2">
+                            <span className="text-[10px] font-black uppercase text-slate-400 block mb-0.5">Indirizzo / Posizione Geofence</span>
+                            <span className="font-semibold text-slate-700 text-xs flex items-center gap-1.5 mt-0.5">
+                              <MapPin className="h-4 w-4 text-[#15803d]" /> {selectedReport.indirizzo} ({selectedReport.zona})
+                            </span>
+                          </div>
+                          <div className="p-3 bg-slate-50 rounded-lg md:col-span-2">
+                            <span className="text-[10px] font-black uppercase text-slate-400 block mb-0.5">Dati di Contatto Segnalante</span>
+                            <p className="font-bold text-slate-700 text-xs mt-0.5">
+                              {selectedReport.nomeSegnalante} {selectedReport.cognomeSegnalante}
+                            </p>
+                            <p className="text-slate-400 text-xs mt-1 font-semibold">
+                              Telefono: {selectedReport.telefonoSegnalante || "Non indicato"}
+                            </p>
+                          </div>
+                          {selectedReport.descrizione && (
+                            <div className="p-3 bg-slate-50 rounded-lg md:col-span-2">
+                              <span className="text-[10px] font-black uppercase text-slate-400 block mb-1">Nota Descrittiva Segnalazione</span>
+                              <p className="text-xs text-slate-600 font-medium italic">"{selectedReport.descrizione}"</p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Status Selectors */}
+                        <div className="space-y-3 text-left">
+                          <label className="text-xs font-black uppercase tracking-wider text-slate-500 block">Stato di Lavorazione della Pratica</label>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                            {[
+                              { stato: SegnalazioneStato.IN_CARICO, label: "In Carico", color: "bg-yellow-50 text-yellow-800 border-yellow-300 hover:bg-yellow-100", desc: "La pratica è presa in esame dagli uffici." },
+                              { stato: SegnalazioneStato.VALIDATA, label: "Validata", color: "bg-sky-50 text-sky-800 border-sky-300 hover:bg-sky-100", desc: "Sopralluogo approvato ed esito positivo." },
+                              { stato: SegnalazioneStato.INTERVENTO, label: "Intervento", color: "bg-purple-50 text-purple-800 border-purple-300 hover:bg-purple-100", desc: "Squadra di soccorso inviata sul posto." },
+                              { stato: SegnalazioneStato.CHIUSA, label: "Risolta / Chiusa", color: "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100", desc: "Animale recuperato e pratica risolta." }
+                            ].map((st) => {
+                              const isSel = selectedReport.stato === st.stato;
+                              return (
+                                <button
+                                  key={st.stato}
+                                  type="button"
+                                  onClick={() => handleUpdateStatus(st.stato)}
+                                  className={`p-4 rounded-xl border text-left transition-all ${
+                                    isSel 
+                                      ? `${st.color} border-2 ring-4 ring-[#15803d]/10 font-bold scale-102 shadow-sm` 
+                                      : 'bg-white border-slate-200/80 text-slate-700 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  <div className="font-extrabold text-xs uppercase tracking-wide flex items-center justify-between">
+                                    <span>{st.label}</span>
+                                    {isSel && <span className="text-[#15803d] text-xs">●</span>}
+                                  </div>
+                                  <p className="text-[10px] text-slate-400 mt-1 font-medium leading-tight">{st.desc}</p>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Navigation button */}
+                        <div className="flex justify-end pt-4 border-t border-slate-200">
+                          <button
+                            type="button"
+                            onClick={() => setGuidedStep(2)}
+                            className="px-6 py-3 bg-[#1e3a5f] hover:bg-[#101b3a] text-white rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-[#1e3a5f]/10"
+                          >
+                            Passo Successivo: Unificazione <ArrowRight className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {guidedStep === 2 && (
+                      <div className="space-y-6">
+                        <div className="space-y-1 text-left">
+                          <h3 className="text-base font-extrabold text-[#1e3a5f] uppercase tracking-wide">Fase 2: Prevenzione Duplicati ed Unificazione Record</h3>
+                          <p className="text-xs text-slate-500 leading-relaxed">
+                            Spesso più cittadini registrano la medesima criticità territoriale. Se questa pratica corrisponde ad un animale già registrato, puoi fonderla nella pratica principale.
+                          </p>
+                        </div>
+
+                        <div className="bg-amber-50 border border-amber-200 p-5 rounded-xl text-amber-900 text-left space-y-2">
+                          <h4 className="font-extrabold text-xs uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
+                            <AlertTriangle className="h-4.5 w-4.5 text-amber-600" /> Regola di Consolidamento Comunale
+                          </h4>
+                          <p className="text-xs leading-relaxed text-amber-800 font-medium">
+                            La fusione sposterà tutti i registri storici di sopralluogo sotto la segnalazione primaria selezionata. Questa segnalazione corrente verrà disattivata con stato <span className="font-bold uppercase bg-amber-100 px-1 py-0.5 rounded text-amber-900">FUSA</span> per non intasare l'elenco dei veterinari.
+                          </p>
+                        </div>
+
+                        <div className="p-6 bg-white rounded-xl border border-slate-200/80 space-y-4 text-left">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase block">Pratica Primaria di Destinazione (Attiva)</label>
+                            <select
+                              className="w-full p-3 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 bg-slate-50 focus:border-[#15803d]"
+                              value={mergeTargetId}
+                              onChange={(e) => setMergeTargetId(e.target.value)}
+                            >
+                              <option value="">-- Seleziona Segnalazione Attiva nell'Area --</option>
+                              {reports
+                                .filter(r => r.id !== selectedReport.id && r.stato !== SegnalazioneStato.FUSA)
+                                .map(r => (
+                                  <option key={r.id} value={r.id}>
+                                    [{r.codiceTracking}] - {r.indirizzo} ({r.createdAt}) - {r.descrizione?.substring(0, 40)}...
+                                  </option>
+                                ))}
+                            </select>
+                          </div>
+
+                          {mergeTargetId && (
+                            <button
+                              type="button"
+                              onClick={handleMergeReports}
+                              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-black uppercase tracking-wider shadow transition-all flex items-center justify-center gap-1.5"
+                            >
+                              <GitCompare className="h-4 w-4" /> Conferma e Procedi con la Fusione dei Record
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Navigation buttons */}
+                        <div className="flex justify-between pt-4 border-t border-slate-200">
+                          <button
+                            type="button"
+                            onClick={() => setGuidedStep(1)}
+                            className="px-5 py-3 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg text-xs font-bold uppercase tracking-wider"
+                          >
+                            Indietro
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setGuidedStep(3)}
+                            className="px-6 py-3 bg-[#1e3a5f] hover:bg-[#101b3a] text-white rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5"
+                          >
+                            Passo Successivo: Assegnazione <ArrowRight className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {guidedStep === 3 && (
+                      <div className="space-y-6">
+                        <div className="space-y-1 text-left">
+                          <h3 className="text-base font-extrabold text-[#1e3a5f] uppercase tracking-wide">Fase 3: Assegnazione ad Ente e Firma dell'Operatore</h3>
+                          <p className="text-xs text-slate-500 leading-relaxed">
+                            Assegna l'intervento ad una delle autorità competenti e apponi la firma comunale per verbalizzare il log delle azioni intraprese.
+                          </p>
+                        </div>
+
+                        {currentUser?.role === 'Volontario' ? (
+                          <div className="bg-amber-50 border border-amber-200 p-6 rounded-xl space-y-3 text-amber-900 shadow-sm text-left">
+                            <p className="font-bold text-xs flex items-center gap-1.5 uppercase tracking-wider text-amber-700">
+                              <ShieldAlert className="h-5 w-5 text-amber-600" /> Abilitazione non sufficiente
+                            </p>
+                            <p className="text-xs leading-relaxed text-amber-800">
+                              Il tuo account è censito con profilo <strong>Volontario</strong>. Non disponi dell'abilitazione di super-amministratore per poter assegnare la pratica o apporre firme comunali per l'ente.
+                            </p>
+                          </div>
+                        ) : (
+                          <form onSubmit={handleAddLog} className="space-y-4 text-left">
+                            
+                            {/* Assign Intervention */}
+                            <div className="p-4 bg-white border border-slate-200 rounded-xl space-y-2">
+                              <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">Destinatario della Pratica (Assegnazione)</label>
+                              <select 
+                                value={assignedEntity} 
+                                onChange={(e) => setAssignedEntity(e.target.value as any)}
+                                className="w-full p-3 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 bg-slate-50 focus:border-[#15803d]"
+                              >
+                                <option value="nessuno">Nessun Ente Esterno (Gestione Interna Comune)</option>
+                                <option value="canile">Canile Convenzionato Comunale Naro</option>
+                                <option value="veterinario">Veterinario ASP Agrigento (Veterinari Territoriali)</option>
+                                <option value="polizia">Comando Polizia Locale Municipale Naro</option>
+                              </select>
+                              <p className="text-[9px] text-slate-400 leading-relaxed font-semibold mt-1">
+                                Nota: L'assegnazione cambierà automaticamente lo stato della pratica in "INTERVENTO AVVIATO".
+                              </p>
+                            </div>
+
+                            {/* Operator Signature */}
+                            <div className="p-4 bg-white border border-slate-200 rounded-xl space-y-2">
+                              <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">Firma dell'Operatore Autorizzato (In carica per l'Ente) *</label>
+                              <input 
+                                type="text" 
+                                required
+                                placeholder="es. Dott. Calogero Russo / Ispettore Valenti"
+                                value={opSign}
+                                onChange={(e) => setOpSign(e.target.value)}
+                                className="w-full p-3 border border-slate-200 rounded-lg text-xs font-bold text-[#1e3a5f] outline-none focus:border-[#15803d] bg-slate-50"
+                              />
+                            </div>
+
+                            {/* Comment */}
+                            <div className="p-4 bg-white border border-slate-200 rounded-xl space-y-2">
+                              <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">Dettagli dell'attività / Verbale di Sopralluogo *</label>
+                              <textarea 
+                                required
+                                rows={4}
+                                placeholder="Indica qui i dettagli del sopralluogo effettuato, gli esiti, o le note operative per i soccorritori..."
+                                value={opComment}
+                                onChange={(e) => setOpComment(e.target.value)}
+                                className="w-full p-3 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-[#15803d] bg-slate-50 h-28"
+                              />
+                            </div>
+
+                            <button 
+                              type="submit"
+                              className="w-full bg-[#15803d] hover:bg-[#166534] text-white p-4 rounded-xl text-xs font-black uppercase tracking-wider shadow-lg shadow-[#15803d]/20 transition-all text-center flex items-center justify-center gap-1.5"
+                            >
+                              <CheckCircle className="h-4.5 w-4.5" /> Salva ed Apponi Firma Elettronica
+                            </button>
+                          </form>
+                        )}
+
+                        {/* Navigation buttons */}
+                        <div className="flex justify-between pt-4 border-t border-slate-200">
+                          <button
+                            type="button"
+                            onClick={() => setGuidedStep(2)}
+                            className="px-5 py-3 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg text-xs font-bold uppercase tracking-wider"
+                          >
+                            Indietro
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setGuidedStep(4)}
+                            className="px-6 py-3 bg-[#1e3a5f] hover:bg-[#101b3a] text-white rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5"
+                          >
+                            Passo Successivo: Cronologia <ArrowRight className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {guidedStep === 4 && (
+                      <div className="space-y-6">
+                        <div className="space-y-1 text-left">
+                          <h3 className="text-base font-extrabold text-[#1e3a5f] uppercase tracking-wide">Fase 4: Cronologia degli Interventi e Log Auditing</h3>
+                          <p className="text-xs text-slate-500 leading-relaxed">
+                            Registro storico completo delle attività, firme, e assegnazioni registrate per questa pratica.
+                          </p>
+                        </div>
+
+                        {/* Logs Timeline */}
+                        <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 text-left">
+                          {logs.filter(l => l.reportId === selectedReport.id).length === 0 ? (
+                            <div className="text-xs text-slate-400 italic font-medium p-6 bg-slate-100 rounded-xl text-center border-2 border-dashed border-slate-200">
+                              Nessun log o firma registrata per questa pratica comunale.
+                            </div>
+                          ) : (
+                            logs.filter(l => l.reportId === selectedReport.id).map(l => (
+                              <div key={l.id} className="text-xs bg-white border border-slate-100 p-4 rounded-xl shadow-sm space-y-2">
+                                <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                                  <span>Data: {l.data}</span>
+                                  <span className="text-[#1e3a5f] underline decoration-dotted">Firma: {l.operatore}</span>
+                                </div>
+                                <p className="text-slate-700 font-semibold leading-relaxed font-sans mt-1">{l.descrizione}</p>
+                                {l.assegnatoA !== "nessuno" && (
+                                  <span className="inline-block mt-2 text-[9px] font-black uppercase bg-emerald-50 text-[#15803d] border border-emerald-200 rounded-full px-2.5 py-0.5">
+                                    Assegnazione: {l.assegnatoA === 'canile' ? 'Canile Convenzionato' : l.assegnatoA === 'veterinario' ? 'Veterinario ASP' : 'Polizia Municipale'}
+                                  </span>
+                                )}
+                              </div>
+                            ))
+                          )}
+                        </div>
+
+                        {hasMoreLogs && (
+                          <button 
+                            type="button" 
+                            onClick={loadMoreLogs}
+                            className="mt-2 w-full text-center text-[10px] text-blue-600 hover:text-blue-800 font-bold uppercase tracking-wider bg-slate-100 py-2.5 rounded-lg border border-dashed border-slate-300"
+                          >
+                            Carica Altri Log Storici ({logs.length} caricati)
+                          </button>
+                        )}
+
+                        {/* Navigation buttons */}
+                        <div className="flex justify-between pt-4 border-t border-slate-200">
+                          <button
+                            type="button"
+                            onClick={() => setGuidedStep(3)}
+                            className="px-5 py-3 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg text-xs font-bold uppercase tracking-wider"
+                          >
+                            Indietro
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedReport(null)}
+                            className="px-6 py-3 bg-[#15803d] hover:bg-[#166534] text-white rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-[#15803d]/10"
+                          >
+                            <CheckCircle className="h-4 w-4" /> Chiudi e Salva Pratica
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+
+                  {/* Right panel: Static context details card */}
+                  <div className="lg:col-span-1 space-y-6">
+                    
+                    {/* Media attachments */}
+                    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                      <div className="p-4 bg-slate-50 border-b border-slate-200 text-left">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Allegato Fotografico</span>
+                      </div>
+                      {selectedReport.fotoUrl ? (
+                        <div className="relative h-64 bg-slate-900 flex items-center justify-center">
+                          <img 
+                            src={selectedReport.fotoUrl} 
+                            referrerPolicy="no-referrer"
+                            alt="Foto animale" 
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="h-48 bg-slate-100 flex flex-col items-center justify-center text-slate-400 gap-2">
+                          <Dog className="h-10 w-10 text-slate-300" />
+                          <span className="text-xs font-bold uppercase tracking-wide">Nessuna foto allegata</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Georeference widget */}
+                    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm p-4 text-left">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-3">Punto GPS Segnalato</span>
+                      <div className="h-44 rounded-lg overflow-hidden border border-slate-100">
+                        {selectedReport.latitudine && selectedReport.longitudine ? (
+                          <AppMap 
+                            interactive={false}
+                            hideFilters={true}
+                            center={[selectedReport.latitudine, selectedReport.longitudine]}
+                            markers={[{
+                              lat: selectedReport.latitudine,
+                              lng: selectedReport.longitudine,
+                              title: "Soggetto",
+                              specie: selectedReport.specie === AnimalSpecie.GATTO ? 'Gatto' : 'Cane'
+                            }]}
+                          />
+                        ) : (
+                          <div className="h-full flex items-center justify-center text-slate-400 text-xs">
+                            Nessun dato GPS associato
+                          </div>
+                        )}
+                      </div>
+                      <div className="mt-3 text-[10px] text-slate-400 font-extrabold flex items-center gap-1">
+                        <span>Latitudine: {selectedReport.latitudine || "N/A"}</span>
+                        <span>·</span>
+                        <span>Longitudine: {selectedReport.longitudine || "N/A"}</span>
+                      </div>
+                    </div>
+
+                    {/* Information Guide Card */}
+                    <div className="p-5 bg-gradient-to-br from-[#1e3a5f] to-[#101b3a] rounded-xl text-white text-left space-y-4">
+                      <div>
+                        <span className="text-[9px] font-black bg-white/20 text-white px-2 py-0.5 rounded uppercase tracking-wider">Help Desk</span>
+                        <h4 className="font-extrabold text-sm mt-1">Guida Rapida Randagismo</h4>
+                      </div>
+                      <p className="text-xs text-slate-300 leading-relaxed font-medium">
+                        Stai gestendo la pratica secondo le disposizioni comunali del <strong>Regolamento Regionale di Prevenzione Randagismo</strong>. Ogni log inserito verrà archiviato in modo definitivo e firmato per la trasparenza amministrativa dell'ente.
+                      </p>
+                      <div className="border-t border-white/10 pt-3 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                        Ente: Comune di Naro (ASP AG)
+                      </div>
+                    </div>
+
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
+          ) : (
+            /* ================= MODULO B: DASHBOARD OPERATIVA ================= */
+            <div className="space-y-8">
             
             {/* Filter Panel */}
             <div className="bg-white p-6 rounded-xl border border-slate-200/80 shadow-sm flex flex-wrap gap-4 items-center justify-between">
@@ -2184,6 +2673,7 @@ export default function Operatori() {
                             onClick={() => {
                               setSelectedReport(r);
                               setAssignedEntity("nessuno");
+                              setGuidedStep(1);
                             }}
                             className={`p-6 transition-all cursor-pointer flex justify-between items-start ${
                               isSelected ? 'bg-emerald-50/50 border-l-4 border-[#15803d]' : 'hover:bg-slate-50'
@@ -2232,10 +2722,49 @@ export default function Operatori() {
                 {/* Micro Map or Location Context of Naro */}
                 <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden p-6">
                   <h3 className="text-xs font-black uppercase text-slate-500 tracking-wider mb-4 flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-[#15803d]" /> Localizzazione Geografica Segnalazioni Attive
+                    <MapPin className="h-4 w-4 text-[#15803d]" /> Localizzazione Geografica Segnalazioni Attive (Colorate per Stato)
                   </h3>
-                  <div className="h-[300px] w-full rounded-lg overflow-hidden border border-slate-200">
-                    <AppMap />
+                  <div className="h-[400px] w-full rounded-lg overflow-hidden border border-slate-200">
+                    <AppMap 
+                      markers={reports
+                        .filter(r => r.latitudine && r.longitudine)
+                        .map(r => ({
+                          id: String(r.id),
+                          lat: r.latitudine!,
+                          lng: r.longitudine!,
+                          title: r.codiceTracking + ' - ' + r.indirizzo,
+                          specie: r.specie === AnimalSpecie.GATTO ? 'Gatto' : 'Cane',
+                          urgenza: r.urgenza === 'ALTA' ? 'Alta' : r.urgenza === 'MEDIA' ? 'Normale' : 'Bassa' as any,
+                          image: r.fotoUrl || undefined,
+                          date: r.createdAt || '',
+                          code: r.codiceTracking,
+                          status: r.stato === 'CHIUSA' ? 'RISOLTA' : r.stato === 'IN_CARICO' ? 'IN_CARICO' : (r.stato === 'INTERVENTO' ? 'INTERVENTO' : 'CREATA') as any
+                        }))}
+                      interactive={true}
+                      onMarkerClick={(id) => {
+                        const found = reports.find(r => String(r.id) === id);
+                        if (found) {
+                          setSelectedReport(found);
+                          setAssignedEntity("nessuno");
+                          setGuidedStep(1);
+                        }
+                      }}
+                      center={selectedReport?.latitudine && selectedReport?.longitudine ? [selectedReport.latitudine, selectedReport.longitudine] : undefined}
+                    />
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-4 items-center justify-center text-xs">
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <span className="w-3.5 h-3.5 rounded-full bg-blue-500 border-2 border-white shadow-sm inline-block"></span>
+                      <span className="text-slate-500 uppercase text-[10px]">Nuova (Da Gestire)</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <span className="w-3.5 h-3.5 rounded-full bg-amber-500 border-2 border-white shadow-sm inline-block"></span>
+                      <span className="text-slate-500 uppercase text-[10px]">In Carico / Intervento</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <span className="w-3.5 h-3.5 rounded-full bg-[#10b981] border-2 border-white shadow-sm inline-block"></span>
+                      <span className="text-slate-500 uppercase text-[10px]">Risolta / Chiusa</span>
+                    </div>
                   </div>
                 </div>
 
@@ -2470,6 +2999,7 @@ export default function Operatori() {
             </div>
 
           </div>
+          )
         ) : activeTab === 'modulo-c' ? (
           /* ================= MODULO C: ARCHIVIO ANAGRAFICO DIGITALE ================= */
           <div className="space-y-8">
@@ -2868,7 +3398,7 @@ export default function Operatori() {
                         <div className="mt-6 pt-4 border-t border-slate-100 text-[9px] font-bold text-slate-400 flex flex-col gap-2">
                           <div className="flex items-center justify-between">
                             <span>Ultimo agg: {item.dataSincronizzazione}</span>
-                            <span className="text-emerald-600 flex items-center gap-1">✔ Sincronizzato ASP AG</span>
+                            <span className="text-emerald-600 flex items-center gap-1">✔ Registrato in Anagrafe</span>
                           </div>
                           {currentUser?.role !== 'Volontario' && (
                             <button 
@@ -3016,7 +3546,7 @@ export default function Operatori() {
                 <div className="bg-white rounded-xl shadow-2xl border border-slate-100 max-w-2xl w-full max-h-[90vh] overflow-y-auto p-8 space-y-6">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                     <h3 className="text-lg font-black uppercase text-[#1e3a5f] tracking-widest flex items-center gap-2">
-                      <FileText className="h-5 w-5 text-blue-600" /> Modifica Anagrafica
+                      <FileText className="h-5 w-5 text-blue-600" /> Modifica Anagrafica Soggetto
                     </h3>
                     <button 
                       onClick={() => setEditingSoggetto(null)}
@@ -3025,14 +3555,84 @@ export default function Operatori() {
                       Chiudi
                     </button>
                   </div>
-                  <form onSubmit={handleUpdateSoggettoSubmit} className="space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
+                  <form onSubmit={handleUpdateSoggettoSubmit} className="space-y-6 text-left">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Stato Animale</label>
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 font-sans">Nome Soggetto</label>
+                        <input 
+                          type="text" 
+                          required
+                          value={editingSoggetto.nome || ""}
+                          onChange={(e) => setEditingSoggetto({...editingSoggetto, nome: e.target.value})}
+                          className="w-full p-3 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 bg-white focus:border-[#15803d] outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 font-sans">Codice Microchip (Non modificabile)</label>
+                        <input 
+                          type="text" 
+                          disabled
+                          value={editingSoggetto.microchip || ""}
+                          className="w-full p-3 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-400 bg-slate-100"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 font-sans">Specie</label>
+                        <select 
+                          value={editingSoggetto.specie || "Cane"}
+                          onChange={(e) => setEditingSoggetto({...editingSoggetto, specie: e.target.value as any})}
+                          className="w-full p-3 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 bg-white outline-none focus:border-[#15803d]"
+                        >
+                          <option value="Cane">Cane</option>
+                          <option value="Gatto">Gatto</option>
+                          <option value="Altro">Altro</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 font-sans">Sesso</label>
+                        <select 
+                          value={editingSoggetto.sesso || "M"}
+                          onChange={(e) => setEditingSoggetto({...editingSoggetto, sesso: e.target.value as any})}
+                          className="w-full p-3 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 bg-white outline-none focus:border-[#15803d]"
+                        >
+                          <option value="M">Maschio (M)</option>
+                          <option value="F">Femmina (F)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 font-sans">Taglia</label>
+                        <select 
+                          value={editingSoggetto.taglia || "MEDIA"}
+                          onChange={(e) => setEditingSoggetto({...editingSoggetto, taglia: e.target.value as any})}
+                          className="w-full p-3 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 bg-white outline-none focus:border-[#15803d]"
+                        >
+                          <option value="PICCOLA">Piccola</option>
+                          <option value="MEDIA">Media</option>
+                          <option value="GRANDE">Grande</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 font-sans">Colore / Mantello</label>
+                        <input 
+                          type="text" 
+                          required
+                          value={editingSoggetto.colore || ""}
+                          onChange={(e) => setEditingSoggetto({...editingSoggetto, colore: e.target.value})}
+                          className="w-full p-3 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 bg-white focus:border-[#15803d] outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 font-sans">Stato Animale</label>
                         <select 
                           value={editingSoggetto.stato}
                           onChange={(e) => setEditingSoggetto({...editingSoggetto, stato: e.target.value as any})}
-                          className="w-full p-3 border border-slate-200 rounded text-xs text-slate-700 bg-slate-50"
+                          className="w-full p-3 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 bg-white focus:border-[#15803d] outline-none"
                         >
                           <option value="LIBERO">1 - Libero sul territorio collaudato (Cane di Quartiere)</option>
                           <option value="CATTURATO">2 - Recuperato / In Cattura</option>
@@ -3042,18 +3642,37 @@ export default function Operatori() {
                           <option value="DECEDUTO">6 - Deceduto / Smaltimento Carcassa</option>
                         </select>
                       </div>
-                      <div>
-                        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Stato Sanitario / Note</label>
-                        <input 
-                          type="text" 
-                          value={editingSoggetto.condizioniSanitarie || ""}
-                          onChange={(e) => setEditingSoggetto({...editingSoggetto, condizioniSanitarie: e.target.value})}
-                          className="w-full p-3 border border-slate-200 rounded text-xs outline-none focus:border-[#15803d]"
-                        />
-                      </div>
                     </div>
+
                     <div>
-                      <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 uppercase tracking-wider text-xs rounded-lg transition-all">Salva Modifiche</button>
+                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 font-sans">URL Immagine / Foto</label>
+                      <input 
+                        type="text" 
+                        value={editingSoggetto.fotoUrl || ""}
+                        onChange={(e) => setEditingSoggetto({...editingSoggetto, fotoUrl: e.target.value})}
+                        className="w-full p-3 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 bg-white focus:border-[#15803d] outline-none"
+                        placeholder="https://images.unsplash.com/..."
+                      />
+                      {editingSoggetto.fotoUrl && (
+                        <div className="mt-2 text-center bg-slate-50 p-2 rounded-lg border border-slate-100">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Anteprima Foto</span>
+                          <img src={editingSoggetto.fotoUrl} alt="" className="h-24 mx-auto rounded object-cover shadow-sm" referrerPolicy="no-referrer" />
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1 font-sans">Stato Sanitario / Note Cliniche</label>
+                      <textarea 
+                        value={editingSoggetto.condizioniSanitarie || ""}
+                        onChange={(e) => setEditingSoggetto({...editingSoggetto, condizioniSanitarie: e.target.value})}
+                        className="w-full p-3 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 bg-white outline-none focus:border-[#15803d] h-20 resize-none"
+                        placeholder="Es. Sano, vaccinato, sterilizzato il 15/05/2026 presso ASP AG"
+                      />
+                    </div>
+
+                    <div>
+                      <button type="submit" className="w-full bg-[#15803d] hover:bg-[#15803d]/90 text-white font-black py-3.5 uppercase tracking-widest text-xs rounded-xl shadow-md transition-all active:scale-98">Salva Tutte Le Modifiche</button>
                     </div>
                   </form>
                 </div>
@@ -4512,6 +5131,101 @@ export default function Operatori() {
           renderRichiesteIscrizione()
         ) : activeTab === 'gestione-operatori' ? (
           <GestioneOperatoriTab currentUser={currentUser} />
+        ) : activeTab === 'guida-uso' ? (
+          /* ================= GUIDA ALL'UTILIZZO ================= */
+          <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm space-y-8 text-left animate-fade-in">
+            <div className="border-b border-slate-100 pb-4">
+              <h2 className="text-xl font-black text-[#1e3a5f] uppercase tracking-wider">
+                📖 Guida d'Uso della Piattaforma AnimalHub PA
+              </h2>
+              <p className="text-xs text-slate-400 mt-1 font-semibold">
+                Istruzioni operative e dettagli dei moduli attualmente abilitati per la tua utenza (Ruolo: <span className="text-[#15803d] font-bold">{currentUser?.role}</span>)
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* MODULI ABILITATI */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-black text-[#1e3a5f] uppercase tracking-wider flex items-center gap-2">
+                  <span className="text-[#15803d]">✔</span> I Tuoi Moduli Abilitati
+                </h3>
+                <div className="space-y-3">
+                  {allowedTabs.filter(t => t.id !== 'guida-uso').map((tab) => {
+                    const isTabEnabled = tab.allowed;
+                    return (
+                      <div 
+                        key={tab.id} 
+                        className={`p-4 rounded-xl border flex items-center justify-between ${
+                          isTabEnabled ? 'bg-emerald-50/50 border-emerald-100 text-emerald-900' : 'bg-slate-50 border-slate-200 text-slate-400 opacity-60'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg">{isTabEnabled ? '🟢' : '⚪'}</span>
+                          <div>
+                            <p className="font-extrabold text-xs uppercase tracking-wide">{tab.name}</p>
+                            <p className="text-[10px] mt-0.5 font-bold">
+                              {isTabEnabled ? 'Modulo abilitato per il tuo profilo' : 'Non abilitato (Contattare Amministratore)'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* GUIDA GENERALE */}
+              <div className="bg-slate-50/60 rounded-2xl border border-slate-200/60 p-6 space-y-4">
+                <h3 className="text-sm font-black text-[#1e3a5f] uppercase tracking-wider flex items-center gap-2">
+                  ℹ Flusso di Lavoro del Sistema
+                </h3>
+                <div className="space-y-3 text-xs leading-relaxed text-slate-600 font-medium font-sans">
+                  <p>
+                    <strong>1. Segnalazioni Civiche:</strong> I cittadini segnalano animali randagi o feriti sulla mappa pubblica con localizzazione GPS. Tutte le segnalazioni entrano nel <strong>Modulo B (Operativa)</strong> come <em>NUOVE</em>.
+                  </p>
+                  <p>
+                    <strong>2. Assegnazione e Recupero:</strong> L'operatore d'ufficio valida la segnalazione e assegna la pratica alla Polizia Municipale, ai Veterinari ASP o ai Canili sanitari. Lo stato cambia in <em>IN CARICO</em> e poi <em>INTERVENTO AVVIATO</em>.
+                  </p>
+                  <p>
+                    <strong>3. Anagrafe e Modulo C:</strong> Una volta recuperato l'animale, viene registrato nel <strong>Modulo C (Archivio Digitale)</strong> inserendo i dettagli clinici, il sesso, la taglia, il colore e il codice microchip.
+                  </p>
+                  <p>
+                    <strong>4. Affido e Adozioni:</strong> Il <strong>Modulo Adozioni</strong> gestisce le richieste di adozione da parte dei cittadini, compilando digitalmente le 3 copie (Adottante, Comune, ASP) e calcolando i costi giornalieri delle strutture.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* DETTAGLIO MODULI */}
+            <div className="space-y-6 pt-4 border-t border-slate-100">
+              <h3 className="text-sm font-black text-[#1e3a5f] uppercase tracking-wider">
+                💡 Dettagli Operativi Moduli
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="p-5 border border-slate-150 rounded-xl space-y-2">
+                  <h4 className="font-black text-xs uppercase text-[#1e3a5f]">Modulo B - Operativa</h4>
+                  <p className="text-[11px] leading-relaxed text-slate-500 font-medium">
+                    Clicca su una riga nell'elenco delle segnalazioni per visualizzarne l'anteprima, la posizione sulla mappa e attivare i pulsanti di intervento. Puoi scaricare il PDF della segnalazione o cambiarne lo stato di risoluzione.
+                  </p>
+                </div>
+
+                <div className="p-5 border border-slate-150 rounded-xl space-y-2">
+                  <h4 className="font-black text-xs uppercase text-[#1e3a5f]">Modulo C - Archivio</h4>
+                  <p className="text-[11px] leading-relaxed text-slate-500 font-medium">
+                    Consente di visualizzare e aggiornare l'elenco dei soggetti registrati nell'Anagrafe Comunale. Cliccando su <strong>"Modifica"</strong> su ciascuna scheda, potrai variare in tempo reale nome, sesso, specie, mantello, taglia, foto ed esiti clinici del soggetto.
+                  </p>
+                </div>
+
+                <div className="p-5 border border-slate-150 rounded-xl space-y-2">
+                  <h4 className="font-black text-xs uppercase text-[#1e3a5f]">Adozioni & Costi</h4>
+                  <p className="text-[11px] leading-relaxed text-slate-500 font-medium">
+                    Consente di registrare una nuova pratica di affido per un soggetto in canile. Il sistema calcola automaticamente la capienza residua delle strutture convenzionate ed elabora la distinta dei costi liquidati dal Comune per la degenza.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         ) : null}
       </div>
     </div>

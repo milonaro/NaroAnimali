@@ -11,10 +11,10 @@ interface AutocompleteInputProps {
   id?: string;
 }
 
-// Quick preloaded cache of common local/Italian municipalities for instant zero-lag response
+// Quick preloaded cache of common Italian municipalities for instant zero-lag response at national level
 const LOCAL_COMUNI_FALLBACK = [
-  "NARO", "CANICATTÌ", "AGRIGENTO", "CAMPOBELLO DI LICATA", "FAVARA", "LICATA", 
-  "RAVANUSA", "PALERMO", "CATANIA", "ROMA", "MILANO", "TORINO", "NAPOLI", "FIRENZE", "VENEZIA"
+  "ROMA", "MILANO", "TORINO", "NAPOLI", "PALERMO", "GENOVA", "BOLOGNA", "FIRENZE", 
+  "BARI", "CATANIA", "VENEZIA", "VERONA", "MESSINA", "PADOVA", "TRIESTE", "TARANTO", "BRESCIA", "REGGIO CALABRIA", "MODENA", "PRATO", "PERUGIA", "LIVORNO"
 ];
 
 export default function AutocompleteInput({

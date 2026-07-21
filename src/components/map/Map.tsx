@@ -57,7 +57,7 @@ interface MapMarker {
   image?: string;
   date?: string;
   code?: string;
-  status?: 'CREATA' | 'IN_CARICO' | 'PULIZIA' | 'RISOLTA';
+  status?: 'CREATA' | 'IN_CARICO' | 'PULIZIA' | 'RISOLTA' | 'CHIUSA' | 'INTERVENTO';
   id?: string;
 }
 
@@ -72,16 +72,31 @@ interface MapProps {
 
 // Function to generate high-fidelity, beautifully animated custom Leaflet markers
 const createCustomMarker = (m: MapMarker) => {
-  const isHigh = m.urgenza === 'Alta';
-  const isMedium = m.urgenza === 'Normale';
+  // Color by status if present, otherwise by urgency
+  let color = '#ef4444'; // Default red
+  let ringColor = 'rgba(239,68,68,0.45)';
   
-  // Custom colors depending on urgency
-  const color = isHigh ? '#ef4444' : isMedium ? '#f59e0b' : '#10b981';
-  const ringColor = isHigh ? 'rgba(239,68,68,0.45)' : isMedium ? 'rgba(245,158,11,0.45)' : 'rgba(16,185,129,0.45)';
+  if (m.status) {
+    if (m.status === 'RISOLTA' || m.status === 'CHIUSA') {
+      color = '#10b981'; // Green for resolved
+      ringColor = 'rgba(16,185,129,0.45)';
+    } else if (m.status === 'IN_CARICO' || m.status === 'INTERVENTO' || m.status === 'PULIZIA') {
+      color = '#f59e0b'; // Amber for in progress
+      ringColor = 'rgba(245,158,11,0.45)';
+    } else {
+      color = '#3b82f6'; // Blue for new / created
+      ringColor = 'rgba(59,130,246,0.45)';
+    }
+  } else {
+    const isHigh = m.urgenza === 'Alta';
+    const isMedium = m.urgenza === 'Normale';
+    color = isHigh ? '#ef4444' : isMedium ? '#f59e0b' : '#10b981';
+    ringColor = isHigh ? 'rgba(239,68,68,0.45)' : isMedium ? 'rgba(245,158,11,0.45)' : 'rgba(16,185,129,0.45)';
+  }
   
   // Custom animal emoji inside marker
   const label = m.specie === 'Gatto' ? '🐱' : m.specie === 'Cane' ? '🐶' : '🐾';
-  const pingDuration = isHigh ? '1.5s' : '2.2s';
+  const pingDuration = m.urgenza === 'Alta' ? '1.5s' : '2.2s';
   
   const htmlContent = `
     <div class="relative flex items-center justify-center cursor-pointer transform hover:scale-110 transition-transform duration-300" style="width: 44px; height: 44px;">

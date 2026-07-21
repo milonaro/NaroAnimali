@@ -214,7 +214,7 @@ app.post("/api/admin/login", async (req, res) => {
       } else {
         // Fallback if no email is set
         const token = jwt.sign({ username: user.username, role: user.role, comune_key: user.comune_key }, "animal-hub-secret");
-        res.cookie("admin_token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production" });
+        res.cookie("admin_token", token, { httpOnly: true, secure: true, sameSite: 'none', maxAge: 30 * 24 * 60 * 60 * 1000 });
 
         // Log successful access directly
         await mysqlPool.execute(
@@ -318,7 +318,7 @@ app.post("/api/admin/login/verify-otp", async (req, res) => {
       adminFailedAttempts.delete(userKey);
 
       const token = jwt.sign({ username: user.username, role: user.role, comune_key: user.comune_key }, "animal-hub-secret");
-      res.cookie("admin_token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production" });
+      res.cookie("admin_token", token, { httpOnly: true, secure: true, sameSite: 'none', maxAge: 30 * 24 * 60 * 60 * 1000 });
 
       // Log successful OTP verify
       await mysqlPool.execute(
@@ -945,7 +945,7 @@ app.get("/api/comuni", async (req, res) => {
     const sessId = (req.cookies && req.cookies.visitor_session) || 'SESS_' + Math.random().toString(36).substring(2, 10);
     
     if (!req.cookies || !req.cookies.visitor_session) {
-      res.cookie("visitor_session", sessId, { maxAge: 1000 * 60 * 60 * 24 * 30, httpOnly: true }); 
+      res.cookie("visitor_session", sessId, { maxAge: 1000 * 60 * 60 * 24 * 30, httpOnly: true, secure: true, sameSite: 'none' }); 
     }
 
     await mysqlPool.execute(
@@ -977,7 +977,7 @@ app.post("/api/track-visit", async (req, res) => {
     const sessId = (req.cookies && req.cookies.visitor_session) || 'SESS_' + Math.random().toString(36).substring(2, 10);
     
     if (!req.cookies || !req.cookies.visitor_session) {
-      res.cookie("visitor_session", sessId, { maxAge: 1000 * 60 * 60 * 24 * 30, httpOnly: true });
+      res.cookie("visitor_session", sessId, { maxAge: 1000 * 60 * 60 * 24 * 30, httpOnly: true, secure: true, sameSite: 'none' });
     }
 
     await mysqlPool.execute(

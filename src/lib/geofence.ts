@@ -9,6 +9,9 @@ export interface ComuneConfig {
   particellaCatastaleHub?: string;
   estensioneEttariHub?: number;
   datiCatastaliCompleti?: string;
+  thresholdCentroKm?: number;
+  thresholdPeriferiaKm?: number;
+  thresholdCampagnaKm?: number;
 }
 
 // Map database row to ComuneConfig format
@@ -31,7 +34,10 @@ export function mapRowToComuneConfig(row: any): ComuneConfig {
     foglioCatastaleHub: row.foglio_catastale_hub,
     particellaCatastaleHub: row.particella_catastale_hub,
     estensioneEttariHub: row.estensione_ettari_hub ? parseFloat(row.estensione_ettari_hub) : undefined,
-    datiCatastaliCompleti: row.dati_catastali_completi
+    datiCatastaliCompleti: row.dati_catastali_completi,
+    thresholdCentroKm: row.threshold_centro_km ? parseFloat(row.threshold_centro_km) : undefined,
+    thresholdPeriferiaKm: row.threshold_periferia_km ? parseFloat(row.threshold_periferia_km) : undefined,
+    thresholdCampagnaKm: row.threshold_campagna_km ? parseFloat(row.threshold_campagna_km) : undefined
   };
 }
 
@@ -125,9 +131,20 @@ export function isInTerritorio(lat: number, lng: number): boolean {
 }
 
 export function getZona(lat: number, lng: number): string {
-  const dist = haversineKm(lat, lng, NARO.center.lat, NARO.center.lng);
-  if (dist < 1) return "CENTRO";
-  if (dist < 3) return "PERIFERIA";
-  if (dist < 6) return "CAMPAGNA";
+  const active = getActiveComune();
+  const dist = haversineKm(lat, lng, active.center.lat, active.center.lng);
+  
+  // Proportional dynamic thresholds based on the total radius if not explicitly set
+  const radius = active.radiusKm || 8.0;
+  
+  // Se non specificati esplicitamente, usiamo percentuali proporzionali del raggio del comune
+  // (es. per raggio 8km: Centro = 1.0km, Periferia = 3.0km, Campagna = 6.0km)
+  const centroThresh = active.thresholdCentroKm || (radius * 0.125); 
+  const periferiaThresh = active.thresholdPeriferiaKm || (radius * 0.375); 
+  const campagnaThresh = active.thresholdCampagnaKm || (radius * 0.75); 
+
+  if (dist < centroThresh) return "CENTRO";
+  if (dist < periferiaThresh) return "PERIFERIA";
+  if (dist < campagnaThresh) return "CAMPAGNA";
   return "CONTRADA";
 }

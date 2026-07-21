@@ -887,7 +887,7 @@ export default function Home() {
                   </div>
                   <div className="flex items-center gap-4 text-xs font-bold text-slate-500">
                     <span className="flex items-center gap-1.5"><Clock className="h-3 w-3" /> {formatReportDate(report.createdAt)}</span>
-                    <span className="flex items-center gap-1.5"><UserCheck className="h-3 w-3" /> {report.nomeSegnalante || 'Anonimo'}</span>
+                    <span className="flex items-center gap-1.5"><UserCheck className="h-3 w-3" /> {"Cittadino Anonimo"}</span>
                   </div>
                 </div>
                 <div className="p-3 bg-gray-50 rounded-xl text-gray-400 group-hover:bg-[#15803d] group-hover:text-white transition-all">

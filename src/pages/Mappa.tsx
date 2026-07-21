@@ -125,8 +125,8 @@ export default function Mappa() {
       note: a.note || 'Nessuna descrizione o dettaglio aggiuntivo fornito.',
       noteOperatore: a.noteOperatore || a.operatorNotes || '',
       colore: a.colore || 'Non specificato',
-      contatto: a.telefonesegnalante || a.telefonoSegnalante || a.utenteTelefono || 'Non disponibile',
-      nomeSegnalante: a.nomeSegnalante || a.utenteNome || 'Cittadino Anonimo',
+      contatto: 'Riservato (Privacy GDPR)',
+      nomeSegnalante: 'Cittadino Anonimo',
     };
   }, [selectedId, segnalazioni]);
 

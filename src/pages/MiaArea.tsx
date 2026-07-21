@@ -1156,8 +1156,8 @@ export default function MiaArea() {
                                 <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Indirizzo di Residenza (Stradario)</label>
                                 <AutocompleteInput
                                   type="via"
-                                  comuneContext={profile?.comune_residenza || "Naro"}
-                                  placeholder="Es. Via Sabella, 11"
+                                  comuneContext={profile?.comune_residenza || ""}
+                                  placeholder="Es. Via Roma, 1"
                                   className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 font-bold text-[#101b3a] focus:bg-white focus:border-[#15803d] outline-none transition-all text-sm"
                                   value={profile?.indirizzo || ''}
                                   onChange={(val) => setProfile(profile ? { ...profile, indirizzo: val } : { indirizzo: val })}
