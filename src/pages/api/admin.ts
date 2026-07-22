@@ -44,12 +44,67 @@ router.get("/me", async (req, res) => {
   }
 });
 
-router.get("/setup-status", async (req, res) => {
+router.get("/config", async (req, res) => {
   try {
-    const isConfigured = !!(process.env.DB_HOST || process.env.FIREBASE_PROJECT_ID);
-    res.json({ configured: isConfigured });
-  } catch (e) {
-    res.json({ configured: true });
+    const configData: Record<string, string> = {
+      siteName: "AnimalHub PA",
+      siteLogo: "",
+      activeComune: "naro",
+      comune_indirizzo: "Piazza Giuseppe Garibaldi, 1",
+      comune_cap: "92028",
+      comune_provincia: "AG",
+      comune_email: "protocollo@comune.naro.ag.it",
+      comune_telefono: "0922 941111",
+      comune_pec: "protocollo@pec.comune.naro.ag.it",
+      animalhub_logo: "",
+      privacy_text: "",
+      cookie_text: "",
+      footer_text: "Servizio Benessere Animale e Sanità Pubblica",
+      emergency_veterinario: "0922 941122",
+      emergency_polizia: "0922 941111",
+      emergency_volontari: "0922 956100",
+      home_sliders: ""
+    };
+
+    if (mysqlPool && getIsMysqlHealthy()) {
+      try {
+        const [rows]: any = await mysqlPool.execute("SELECT key_name, value_data FROM admin_config");
+        if (Array.isArray(rows)) {
+          for (const row of rows) {
+            if (row.key_name) {
+              configData[row.key_name] = row.value_data || "";
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Avviso lettura admin_config da DB:", err);
+      }
+    }
+    res.json(configData);
+  } catch (e: any) {
+    res.status(500).json({ error: "Errore nel caricamento della configurazione" });
+  }
+});
+
+router.post("/config", async (req, res) => {
+  const payload = req.body || {};
+  try {
+    if (mysqlPool && getIsMysqlHealthy()) {
+      const entries = Object.entries(payload);
+      for (const [key, val] of entries) {
+        if (typeof key === "string") {
+          const strVal = typeof val === "object" ? JSON.stringify(val) : String(val ?? "");
+          await mysqlPool.execute(
+            "INSERT INTO admin_config (key_name, value_data) VALUES (?, ?) ON DUPLICATE KEY UPDATE value_data = VALUES(value_data)",
+            [key, strVal]
+          );
+        }
+      }
+    }
+    res.json({ success: true, message: "Impostazioni salvate con successo" });
+  } catch (err: any) {
+    console.error("Errore salvataggio config:", err);
+    res.status(500).json({ error: "Errore durante il salvataggio della configurazione" });
   }
 });
 
