@@ -411,6 +411,44 @@ function loadVirtualDb(): Record<string, any[]> {
   return {};
 }
 
+async function seedDefaultAdminsIfEmpty(db: any) {
+  try {
+    const usersList = await db.all("SELECT * FROM admin_users");
+    if (!usersList || usersList.length === 0) {
+      console.log("Seeding degli utenti amministratori di default in SQLite/VirtualDB...");
+      const adminHash = await bcrypt.hash("admin2026", 10);
+      const poliziaHash = await bcrypt.hash("polizia2026", 10);
+      const canileHash = await bcrypt.hash("canile2026", 10);
+      const volontarioHash = await bcrypt.hash("volontario2026", 10);
+
+      const allModules = JSON.stringify(['statistiche', 'modulo-b', 'modulo-c', 'modulo-adozioni']);
+      const policeModules = JSON.stringify(['modulo-b', 'modulo-c']);
+      const kennelModules = JSON.stringify(['modulo-b', 'modulo-c', 'modulo-adozioni']);
+      const volunteerModules = JSON.stringify(['modulo-b']);
+
+      await db.run(
+        "INSERT INTO admin_users (username, password_hash, role, comune_key, visible_modules, email) VALUES (?, ?, ?, ?, ?, ?)",
+        ["admin", adminHash, "ADMIN", "naro", allModules, "franco.tese@gmail.com"]
+      );
+      await db.run(
+        "INSERT INTO admin_users (username, password_hash, role, comune_key, visible_modules, email) VALUES (?, ?, ?, ?, ?, ?)",
+        ["polizia", poliziaHash, "POLIZIA_LOCALE", policeModules, "polizia@animalhubpa.it"]
+      );
+      await db.run(
+        "INSERT INTO admin_users (username, password_hash, role, comune_key, visible_modules, email) VALUES (?, ?, ?, ?, ?, ?)",
+        ["canile", canileHash, "CANILE_SANITARIO", kennelModules, "canile@animalhubpa.it"]
+      );
+      await db.run(
+        "INSERT INTO admin_users (username, password_hash, role, comune_key, visible_modules, email) VALUES (?, ?, ?, ?, ?, ?)",
+        ["volontario", volontarioHash, "VOLONTARIO", volunteerModules, "volontari@animalhubpa.it"]
+      );
+      console.log("Utenti amministratori di default inseriti con successo.");
+    }
+  } catch (err: any) {
+    console.warn("Avviso durante seedDefaultAdminsIfEmpty:", err.message);
+  }
+}
+
 // Map MySQL schema to SQLite and seed
 async function initSqliteSchema(db: any) {
   try {
@@ -437,20 +475,14 @@ async function initSqliteSchema(db: any) {
         console.warn("Avviso: Impossibile creare citizen_profiles in SQLite esistente:", cpErr.message);
       }
       try {
-        await db.run("UPDATE admin_users SET email = ? WHERE username = ?", ["franco.tese@gmail.com", "admin"]);
-        await db.run("UPDATE admin_users SET email = ? WHERE username = ?", ["polizia@animalhubpa.it", "polizia"]);
-        await db.run("UPDATE admin_users SET email = ? WHERE username = ?", ["canile@animalhubpa.it", "canile"]);
-        await db.run("UPDATE admin_users SET email = ? WHERE username = ?", ["volontari@animalhubpa.it", "volontario"]);
-        console.log("Contatti e-mail amministratori sincronizzati con successo in SQLite.");
-      } catch (e: any) {
-        console.warn("Avviso: Impossibile aggiornare i contatti e-mail degli amministratori esistenti:", e.message);
-      }
+        await db.run("ALTER TABLE admin_users ADD COLUMN email VARCHAR(150) DEFAULT NULL");
+      } catch (e: any) {}
+      try {
+        await db.run("ALTER TABLE admin_users ADD COLUMN visible_modules TEXT DEFAULT NULL");
+      } catch (e: any) {}
       try {
         await db.run("ALTER TABLE registro_anagrafica ADD COLUMN proprietario_email VARCHAR(150) DEFAULT NULL");
-        console.log("SQLite: Colonna proprietario_email aggiunta con successo a registro_anagrafica.");
-      } catch (e: any) {
-        // Ignora se la colonna esiste già
-      }
+      } catch (e: any) {}
       try {
         await db.run("ALTER TABLE citizen_profiles ADD COLUMN sesso VARCHAR(10) DEFAULT NULL");
       } catch (e: any) {}
@@ -460,6 +492,9 @@ async function initSqliteSchema(db: any) {
       try {
         await db.run("ALTER TABLE citizen_profiles ADD COLUMN data_nascita VARCHAR(20) DEFAULT NULL");
       } catch (e: any) {}
+
+      // Seeding assicurato se la tabella admin_users è vuota
+      await seedDefaultAdminsIfEmpty(db);
       return;
     }
 
@@ -509,38 +544,8 @@ async function initSqliteSchema(db: any) {
       await db.run("PRAGMA foreign_keys = ON");
       console.log("Struttura tabelle SQLite creata con successo.");
 
-      // Seeding default admin users if they don't exist
-      const usersList = await db.all("SELECT * FROM admin_users");
-      if (!usersList || usersList.length === 0) {
-        console.log("Seeding degli utenti amministratori di default in SQLite...");
-        const adminHash = await bcrypt.hash("admin2026", 10);
-        const poliziaHash = await bcrypt.hash("polizia2026", 10);
-        const canileHash = await bcrypt.hash("canile2026", 10);
-        const volontarioHash = await bcrypt.hash("volontario2026", 10);
-
-        const allModules = JSON.stringify(['statistiche', 'modulo-b', 'modulo-c', 'modulo-adozioni']);
-        const policeModules = JSON.stringify(['modulo-b', 'modulo-c']);
-        const kennelModules = JSON.stringify(['modulo-b', 'modulo-c', 'modulo-adozioni']);
-        const volunteerModules = JSON.stringify(['modulo-b']);
-
-        await db.run(
-          "INSERT INTO admin_users (username, password_hash, role, comune_key, visible_modules, email) VALUES (?, ?, ?, ?, ?, ?)",
-          ["admin", adminHash, "ADMIN", "naro", allModules, "franco.tese@gmail.com"]
-        );
-        await db.run(
-          "INSERT INTO admin_users (username, password_hash, role, comune_key, visible_modules, email) VALUES (?, ?, ?, ?, ?, ?)",
-          ["polizia", poliziaHash, "POLIZIA_LOCALE", policeModules, "polizia@animalhubpa.it"]
-        );
-        await db.run(
-          "INSERT INTO admin_users (username, password_hash, role, comune_key, visible_modules, email) VALUES (?, ?, ?, ?, ?, ?)",
-          ["canile", canileHash, "CANILE_SANITARIO", kennelModules, "canile@animalhubpa.it"]
-        );
-        await db.run(
-          "INSERT INTO admin_users (username, password_hash, role, comune_key, visible_modules, email) VALUES (?, ?, ?, ?, ?, ?)",
-          ["volontario", volontarioHash, "VOLONTARIO", volunteerModules, "volontari@animalhubpa.it"]
-        );
-        console.log("Utenti amministratori di default inseriti in SQLite.");
-      }
+      // Seeding default admin users
+      await seedDefaultAdminsIfEmpty(db);
     } else {
       console.error("File schema initialize_reference_tables.sql non trovato in " + schemaPath);
     }

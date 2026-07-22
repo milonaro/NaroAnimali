@@ -67,10 +67,10 @@ export default function AdminLogin() {
     e.preventDefault();
     setError('');
     try {
-      const res = await fetch('/api/admin/login/verify-otp', {
+      const res = await fetch('/api/admin/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, otp })
+        body: JSON.stringify({ email: userEmail, username, otp })
       });
       const data = await res.json();
       if (res.ok) {

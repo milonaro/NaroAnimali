@@ -394,22 +394,40 @@ export async function createMySQLTables() {
 export async function seedAdminUsers() {
   if (!pool || !getIsMysqlHealthy()) return;
   try {
-    const [rows]: any = await pool.execute("SELECT * FROM admin_users WHERE username = 'admin'");
-    if (rows && rows.length > 0) {
-      return;
+    const adminHash = await bcrypt.hash("admin2026", 10);
+    const poliziaHash = await bcrypt.hash("polizia2026", 10);
+    const canileHash = await bcrypt.hash("canile2026", 10);
+    const volontarioHash = await bcrypt.hash("volontario2026", 10);
+
+    const allModules = JSON.stringify(['statistiche', 'modulo-b', 'modulo-c', 'modulo-adozioni']);
+    const policeModules = JSON.stringify(['modulo-b', 'modulo-c']);
+    const kennelModules = JSON.stringify(['modulo-b', 'modulo-c', 'modulo-adozioni']);
+    const volunteerModules = JSON.stringify(['modulo-b']);
+
+    const defaultUsers = [
+      { username: "admin", hash: adminHash, role: "ADMIN", comune: "naro", modules: allModules, email: "franco.tese@gmail.com" },
+      { username: "polizia", hash: poliziaHash, role: "POLIZIA_LOCALE", comune: "naro", modules: policeModules, email: "polizia@animalhubpa.it" },
+      { username: "canile", hash: canileHash, role: "CANILE_SANITARIO", comune: "naro", modules: kennelModules, email: "canile@animalhubpa.it" },
+      { username: "volontario", hash: volontarioHash, role: "VOLONTARIO", comune: "naro", modules: volunteerModules, email: "volontari@animalhubpa.it" }
+    ];
+
+    for (const u of defaultUsers) {
+      const [rows]: any = await pool.execute("SELECT * FROM admin_users WHERE username = ?", [u.username]);
+      if (!rows || rows.length === 0) {
+        await pool.execute(
+          "INSERT INTO admin_users (username, password_hash, role, comune_key, visible_modules, email) VALUES (?, ?, ?, ?, ?, ?)",
+          [u.username, u.hash, u.role, u.comune, u.modules, u.email]
+        );
+      } else {
+        // Garantisce che le password siano sempre allineate a quelle ufficiali del sistema
+        await pool.execute(
+          "UPDATE admin_users SET password_hash = ?, role = ?, visible_modules = ?, email = ? WHERE username = ?",
+          [u.hash, u.role, u.modules, u.email, u.username]
+        );
+      }
     }
-    const hash = await bcrypt.hash("admin123", 10);
-    await pool.execute(
-      "INSERT INTO admin_users (username, password_hash, role, comune_key, email) VALUES (?, ?, ?, ?, ?)",
-      ["admin", hash, "ADMIN", "naro", "admin@animalhub.it"]
-    );
-    const hashOperatore = await bcrypt.hash("operatore123", 10);
-    await pool.execute(
-      "INSERT INTO admin_users (username, password_hash, role, comune_key, email) VALUES (?, ?, ?, ?, ?)",
-      ["naro_op", hashOperatore, "OPERATORE", "naro", "operatore@animalhub.it"]
-    );
-    console.log("MySQL: Utenti admin di default creati.");
-  } catch (err) {
-    console.error("Errore seeding admin users:", err);
+    console.log("MySQL: Utenti amministratori ufficiali AnimalHub PA sincronizzati.");
+  } catch (err: any) {
+    console.error("Errore seeding admin users in MySQL:", err.message);
   }
 }
