@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import AppMap from '@/src/components/map/Map';
-import { PawPrint, MapPin, CheckCircle2, User, WifiOff, Dog, Cat, MoreHorizontal, ShieldCheck, Info, Heart, AlertTriangle, Users, Baby, Thermometer, ChevronRight, ArrowLeft, ArrowRight, Camera, Download, FileText, Copy, ExternalLink, X } from 'lucide-react';
-import { Segnalazione, AnimalSpecie } from '@/src/types';
-import { isInTerritorio } from '@/src/lib/geofence';
+import { CheckCircle2, WifiOff, ChevronRight, AlertTriangle, Download, Copy, ExternalLink } from 'lucide-react';
+import { Segnalazione } from '@/src/types';
+import { isInTerritorio, COMUNI } from '@/src/lib/geofence';
 import { motion, AnimatePresence } from 'motion/react';
 import { OfflineStore } from '@/src/lib/offline';
-import { Link } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
+import { Link } from 'react-router-dom';
+import { drawInstitutionalHeader, drawInstitutionalFooter } from '@/src/lib/pdfgenerator';
 import PageHeader from '../components/layout/PageHeader';
 import { DEFAULT_PRIVACY_TEXT } from '@/src/lib/defaultTexts';
-import { parseMarkdownToReact } from '@/src/utils/markdownRenderer';
+
+// Componenti modulari estratti
+import MappaSelezionePosizione from '../components/segnalazioni/MappaSelezionePosizione';
+import ModuloDatiAnimale from '../components/segnalazioni/ModuloDatiAnimale';
+import ModuloDatiSegnalante from '../components/segnalazioni/ModuloDatiSegnalante';
+import RiepilogoInvio from '../components/segnalazioni/RiepilogoInvio';
 
 const ANIMALI_GESTITI = [
   "Piccioni urbani (Columba livia domestica)",
@@ -77,6 +82,7 @@ export default function Segnala() {
   // Dynamic CMS configurations 
   const [siteName, setSiteName] = useState("Comune di Naro");
   const [activeComune, setActiveComune] = useState("naro");
+  const [fullConfig, setFullConfig] = useState<any>({});
 
   useEffect(() => {
     const fetchConfig = async () => {
@@ -84,6 +90,7 @@ export default function Segnala() {
         const res = await fetch("/api/admin/config");
         if (res.ok) {
           const config = await res.json();
+          setFullConfig(config);
           if (config.siteName) setSiteName(config.siteName);
           if (config.activeComune) setActiveComune(config.activeComune);
           setPrivacyText(config.privacy_text || DEFAULT_PRIVACY_TEXT);
@@ -221,71 +228,17 @@ export default function Segnala() {
     const isDefinitive = !!protocolCode;
     const finalCode = protocolCode || "COF-SEG-PREVIEW";
 
-    // --- STEMMA COMUNALE REALISTICO (Disegnato con primitive jsPDF) ---
-    doc.setDrawColor(30, 58, 95); 
-    doc.setLineWidth(0.8);
-    doc.setFillColor(248, 250, 252); 
-    
-    doc.rect(20, 15, 14, 12, 'FD');
-    doc.ellipse(27, 27, 7, 5, 'FD'); 
-
-    doc.setFillColor(217, 119, 6); 
-    doc.rect(21, 11, 12, 3, 'F');
-    doc.rect(21, 9, 2, 2, 'F');
-    doc.rect(25, 9, 2, 2, 'F');
-    doc.rect(29, 9, 2, 2, 'F');
-    doc.rect(31, 9, 2, 2, 'F');
-
-    doc.setDrawColor(59, 130, 246); 
-    doc.line(23, 20, 31, 20);
-    doc.line(22, 23, 32, 23);
-    doc.line(24, 26, 30, 26);
-
-    // --- TESTI INTESTAZIONE COMUNALE ---
-    doc.setTextColor(30, 58, 95); 
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.text("CITTÀ DI NARO", 40, 19);
-    
-    doc.setTextColor(100, 116, 139); 
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.text("Provincia di Agrigento", 40, 23);
-    
-    doc.setTextColor(71, 85, 105); 
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8.5);
-    doc.text("SETTORE VIGILANZA E SANITÀ ANIMALE", 40, 28);
-    
-    doc.setTextColor(148, 163, 184); 
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7.5);
-    doc.text("Ufficio Tutela Ambientale e Gestione Territoriale del Randagismo", 40, 32);
-
-    // Protocol info box (Top right)
-    doc.setFillColor(241, 245, 249); 
-    doc.rect(135, 12, 55, 22, 'F');
-    doc.setDrawColor(226, 232, 240);
-    doc.rect(135, 12, 55, 22, 'D');
-
-    doc.setTextColor(100, 116, 139);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(7);
-    doc.text("REGISTRO SEGNALAZIONI", 140, 17);
-    
-    doc.setTextColor(15, 118, 110); 
-    doc.setFontSize(8);
-    doc.text(isDefinitive ? "STATO: TRASMESSO" : "ANTEPRIMA DI STAMPA", 140, 22);
-
-    doc.setTextColor(30, 58, 95);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.text(`Prot.: ${finalCode}`, 140, 29);
-
-    // Separatore orizzontale
-    doc.setDrawColor(30, 58, 95);
-    doc.setLineWidth(1.5);
-    doc.line(20, 39, 190, 39);
+    // Use shared institutional header
+    drawInstitutionalHeader(doc, {
+      siteName: fullConfig.siteName || siteName,
+      comune_provincia: fullConfig.comune_provincia || 'Agrigento',
+      activeComune: activeComune,
+      pec: fullConfig.comune_pec
+    }, {
+      title: "REGISTRO SEGNALAZIONI",
+      code: `Prot.: ${finalCode}`,
+      status: isDefinitive ? "STATO: TRASMESSO" : "ANTEPRIMA DI STAMPA"
+    });
 
     // --- TITOLO DOCUMENTO ---
     doc.setTextColor(30, 58, 95);
@@ -500,7 +453,9 @@ export default function Segnala() {
     doc.setTextColor(120, 53, 4); 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(6.5);
-    const txtLaw = "Il dichiarante sopra indicato sottoscrive la veridicità delle dichiarazioni rese ai sensi e per gli effetti dello Statuto della Città di Naro e delle Leggi penali dello Stato, consapevole che le dichiarazioni false ed i procurati allarmi sono puniti e qualificati come reato d'ufficio e segnalati all'Autorità Giudiziaria.";
+    const comuneUpper = (fullConfig.siteName || siteName || `Comune di ${activeComune}`).toUpperCase();
+    const footerEnteName = comuneUpper.startsWith("COMUNE DI") ? comuneUpper.replace("COMUNE DI ", "CITTÀ DI ") : `CITTÀ DI ${activeComune.toUpperCase()}`;
+    const txtLaw = `Il dichiarante sopra indicato sottoscrive la veridicità delle dichiarazioni rese ai sensi e per gli effetti dello Statuto della ${footerEnteName} e delle Leggi penali dello Stato, consapevole che le dichiarazioni false ed i procurati allarmi sono puniti e qualificati come reato d'ufficio e segnalati all'Autorità Giudiziaria.`;
     const splitLaw = doc.splitTextToSize(txtLaw, 164);
     doc.text(splitLaw, 23, 183);
 
@@ -509,7 +464,9 @@ export default function Segnala() {
     doc.setTextColor(100, 116, 139);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7);
-    doc.text(`Naro (AG), lì ${new Date().toLocaleDateString('it-IT')}`, 20, 203);
+    const comuneName = COMUNI[activeComune]?.name || activeComune;
+    const prov = fullConfig.comune_provincia || 'AG';
+    doc.text(`${comuneName} (${prov}), lì ${new Date().toLocaleDateString('it-IT')}`, 20, 203);
 
     doc.setFontSize(7.5);
     doc.text("IL DICHIARANTE (SEGNALANTE)", 35, 209, { align: 'center' });
@@ -525,15 +482,12 @@ export default function Segnala() {
 
 
     // --- PIE' DI PAGINA ISTITUZIONALE ---
-    doc.setDrawColor(203, 213, 225);
-    doc.setLineWidth(0.5);
-    doc.line(20, 240, 190, 240);
-
-    doc.setTextColor(148, 163, 184); 
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(6.5);
-    doc.text("Servizio Integrato di Tutela e di Controllo del Randagismo - Comune di Naro (AG) - Piazza Garibaldi, 1", 105, 245, { align: 'center' });
-    doc.text("Piattaforma Digitale Civica AnimalHub PA - Questo file PDF è un documento valido ai fini delle sanzioni penali e civili", 105, 249, { align: 'center' });
+    drawInstitutionalFooter(doc, {
+      siteName: fullConfig.siteName || siteName,
+      comune_provincia: fullConfig.comune_provincia || 'Agrigento',
+      activeComune: activeComune,
+      pec: fullConfig.comune_pec
+    });
 
     doc.save(`Verbale_Segnalazione_${finalCode}.pdf`);
   };
@@ -576,7 +530,7 @@ export default function Segnala() {
 
   const handleLocationSelect = (lat: number, lng: number) => {
     if (!isInTerritorio(lat, lng)) {
-      setError("La posizione selezionata è fuori dal territorio del Comune di Naro.");
+      setError(`La posizione selezionata è fuori dal territorio del ${fullConfig.siteName || 'Comune'}.`);
       setLocation(null);
       setLocationDetails(null);
     } else {
@@ -850,703 +804,59 @@ export default function Segnala() {
                 </div>
               </motion.div>
             )}
+
             {step === 1 && (
-              <div className="space-y-8 flex flex-col h-full">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                     <div className="p-3 bg-emerald-50 text-[#15803d] rounded-lg"><MapPin className="h-6 w-6" /></div>
-                     <div>
-                       <h2 className="text-2xl font-bold text-[#1e3a5f]">Dove si trova l'animale?</h2>
-                       <p className="text-gray-500 text-sm">Clicca sulla mappa per indicare la posizione esatta della segnalazione.</p>
-                     </div>
-                  </div>
-                  {location && (
-                    <button
-                      onClick={() => setStep(step + 1)}
-                      className="w-full md:w-auto bg-[#15803d] text-white px-8 py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-[#166534] transition-all shadow-lg shadow-[#15803d]/30"
-                    >
-                      Avanti <ArrowRight className="h-5 w-5" />
-                    </button>
-                  )}
-                </div>
-                <div className="h-[450px] md:h-[550px] w-full rounded-lg overflow-hidden border border-gray-100 relative shadow-inner">
-                  <AppMap interactive onLocationSelect={handleLocationSelect} hideFilters />
-                </div>
-                {location && (
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <div className="flex-1 space-y-1">
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Posizione Rilevata</span>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-[#15803d] shrink-0" />
-                        {isGeocoding ? (
-                          <span className="text-xs text-slate-400 font-medium">Calcolo indirizzo...</span>
-                        ) : (
-                          <p className="text-xs md:text-sm font-black text-[#1e3a5f] leading-relaxed">
-                            {locationDetails?.address || "Coordinate definite sulla mappa"}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-4 border-t md:border-t-0 pt-2 md:pt-0 border-slate-200/60 shrink-0">
-                      <div className="text-right">
-                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Coordinate (Lat, Lng)</span>
-                        <span className="text-xs font-mono font-bold text-[#15803d]">
-                          {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
-                        </span>
-                      </div>
-                      <div className="px-3 py-1 bg-emerald-50 border border-emerald-100 rounded-full flex items-center gap-1.5 shrink-0">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[9px] font-bold text-[#15803d] uppercase tracking-wider">Mappa OK</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <MappaSelezionePosizione
+                location={location}
+                locationDetails={locationDetails}
+                isGeocoding={isGeocoding}
+                onLocationSelect={handleLocationSelect}
+                onNext={() => setStep(2)}
+              />
             )}
 
-             {step === 2 && (
-              <div className="space-y-12">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                     <div className="p-3 bg-emerald-50 text-[#15803d] rounded-lg"><PawPrint className="h-6 w-6" /></div>
-                     <div>
-                       <h2 className="text-2xl font-bold text-[#1e3a5f]">Che animale hai visto?</h2>
-                       <p className="text-gray-500 text-sm">Identifica la specie e le condizioni del soggetto.</p>
-                     </div>
-                  </div>
-                  <div className="flex gap-2 w-full md:w-auto">
-                    <button
-                      onClick={() => setStep(step - 1)}
-                      className="w-full md:w-auto bg-white border border-gray-200 text-gray-600 px-6 py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-gray-50 hover:text-[#1e3a5f] transition-all cursor-pointer shadow-sm"
-                    >
-                      <ArrowLeft className="h-5 w-5" /> <span className="md:hidden">Indietro</span>
-                    </button>
-                    {(formData.specie && formData.condizioni && formData.taglia) && (
-                      <button
-                        onClick={() => setStep(step + 1)}
-                        className="w-full md:w-auto bg-[#15803d] text-white px-8 py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-[#166534] transition-all cursor-pointer shadow-lg shadow-[#15803d]/30"
-                      >
-                        Avanti <ArrowRight className="h-5 w-5" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-8">
-                  <div>
-                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 block mb-4">Specie *</label>
-                    <div className="grid grid-cols-3 gap-2 md:gap-4">
-                      {[
-                        { id: AnimalSpecie.CANE, label: 'Cane', icon: <Dog className="h-5 w-5 md:h-6 md:w-6" />, active: formData.specie === AnimalSpecie.CANE },
-                        { id: AnimalSpecie.GATTO, label: 'Gatto', icon: <Cat className="h-5 w-5 md:h-6 md:w-6" />, active: formData.specie === AnimalSpecie.GATTO },
-                        { id: AnimalSpecie.ALTRO, label: 'Altro', icon: <MoreHorizontal className="h-5 w-5 md:h-6 md:w-6" />, active: (formData.specie !== undefined && formData.specie !== AnimalSpecie.CANE && formData.specie !== AnimalSpecie.GATTO) || isAltroSelected }
-                      ].map((item) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => {
-                            if (item.id === AnimalSpecie.ALTRO) {
-                              setFormData({ ...formData, specie: undefined });
-                              setIsAltroSelected(true);
-                            } else {
-                              setFormData({ ...formData, specie: item.id });
-                              setIsAltroSelected(false);
-                            }
-                          }}
-                          className={`p-3 md:p-6 rounded-lg border-2 transition-all flex flex-col items-center gap-2 md:gap-3 cursor-pointer ${
-                            item.active ? 'border-[#15803d] bg-emerald-50 text-[#15803d]' : 'border-gray-100 bg-white text-gray-500 hover:border-gray-200'
-                          }`}
-                        >
-                          {item.icon}
-                          <span className="font-black text-xs md:text-sm tracking-wider">{item.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* List of Managed Animals from AnimaliGestiti.md */}
-                  {(isAltroSelected || (formData.specie !== undefined && formData.specie !== AnimalSpecie.CANE && formData.specie !== AnimalSpecie.GATTO)) && (
-                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 md:p-8 space-y-6 animate-in fade-in duration-300">
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div>
-                          <h3 className="text-base font-black text-[#1e3a5f] uppercase tracking-wide">
-                            Seleziona Animale Gestito dal Comune
-                          </h3>
-                          <p className="text-gray-500 text-xs mt-1">
-                            Seleziona uno dei soggetti tutelati ai sensi del file comunale AnimaliGestiti.md.
-                          </p>
-                        </div>
-                        {formData.specie && formData.specie !== AnimalSpecie.CANE && formData.specie !== AnimalSpecie.GATTO && (
-                          <div className="px-4 py-2 bg-[#15803d]/10 border border-[#15803d]/20 rounded-lg text-xs font-bold text-[#15803d] flex items-center gap-2">
-                            <CheckCircle2 className="h-4 w-4 shrink-0" /> Selezionato: <strong className="uppercase">{formData.specie}</strong>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="relative">
-                        <input
-                          type="text"
-                          placeholder="Cerca animale (es. Cinghiale, Volpe, Piccione...)"
-                          className="w-full bg-white border border-slate-200 px-4 py-3 rounded-lg focus:border-[#15803d] focus:outline-none text-sm placeholder-slate-400 font-medium"
-                          value={managedAnimalQuery}
-                          onChange={(e) => setManagedAnimalQuery(e.target.value)}
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                        {ANIMALI_GESTITI.filter(animal => 
-                          animal.toLowerCase().includes(managedAnimalQuery.toLowerCase())
-                        ).map((animal) => {
-                          const isSelected = formData.specie === animal;
-                          return (
-                            <button
-                              key={animal}
-                              type="button"
-                              onClick={() => {
-                                setFormData({ ...formData, specie: animal as any });
-                                setIsAltroSelected(true);
-                              }}
-                              className={`p-3 text-left rounded-lg text-xs font-bold transition-all border flex items-center justify-between gap-2 cursor-pointer ${
-                                isSelected 
-                                  ? 'bg-[#15803d] text-white border-[#15803d]' 
-                                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300'
-                              }`}
-                            >
-                              <span>{animal}</span>
-                              {isSelected && <CheckCircle2 className="h-4 w-4 shrink-0" />}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 block mb-4 flex items-center gap-2">Taglia * <Info className="h-3 w-3" /></label>
-                    <div className="grid grid-cols-3 gap-2 md:gap-4">
-                      {['PICCOLA', 'MEDIA', 'GRANDE'].map((t) => (
-                        <button
-                          key={t}
-                          type="button"
-                          onClick={() => setFormData({ ...formData, taglia: t as any })}
-                          className={`p-3 md:p-4 rounded-lg border-2 font-black text-[10px] md:text-xs tracking-wider transition-all cursor-pointer ${
-                            formData.taglia === t ? 'border-[#15803d] bg-emerald-50 text-[#15803d]' : 'border-gray-100 bg-white text-gray-500 hover:border-gray-200'
-                          }`}
-                        >
-                          {t}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 block mb-4">Condizioni *</label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 md:gap-4">
-                      {[
-                        { id: 'NORMALE', label: 'Normale', icon: <Heart className="h-4 w-4 md:h-5 md:w-5" /> },
-                        { id: 'FERITO', label: 'Ferito', icon: <Thermometer className="h-4 w-4 md:h-5 md:w-5" /> },
-                        { id: 'AGGRESSIVO', label: 'Aggressivo', icon: <AlertTriangle className="h-4 w-4 md:h-5 md:w-5" /> },
-                        { id: 'CUCCIOLO', label: 'Cucciolo', icon: <Baby className="h-4 w-4 md:h-5 md:w-5" /> },
-                        { id: 'BRANCO', label: 'Branco', icon: <Users className="h-4 w-4 md:h-5 md:w-5" /> }
-                      ].map((c) => (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => setFormData({ ...formData, condizioni: c.id })}
-                          className={`p-3 md:p-4 rounded-lg border-2 transition-all flex flex-col items-center gap-1.5 md:gap-2 cursor-pointer ${
-                            formData.condizioni === c.id 
-                              ? `border-[#15803d] bg-emerald-50 text-[#15803d]` 
-                              : 'border-gray-100 bg-white text-gray-500 hover:border-gray-200'
-                          }`}
-                        >
-                          {c.icon}
-                          <span className="font-bold text-[9px] md:text-[10px] uppercase tracking-wider">{c.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                     <div>
-                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 block mb-2">Colore mantello</label>
-                        <input 
-                           type="text" 
-                           placeholder="es. Marrone e bianco"
-                           className="w-full bg-gray-50 border border-gray-100 p-4 rounded-lg focus:bg-white focus:border-[#15803d] outline-none"
-                           value={formData.colore}
-                           onChange={(e) => setFormData({ ...formData, colore: e.target.value })}
-                        />
-                     </div>
-                     <div>
-                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 block mb-2">Descrizione aggiuntiva</label>
-                        <input 
-                           type="text" 
-                           placeholder="Note utili agli operatori..."
-                           className="w-full bg-gray-50 border border-gray-100 p-4 rounded-lg focus:bg-white focus:border-[#15803d] outline-none"
-                           value={formData.descrizione}
-                           onChange={(e) => setFormData({ ...formData, descrizione: e.target.value })}
-                        />
-                     </div>
-                  </div>
-
-                  {/* Modulo A - Photo Upload Section */}
-                  <div className="border-t border-gray-100 pt-8">
-                     <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 block mb-4 flex items-center gap-2">
-                       Carica Foto dell'Animale <span className="normal-case text-gray-400 font-medium">(Obbligatorio per Modulo A)</span>
-                     </label>
-                     
-                     <div 
-                       onDragOver={(e) => e.preventDefault()}
-                       onDrop={(e) => {
-                         e.preventDefault();
-                         if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                           setPhoto(e.dataTransfer.files[0]);
-                         }
-                       }}
-                       className="border-2 border-dashed border-gray-200 hover:border-[#15803d] rounded-xl p-8 bg-gray-50/50 transition-all text-center relative cursor-pointer"
-                     >
-                       {photo ? (
-                         <div className="space-y-4">
-                           <div className="relative inline-block w-40 h-40 rounded-lg overflow-hidden border border-gray-200 shadow-sm mx-auto">
-                             <img 
-                               src={URL.createObjectURL(photo)} 
-                               alt="Anteprima" 
-                               className="w-full h-full object-cover"
-                             />
-                           </div>
-                           <div>
-                             <p className="text-xs font-bold text-slate-700">{photo.name}</p>
-                             <p className="text-[10px] text-gray-400">{(photo.size / 1024).toFixed(1)} KB</p>
-                           </div>
-                           <button
-                             type="button"
-                             onClick={(e) => { e.stopPropagation(); setPhoto(null); }}
-                             className="bg-red-50 hover:bg-red-100 text-red-600 font-bold text-[10px] uppercase tracking-wider px-4 py-2 rounded-lg transition-all border border-red-100 mx-auto"
-                           >
-                             Rimuovi foto
-                           </button>
-                         </div>
-                       ) : (
-                         <div className="space-y-3">
-                           <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
-                             <Camera className="h-6 w-6" />
-                           </div>
-                           <div className="text-xs font-bold text-slate-600">
-                             Trascina qui la foto dallo smartphone/PC oppure <span className="text-[#15803d] underline">Sfoglia i file</span>
-                           </div>
-                           <p className="text-[10px] text-gray-400">Supporta JPEG, PNG. Puoi scattarla direttamente sul posto.</p>
-                           <input 
-                             type="file" 
-                             accept="image/*" 
-                             capture="environment"
-                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
-                             onChange={(e) => {
-                               if (e.target.files && e.target.files[0]) {
-                                 setPhoto(e.target.files[0]);
-                               }
-                             }}
-                           />
-                         </div>
-                       )}
-                     </div>
-                  </div>
-                </div>
-              </div>
+            {step === 2 && (
+              <ModuloDatiAnimale
+                formData={formData}
+                setFormData={setFormData}
+                isAltroSelected={isAltroSelected}
+                setIsAltroSelected={setIsAltroSelected}
+                managedAnimalQuery={managedAnimalQuery}
+                setManagedAnimalQuery={setManagedAnimalQuery}
+                animaliGestiti={ANIMALI_GESTITI}
+                photo={photo}
+                setPhoto={setPhoto}
+                onNext={() => setStep(3)}
+                onBack={() => setStep(1)}
+              />
             )}
 
             {step === 3 && (
-              <div className="space-y-12">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                     <div className="p-3 bg-emerald-50 text-[#15803d] rounded-lg"><User className="h-6 w-6" /></div>
-                     <div>
-                       <h2 className="text-2xl font-bold text-[#1e3a5f]">Dati personali e Dichiarazioni</h2>
-                       <p className="text-gray-500 text-sm">Inserisci i tuoi contatti e firma le dichiarazioni di veridicità richieste per legge.</p>
-                     </div>
-                  </div>
-                  <div className="flex gap-2 w-full md:w-auto">
-                    <button
-                      onClick={() => setStep(step - 1)}
-                      className="w-full md:w-auto bg-white border border-gray-200 text-gray-600 px-6 py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-gray-50 hover:text-[#1e3a5f] transition-all cursor-pointer shadow-sm"
-                    >
-                      <ArrowLeft className="h-5 w-5" /> <span className="md:hidden">Indietro</span>
-                    </button>
-                    {(formData.nomeSegnalante && formData.cognomeSegnalante && formData.telefonoSegnalante && formData.emailSegnalante && formData.consensoPrivacy && formData.dichiarazioneVeridicita && formData.assunzioneResponsabilita) ? (
-                      <button
-                        onClick={() => setStep(step + 1)}
-                        className="w-full md:w-auto bg-[#15803d] text-white px-8 py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-[#166534] transition-all cursor-pointer shadow-lg shadow-[#15803d]/30"
-                      >
-                        Avanti <ArrowRight className="h-5 w-5" />
-                      </button>
-                    ) : (
-                      <button
-                        disabled
-                        className="w-full md:w-auto bg-gray-100 text-gray-400 px-8 py-3 rounded-lg font-bold flex items-center justify-center gap-2 cursor-not-allowed border border-gray-200/60"
-                        title="Compila tutti i campi obbligatori e firma le dichiarazioni legali per procedere"
-                      >
-                        Avanti <ArrowRight className="h-5 w-5" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {autoRecoverStatus.message && (
-                  <div className={`p-4 rounded-xl mb-4 border text-[11px] font-extrabold transition-all leading-relaxed ${
-                    autoRecoverStatus.type === 'success' 
-                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
-                      : 'bg-indigo-50 text-indigo-800 border-indigo-200'
-                  }`}>
-                    {autoRecoverStatus.message}
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-slate-50/50 p-6 rounded-xl border border-slate-100">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#1e3a5f]">Nome *</label>
-                    <input
-                      type="text"
-                      className="w-full bg-white border border-gray-200 p-4 rounded-lg focus:border-[#15803d] outline-none transition-all shadow-sm"
-                      placeholder="Il tuo nome"
-                      value={formData.nomeSegnalante}
-                      onChange={(e) => setFormData({ ...formData, nomeSegnalante: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#1e3a5f]">Cognome *</label>
-                    <input
-                      type="text"
-                      className="w-full bg-white border border-gray-200 p-4 rounded-lg focus:border-[#15803d] outline-none transition-all shadow-sm"
-                      placeholder="Il tuo cognome"
-                      value={formData.cognomeSegnalante}
-                      onChange={(e) => setFormData({ ...formData, cognomeSegnalante: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#1e3a5f]">Telefono *</label>
-                    <input
-                      type="tel"
-                      className="w-full bg-white border border-gray-200 p-4 rounded-lg focus:border-[#15803d] outline-none transition-all shadow-sm"
-                      placeholder="Inserisci il tuo numero di telefono"
-                      value={formData.telefonoSegnalante}
-                      onChange={(e) => setFormData({ ...formData, telefonoSegnalante: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#1e3a5f]">Email *</label>
-                    <input
-                      type="email"
-                      className="w-full bg-white border border-gray-200 p-4 rounded-lg focus:border-[#15803d] outline-none transition-all shadow-sm"
-                      placeholder="la.tua@email.it"
-                      value={formData.emailSegnalante}
-                      onChange={(e) => setFormData({ ...formData, emailSegnalante: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                {/* Sezione Autocertificazione DPR 445/2000 */}
-                <div className="bg-gray-50 border border-gray-200 p-6 md:p-10 rounded-xl relative space-y-4">
-                  <ShieldCheck className="absolute top-6 right-6 h-8 w-8 text-indigo-100 invisible md:visible" />
-                  <div className="prose prose-sm text-gray-600 max-w-none space-y-4">
-                    <p className="font-bold flex items-center gap-2 text-[#1e3a5f]">
-                      <Info className="h-4 w-4 text-emerald-600" />
-                      Dichiarazione sostitutiva di certificazione (DPR n. 445/2000)
-                    </p>
-                    <p className="text-xs leading-relaxed text-slate-500">
-                      Il/la sottoscritt/a <strong className="text-slate-800">{formData.nomeSegnalante || '_________________'} {formData.cognomeSegnalante || '_________________'}</strong>, consapevole delle sanzioni penali previste dall'art. 76 del DPR 445/2000 per le ipotesi di falsità in atti e dichiarazioni mendaci,
-                    </p>
-                    <p className="font-black uppercase tracking-widest text-xs text-[#1e3a5f]">DICHIARA SOTTO LA PROPRIA RESPONSABILITÀ</p>
-                    <p className="text-xs leading-relaxed text-slate-500">
-                      che i dati forniti nella presente segnalazione — relativi allo stato, alle condizioni, alla specie dell'animale, alla localizzazione dell'evento e ai propri dati anagrafici — sono veritieri e corrispondenti alla realtà dei fatti constatata personalmente.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4">
-                  {/* Checkbox 1: Privacy policy (Required) */}
-                  <label className="flex gap-4 p-5 bg-white border border-gray-150 rounded-lg cursor-pointer hover:bg-slate-50/50 transition-colors">
-                    <input
-                      type="checkbox"
-                      className="mt-1 h-5 w-5 rounded border-gray-300 text-[#15803d] focus:ring-[#15803d]"
-                      checked={formData.consensoPrivacy}
-                      onChange={(e) => setFormData({ ...formData, consensoPrivacy: e.target.checked })}
-                    />
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-[#1e3a5f]">Accetto la Privacy Policy *</span>
-                      <span className="text-[10px] text-gray-400 mt-0.5">
-                        I dati forniti sono trattati secondo il Regolamento GDPR.{" "}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setIsPrivacyModalOpen(true);
-                          }}
-                          className="text-[#15803d] font-bold hover:underline cursor-pointer focus:outline-none"
-                        >
-                          Leggi Privacy Policy
-                        </button>
-                      </span>
-                    </div>
-                  </label>
-
-                  {isPrivacyModalOpen && (
-                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/65 backdrop-blur-sm animate-fadeIn">
-                      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col overflow-hidden border border-slate-150 animate-scaleIn">
-                        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-                          <h3 className="text-lg font-black text-[#1e3a5f] flex items-center gap-2">
-                            <ShieldCheck className="h-5 w-5 text-[#15803d]" />
-                            Informativa Privacy (Regolamento GDPR)
-                          </h3>
-                          <button
-                            type="button"
-                            onClick={() => setIsPrivacyModalOpen(false)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
-                          >
-                            <X className="h-5 w-5" />
-                          </button>
-                        </div>
-                        <div className="p-6 md:p-8 overflow-y-auto text-sm leading-relaxed text-slate-600 space-y-4 font-sans max-h-[55vh]">
-                          {parseMarkdownToReact(privacyText || DEFAULT_PRIVACY_TEXT)}
-                        </div>
-                        <div className="p-5 border-t border-slate-100 flex justify-end bg-slate-50">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setFormData({ ...formData, consensoPrivacy: true });
-                              setIsPrivacyModalOpen(false);
-                            }}
-                            className="px-6 py-2.5 bg-[#15803d] text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-[#15803d]/90 shadow-md hover:shadow-lg transition-all"
-                          >
-                            Accetta e Chiudi
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Checkbox 2: Notifiche email (Optional) */}
-                  <label className="flex gap-4 p-5 bg-white border border-gray-150 rounded-lg cursor-pointer hover:bg-slate-50/50 transition-colors">
-                    <input
-                      type="checkbox"
-                      className="mt-1 h-5 w-5 rounded border-gray-300 text-[#15803d] focus:ring-[#15803d]"
-                      checked={formData.consensoNotifiche}
-                      onChange={(e) => setFormData({ ...formData, consensoNotifiche: e.target.checked })}
-                    />
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium text-slate-600">Invio notifiche automatiche (Facoltativo)</span>
-                      <span className="text-[10px] text-gray-400 mt-0.5">Acconsento a ricevere aggiornamenti sullo stato di avanzamento dell'intervento via email.</span>
-                    </div>
-                  </label>
-
-                  {/* Checkbox 3: Veridicita (Required) */}
-                  <label className="flex gap-4 p-5 bg-[#15803d]/5 border border-[#15803d]/20 rounded-lg cursor-pointer hover:bg-[#15803d]/10 transition-colors">
-                    <input
-                      type="checkbox"
-                      className="mt-1 h-5 w-5 rounded border-gray-300 text-[#15803d] focus:ring-[#15803d]"
-                      checked={formData.dichiarazioneVeridicita}
-                      onChange={(e) => setFormData({ ...formData, dichiarazioneVeridicita: e.target.checked })}
-                    />
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-[#1e3a5f]">Autocertificazione di veridicità ai sensi del DPR 445/2000 *</span>
-                      <span className="text-[10px] text-[#15803d] font-bold uppercase tracking-widest mt-0.5">Obbligatorio ai fini della corretta assunzione in carico del protocollo digitale</span>
-                    </div>
-                  </label>
-
-                  {/* Checkbox 4: Responsabilità (Required) */}
-                  <label className="flex gap-4 p-5 bg-amber-50/50 border border-amber-200/80 rounded-lg cursor-pointer hover:bg-amber-50 transition-colors">
-                    <input
-                      type="checkbox"
-                      className="mt-1 h-5 w-5 rounded border-amber-500 text-amber-600 focus:ring-amber-500"
-                      checked={(formData as any).assunzioneResponsabilita}
-                      onChange={(e) => setFormData({ ...formData, assunzioneResponsabilita: e.target.checked } as any)}
-                    />
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-[#1e3a5f]">Assunzione di responsabilità penale e legale *</span>
-                      <span className="text-[10px] text-amber-600 font-bold uppercase tracking-widest mt-0.5">La segnalazione non è anonima e l'abuso/falso allarme è perseguibile</span>
-                    </div>
-                  </label>
-                </div>
-              </div>
+              <ModuloDatiSegnalante
+                formData={formData}
+                setFormData={setFormData}
+                autoRecoverStatus={autoRecoverStatus}
+                isPrivacyModalOpen={isPrivacyModalOpen}
+                setIsPrivacyModalOpen={setIsPrivacyModalOpen}
+                privacyText={privacyText}
+                defaultPrivacyText={DEFAULT_PRIVACY_TEXT}
+                onNext={() => setStep(4)}
+                onBack={() => setStep(2)}
+              />
             )}
 
             {step === 4 && (
-              <div className="space-y-10 py-6">
-                 {/* Navigation header inside step */}
-                 <div className="flex justify-between items-center w-full">
-                    <button
-                      type="button"
-                      onClick={() => setStep(step - 1)}
-                      className="bg-white border border-gray-200 text-gray-600 px-6 py-2.5 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-gray-50 hover:text-[#1e3a5f] transition-all cursor-pointer shadow-sm text-sm"
-                    >
-                      <ArrowLeft className="h-4 w-4" /> <span>Indietro</span>
-                    </button>
-                    <div className="px-3 py-1 bg-emerald-50 border border-emerald-100 rounded-full flex items-center gap-1.5 shrink-0">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      <span className="text-[9px] font-black text-[#15803d] uppercase tracking-wider">Riepilogo Pronto</span>
-                    </div>
-                 </div>
-
-                 {/* Success Badge */}
-                 <div className="text-center space-y-3">
-                   <div className="w-16 h-16 bg-emerald-50 text-[#15803d] rounded-full flex items-center justify-center mx-auto shadow-md">
-                      <ShieldCheck className="h-8 w-8" />
-                   </div>
-                   <h2 className="text-3xl font-black text-[#1e3a5f] tracking-tight">Rivedi la tua Segnalazione</h2>
-                   <p className="text-gray-500 text-sm max-w-lg mx-auto">
-                     Verifica attentamente tutti i dettagli inseriti. Una volta cliccato su "Invia", la segnalazione verrà registrata nel protocollo comunale digitale di Naro.
-                   </p>
-                 </div>
-
-                 {/* Detailed Sections Grid */}
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto text-left">
-                   {/* Col 1: Animale & Allegati */}
-                   <div className="bg-slate-50 rounded-xl p-6 border border-slate-200/60 space-y-4">
-                     <h3 className="text-xs font-black text-[#1e3a5f] uppercase tracking-widest flex items-center gap-2 border-b border-slate-200 pb-2">
-                       <PawPrint className="h-4 w-4 text-[#15803d]" />
-                       Animale Segnalato
-                     </h3>
-                     <div className="grid grid-cols-2 gap-4">
-                       <div>
-                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Specie</span>
-                         <span className="font-bold text-sm text-[#1e3a5f] uppercase block">{formData.specie}</span>
-                       </div>
-                       <div>
-                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Taglia</span>
-                         <span className="font-bold text-sm text-[#1e3a5f] block">{formData.taglia || 'N.D.'}</span>
-                       </div>
-                       <div>
-                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Condizioni</span>
-                         <span className="font-bold text-sm text-[#1e3a5f] block">
-                           <span className="px-2 py-0.5 bg-[#15803d]/10 border border-[#15803d]/20 rounded text-xs font-extrabold text-[#15803d] uppercase inline-block mt-0.5">
-                             {formData.condizioni}
-                           </span>
-                         </span>
-                       </div>
-                       <div>
-                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Colore Mantello</span>
-                         <span className="font-bold text-sm text-[#1e3a5f] block">{formData.colore || 'Non specificato'}</span>
-                       </div>
-                     </div>
-                     
-                     {formData.descrizione && (
-                       <div className="bg-white p-3 rounded-lg border border-slate-200/40">
-                         <span className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Note / Descrizione</span>
-                         <p className="text-xs text-slate-600 leading-relaxed font-medium">"{formData.descrizione}"</p>
-                       </div>
-                     )}
-
-                     {/* Image Thumbnail inside review if available */}
-                     {photo && (
-                       <div className="bg-white p-3 rounded-lg border border-slate-200/40 flex items-center gap-3">
-                         <div className="h-12 w-12 rounded overflow-hidden border border-slate-200 shrink-0">
-                           <img src={URL.createObjectURL(photo)} className="w-full h-full object-cover" alt="" />
-                         </div>
-                         <div className="min-w-0">
-                           <span className="text-[9px] font-bold text-slate-400 uppercase block">Fotografia Allegata</span>
-                           <p className="text-xs font-bold text-slate-700 truncate">{photo.name}</p>
-                         </div>
-                       </div>
-                     )}
-                   </div>
-
-                   {/* Col 2: Posizione & Segnalante */}
-                   <div className="space-y-6">
-                     {/* Posizione Card */}
-                     <div className="bg-slate-50 rounded-xl p-6 border border-slate-200/60 space-y-3">
-                       <h3 className="text-xs font-black text-[#1e3a5f] uppercase tracking-widest flex items-center gap-2 border-b border-slate-200 pb-2">
-                         <MapPin className="h-4 w-4 text-[#15803d]" />
-                         Localizzazione
-                       </h3>
-                       <div>
-                         <span className="text-[9px] font-bold text-slate-400 uppercase block mb-0.5">Indirizzo Rilevato</span>
-                         <p className="text-xs font-bold text-slate-700 leading-relaxed mb-2">
-                           {locationDetails?.address || "Coordinate sulla mappa"}
-                         </p>
-                       </div>
-                       <div className="flex justify-between items-center">
-                         <div>
-                           <span className="text-[9px] font-bold text-slate-400 uppercase block">Coordinate Geografiche</span>
-                           <span className="text-xs font-mono font-semibold text-slate-600">
-                             {location?.lat.toFixed(6)}, {location?.lng.toFixed(6)}
-                           </span>
-                         </div>
-                         <span className="text-[10px] font-bold text-[#15803d] uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
-                           In Territorio Naro
-                         </span>
-                       </div>
-                     </div>
-
-                     {/* Segnalante Card */}
-                     <div className="bg-slate-50 rounded-xl p-6 border border-slate-200/60 space-y-3">
-                       <h3 className="text-xs font-black text-[#1e3a5f] uppercase tracking-widest flex items-center gap-2 border-b border-slate-200 pb-2">
-                         <User className="h-4 w-4 text-[#15803d]" />
-                         Dati del Segnalante
-                       </h3>
-                       <div className="grid grid-cols-2 gap-4">
-                         <div>
-                           <span className="text-[9px] font-bold text-slate-400 uppercase block mb-0.5">Nome & Cognome</span>
-                           <span className="font-bold text-xs text-[#1e3a5f] block">
-                             {formData.nomeSegnalante} {formData.cognomeSegnalante}
-                           </span>
-                         </div>
-                         <div>
-                           <span className="text-[9px] font-bold text-slate-400 uppercase block mb-0.5">Telefono</span>
-                           <span className="font-bold text-xs text-[#1e3a5f] block">{formData.telefonoSegnalante}</span>
-                         </div>
-                       </div>
-                       <div>
-                         <span className="text-[9px] font-bold text-slate-400 uppercase block mb-0.5">Indirizzo Email</span>
-                         <span className="font-bold text-xs text-slate-600 block truncate">{formData.emailSegnalante}</span>
-                       </div>
-                       
-                       {/* Consent Checklist status representation */}
-                       <div className="pt-2 border-t border-slate-200/60 flex flex-col gap-1">
-                         <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-500">
-                           <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                           Conformità Privacy & DPR 445/2000
-                         </div>
-                         {formData.consensoNotifiche ? (
-                           <div className="flex items-center gap-1.5 text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100/60 rounded px-2 py-0.5 mt-1 self-start">
-                             <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                             Notifiche Email Attive
-                           </div>
-                         ) : (
-                           <div className="flex items-center gap-1.5 text-[9px] font-medium text-slate-400">
-                             Nessun invio notifiche automatiche richiesto
-                           </div>
-                         )}
-                       </div>
-                     </div>
-                   </div>
-                 </div>
-
-                 {/* Action Panel */}
-                 <div className="pt-6 border-t border-slate-100 text-center space-y-4 flex flex-col items-center">
-                   <button
-                     type="button"
-                     onClick={() => generateSegnalazionePDF()}
-                     className="w-full md:w-[350px] bg-white border border-[#1e3a5f] text-[#1e3a5f] hover:bg-[#1e3a5f]/5 px-8 py-3.5 rounded-lg font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm text-sm"
-                   >
-                     <FileText className="h-4.5 w-4.5" /> Genera Anteprima Verbale (PDF)
-                   </button>
-                    <button
-                      type="button"
-                      onClick={handleSubmit}
-                      disabled={loading}
-                      className="w-full md:w-[350px] mx-auto bg-[#15803d] text-white px-8 py-4 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-[#166534] transition-all cursor-pointer shadow-lg shadow-[#15803d]/30 disabled:opacity-50 text-base"
-                    >
-                      {loading ? (
-                        <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      ) : (
-                        <>Invia Segnalazione Ufficiale <ArrowRight className="h-5 w-5" /></>
-                      )}
-                    </button>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider max-w-sm mx-auto">
-                      Cliccando dichiari la veridicità delle informazioni inserite ai sensi delle norme vigenti.
-                    </p>
-                 </div>
-              </div>
+              <RiepilogoInvio
+                formData={formData}
+                location={location}
+                locationDetails={locationDetails}
+                photo={photo}
+                loading={loading}
+                siteName={siteName}
+                onBack={() => setStep(3)}
+                onSubmit={handleSubmit}
+                generateSegnalazionePDF={() => generateSegnalazionePDF()}
+              />
             )}
           </div>
         </motion.div>

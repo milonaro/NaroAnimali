@@ -66,7 +66,7 @@ export function Accessibilita() {
     <ComplianceLayout title="Dichiarazione di Accessibilità">
       <div className="space-y-6">
         <p className="text-sm sm:text-base leading-relaxed text-slate-650 font-medium">
-          Il <strong>Comune di Naro</strong> e le amministrazioni associate si impegnano a rendere il proprio sito web accessibile, conformemente alla <strong>Legge 9 gennaio 2004, n. 4</strong> ("Disposizioni per favorire l'accesso dei soggetti disabili agli strumenti informatici") ed alle relative linee guida dell'<strong>AgID</strong> (Agenzia per l'Italia Digitale).
+          <strong>L'Ente</strong> e le amministrazioni associate si impegnano a rendere il proprio sito web accessibile, conformemente alla <strong>Legge 9 gennaio 2004, n. 4</strong> ("Disposizioni per favorire l'accesso dei soggetti disabili agli strumenti informatici") ed alle relative linee guida dell'<strong>AgID</strong> (Agenzia per l'Italia Digitale).
         </p>
 
         <section className="space-y-3">

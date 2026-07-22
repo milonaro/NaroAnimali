@@ -59,6 +59,10 @@ export default function MiaArea() {
   const [profile, setProfile] = useState<any>(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState(false);
+  
+  // --- CONFIGURAZIONE CMS ---
+  const [fullConfig, setFullConfig] = useState<any>({});
+  const [activeComune, setActiveComune] = useState("naro");
 
   // Calcolo automatico del Codice Fiscale basato sui dati inseriti dall'utente
   useEffect(() => {
@@ -77,6 +81,20 @@ export default function MiaArea() {
   }, [profile?.nome, profile?.cognome, profile?.sesso, profile?.data_nascita, profile?.comune_nascita]);
 
   useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const res = await fetch("/api/admin/config");
+        if (res.ok) {
+          const config = await res.json();
+          setFullConfig(config);
+          if (config.activeComune) setActiveComune(config.activeComune);
+        }
+      } catch (e) {
+        console.error("Config fetch error", e);
+      }
+    };
+    fetchConfig();
+    
     checkAuth();
     
     // Sync tab switching requested from Header dropdown profile buttons
@@ -348,7 +366,8 @@ export default function MiaArea() {
     
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(20);
-    doc.text('COMUNE DI NARO', 105, 20, { align: 'center' });
+    const enteName = (fullConfig.siteName || `Comune di ${activeComune}`).toUpperCase();
+    doc.text(enteName, 105, 20, { align: 'center' });
     doc.setFontSize(10);
     doc.text('SETTORE BENESSERE ANIMALE - UFFICIO ANAGRAFE CANINA COMUNALE', 105, 32, { align: 'center' });
     
@@ -391,7 +410,8 @@ export default function MiaArea() {
     doc.setFontSize(8);
     doc.setTextColor(140, 140, 140);
     doc.text('Questa ricevuta attesta l\'invio telematico della pratica di iscrizione all\'Anagrafe Canina.', 105, currentY + 15, { align: 'center' });
-    doc.text('Il Comune verificherà la conformità del codice microchip e la documentazione allegata.', 105, currentY + 20, { align: 'center' });
+    const enteLabel = fullConfig.siteName ? fullConfig.siteName : 'Il Comune';
+    doc.text(`${enteLabel} verificherà la conformità del codice microchip e la documentazione allegata.`, 105, currentY + 20, { align: 'center' });
     doc.text('Generato in automatico tramite piattaforma AnimalHub PA - ID: ' + animal.id, 105, currentY + 25, { align: 'center' });
 
     doc.save(`Attestato_Iscrizione_${animal.microchip}.pdf`);
@@ -406,7 +426,8 @@ export default function MiaArea() {
     
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(22);
-    doc.text('AnimalHub PA - Comune di Naro', 20, 25);
+    const enteName = fullConfig.siteName || `Comune di ${activeComune}`;
+    doc.text(`AnimalHub PA - ${enteName}`, 20, 25);
     
     // Receipt Info
     doc.setTextColor(30, 58, 95); // #1e3a5f
@@ -438,7 +459,7 @@ export default function MiaArea() {
     doc.setFontSize(9);
     doc.setTextColor(150, 150, 150);
     doc.text('Questa ricevuta ha valore puramente informativo delle attività di protocollo digitale.', 30, 172);
-    doc.text('Comune di Naro (AG) - Servizio Benessere Animale.', 30, 180);
+    doc.text(`${fullConfig.siteName || 'Comune'} (${fullConfig.comune_provincia || 'AG'}) - Servizio Benessere Animale.`, 30, 180);
 
     doc.save(`Ricevuta_${report.code}.pdf`);
   };
@@ -1405,7 +1426,7 @@ export default function MiaArea() {
                              <div className="flex items-start gap-4">
                                <Info className="h-5 w-5 text-gray-400 shrink-0 mt-0.5" />
                                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 leading-relaxed">
-                                  Informazione: Le tempistiche di intervento sono regolate in base alla gravità della segnalazione. Il Comune di Naro garantisce il pronto intervento per casi di estrema urgenza o pericolo.
+                                  Informazione: Le tempistiche di intervento sono regolate in base alla gravità della segnalazione. Il {fullConfig.siteName || 'Comune'} garantisce il pronto intervento per casi di estrema urgenza o pericolo.
                                </p>
                              </div>
                           </div>

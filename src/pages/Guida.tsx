@@ -16,8 +16,27 @@ export default function Guida() {
   const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
+  
+  const [siteName, setSiteName] = useState("Il Comune");
+  const [fullConfig, setFullConfig] = useState<any>({});
 
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const res = await fetch("/api/admin/config");
+        if (res.ok) {
+          const config = await res.json();
+          setFullConfig(config);
+          if (config.siteName) setSiteName(config.siteName);
+        }
+      } catch (e) {
+        console.error("Config fetch error", e);
+      }
+    };
+    fetchConfig();
+  }, []);
 
   useEffect(() => {
     if (activeGuidedTab === 'ai') {
@@ -106,7 +125,7 @@ export default function Guida() {
       id: 'general',
       title: '1. Introduzione ad AnimalHub PA',
       icon: <HelpCircle className="h-6 w-6" />,
-      content: 'AnimalHub PA è la piattaforma informatica del Comune di Naro progettata per digitalizzare, tracciare e rendere trasparente la gestione del randagismo e la salvaguardia del benessere animale. Il portale è diviso in moduli integrati per supportare il cittadino e facilitare il coordinamento degli operatori comunali, della Polizia Municipale e dei veterinari territoriali.',
+      content: `AnimalHub PA è la piattaforma informatica di ${siteName} progettata per digitalizzare, tracciare e rendere trasparente la gestione del randagismo e la salvaguardia del benessere animale. Il portale è diviso in moduli integrati per supportare il cittadino e facilitare il coordinamento degli operatori comunali, della Polizia Municipale e dei veterinari territoriali.`,
     },
     {
       id: 'modulo-a',
@@ -152,7 +171,7 @@ export default function Guida() {
         <PageHeader
           sopraTitolo="Guida Utente"
           titolo="La Guida al Portale Civico"
-          sottotitolo="Istruzioni operative ed istituzionali per la tutela animale nel Comune di Naro."
+          sottotitolo={`Istruzioni operative ed istituzionali per la tutela animale in ${siteName}.`}
         >
           <div className="flex flex-col gap-2 items-end">
             <div className="flex flex-wrap items-center gap-2">
@@ -414,7 +433,7 @@ export default function Guida() {
         <div className="bg-slate-100/50 rounded-2xl border border-slate-200/80 p-8 text-center flex flex-col items-center justify-center gap-4">
           <h2 className="text-xl font-black text-[#101b3a] tracking-tight">Hai dubbi sui Regolamenti Comunali o sulle sanzioni?</h2>
           <p className="text-xs text-slate-500 font-semibold max-w-xl">
-            Chiedi istantaneamente al nostro assistente intelligente virtuale "Ugo", pronto a rispondere sui documenti legislativi del Comune di Naro relativi ai cani e gatti randagi.
+            Chiedi istantaneamente al nostro assistente intelligente virtuale "Ugo", pronto a rispondere sui documenti legislativi di {siteName} relativi ai cani e gatti randagi.
           </p>
           <button
             onClick={() => {

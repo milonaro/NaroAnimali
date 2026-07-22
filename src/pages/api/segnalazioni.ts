@@ -113,6 +113,8 @@ router.get("/", async (req, res) => {
         indirizzo: r.indirizzo,
         stato: r.stato,
         urgenza: r.urgenza,
+        nomeSegnalante: "Cittadino Anonimo",
+        emailSegnalante: "Riservato (Privacy GDPR)",
         createdAt: r.created_at || new Date().toISOString(),
         updatedAt: r.updated_at || new Date().toISOString()
       }));
@@ -200,7 +202,7 @@ router.post("/", async (req, res) => {
 
     const urgenza = (condizioni === "FERITO" || condizioni === "AGGRESSIVO") ? "ALTA" : "NORMALE";
     const fullName = `${nomeSegnalante} ${cognomeSegnalante}`.trim();
-    const finalDesc = `${descrizione || ""}${telefonoSegnalante ? ` [Tel: ${telefonoSegnalante}]` : ""}`.trim();
+    const finalDesc = `${descrizione || ""}`.trim();
 
     let sqlId = 0;
     if (getIsMysqlHealthy() && pool) {
@@ -209,11 +211,11 @@ router.post("/", async (req, res) => {
             INSERT INTO segnalazioni (
               comune_key, codice_tracking, specie, condizioni, descrizione, foto_url, 
               latitudine, longitudine, indirizzo, stato, urgenza, 
-              email_segnalante, consenso_privacy, nome_segnalante
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              email_segnalante, consenso_privacy, nome_segnalante, telefono_segnalante
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `, [
             activeComune, codiceTracking, specie, condizioni, finalDesc, fotoUrl, 
-            lat, lng, indirizzo, "CREATA", urgenza, emailSegnalante, 1, fullName
+            lat, lng, indirizzo, "CREATA", urgenza, emailSegnalante, 1, fullName, telefonoSegnalante
           ]);
           sqlId = result.insertId;
 
@@ -243,7 +245,9 @@ router.post("/", async (req, res) => {
           descrizione: finalDesc,
           fotoUrl, latitudine: lat, longitudine: lng,
           indirizzo, stato: "CREATA", urgenza,
-          nomeSegnalante: fullName, emailSegnalante, telefonoSegnalante,
+          // GDPR Masking
+          nomeSegnalante: "Cittadino Anonimo",
+          emailSegnalante: "Riservato (Privacy GDPR)",
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });

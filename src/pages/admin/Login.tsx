@@ -150,7 +150,7 @@ export default function AdminLogin() {
         {/* Modern Header block */}
         <div className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-sm flex flex-col gap-5 transition-all max-w-md w-full">
           <div className="flex flex-col items-center justify-center text-center">
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15803d]">Ministero dell'Interno / Comune di Naro</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15803d]">AnimalHub PA / Enti Locali Convenzionati</span>
             <h1 className="text-xl sm:text-2xl font-black text-[#101b3a] tracking-tight mt-1">Area Operatori & Admin</h1>
           </div>
         </div>

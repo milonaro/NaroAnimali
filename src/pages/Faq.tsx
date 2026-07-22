@@ -12,6 +12,21 @@ export default function Faq() {
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Tutte');
+  const [fullConfig, setFullConfig] = useState<any>({});
+  
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const res = await fetch("/api/admin/config");
+        if (res.ok) {
+          setFullConfig(await res.json());
+        }
+      } catch (e) {
+        console.error("Config fetch error", e);
+      }
+    };
+    fetchConfig();
+  }, []);
 
   const faqs = [
     {
@@ -27,7 +42,7 @@ export default function Faq() {
     {
       category: "Normative",
       question: "Quali sanzioni sono previste per chi abbandona o maltratta un animale?",
-      answer: "Ai sensi dell'articolo 727 del Codice Penale italiano, l'abbandono di animali domestici o che abbiano acquisito abitudini della cattività è un reato punito con l'arresto fino a un anno o con un'ammenda compresa tra 1.000 e 10.000 euro. Il maltrattamento di animali costituisce un reato penale ancor più grave ai sensi dell'art. 544-ter. L'Amministrazione Comunale di Naro collabora attivamente con le autorità giudiziarie per identificare e perseguire i trasgressori."
+      answer: `Ai sensi dell'articolo 727 del Codice Penale italiano, l'abbandono di animali domestici o che abbiano acquisito abitudini della cattività è un reato punito con l'arresto fino a un anno o con un'ammenda compresa tra 1.000 e 10.000 euro. Il maltrattamento di animali costituisce un reato penale ancor più grave ai sensi dell'art. 544-ter. L'Amministrazione di ${fullConfig.siteName || 'questo Comune'} collabora attivamente con le autorità giudiziarie per identificare e perseguire i trasgressori.`
     },
     {
       category: "Normative",
@@ -42,7 +57,7 @@ export default function Faq() {
     {
       category: "Costi e Servizi",
       question: "Chi sostiene i costi delle cure e del ricovero dei randagi?",
-      answer: "Tutti i costi di recupero, pronto soccorso veterinario d'urgenza, sterilizzazione preventiva e mantenimento presso le strutture convenzionate per gli animali randagi ritrovati sul territorio di Naro sono interamente coperti dalle casse comunali e dai fondi dedicati al benessere animale, in stretta sinergia con il servizio veterinario dell'Azienda Sanitaria Provinciale (ASP)."
+      answer: `Tutti i costi di recupero, pronto soccorso veterinario d'urgenza, sterilizzazione preventiva e mantenimento presso le strutture convenzionate per gli animali randagi ritrovati sul territorio di ${fullConfig.siteName || 'questo Comune'} sono interamente coperti dalle casse comunali e dai fondi dedicati al benessere animale, in stretta sinergia con il servizio veterinario dell'Azienda Sanitaria Provinciale (ASP).`
     },
     {
       category: "Colonie Feline",
@@ -52,7 +67,7 @@ export default function Faq() {
     {
       category: "Emergenze",
       question: "Chi devo contattare in caso di emergenza imminente di notte o nei festivi?",
-      answer: "In caso di imminente pericolo stradale, animale gravemente incidentato o in condizioni sanitarie critiche in spazi pubblici, contatta immediatamente il Comando di Polizia Municipale di Naro o le Forze dell'Ordine. Questi enti attiveranno immediatamente il reperibile del Servizio Veterinario ASP, abilitato al soccorso di emergenza H24 sul territorio comunale."
+      answer: `In caso di imminente pericolo stradale, animale gravemente incidentato o in condizioni sanitarie critiche in spazi pubblici, contatta immediatamente il Comando di Polizia Locale o le Forze dell'Ordine del territorio. Questi enti attiveranno immediatamente il reperibile del Servizio Veterinario ASP, abilitato al soccorso di emergenza H24 sul territorio comunale.`
     }
   ];
 
@@ -111,7 +126,7 @@ export default function Faq() {
         <PageHeader
           sopraTitolo="Risposte Rapide"
           titolo="Domande Frequenti (FAQ)"
-          sottotitolo="Tutto quello che c'è da sapere sulla tutela animale e l'utilizzo dei servizi del Comune di Naro."
+          sottotitolo="Tutto quello che c'è da sapere sulla tutela animale e l'utilizzo dei servizi dell'Ente."
         >
           <div className="flex flex-col gap-2 items-end">
             <div className="flex flex-wrap items-center gap-2">
@@ -251,7 +266,7 @@ export default function Faq() {
         {/* AI Callout */}
         <div className="bg-slate-100/50 rounded-2xl border border-slate-200/80 p-8 text-center flex flex-col items-center justify-center gap-4">
           <h2 className="text-xl font-black text-[#101b3a] tracking-tight">Ancora Dubbi? Chiedi al Nostro Assistente AI</h2>
-          <p className="text-xs text-slate-500 font-semibold max-w-xl">Il nostro operatore multimediale automatico virtuale è collocato in basso a destra dello schermo. È istruito sull'intero regolamento comunale di Naro per pre-compilare dati e fornire assistenza.</p>
+          <p className="text-xs text-slate-500 font-semibold max-w-xl">Il nostro operatore multimediale automatico virtuale è collocato in basso a destra dello schermo. È istruito sull'intero regolamento di {fullConfig.siteName || 'questo Ente'} per pre-compilare dati e fornire assistenza.</p>
           <button
             onClick={() => speak("Clicca sul cerchio blu in basso a destra del browser per avviare una conversazione interattiva col nostro tutor automatico!")}
             className="text-[9px] font-black uppercase tracking-widest text-[#15803d]"

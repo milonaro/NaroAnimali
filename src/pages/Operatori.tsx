@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import { drawInstitutionalHeader, drawInstitutionalFooter } from '@/src/lib/pdfgenerator';
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
@@ -45,6 +46,7 @@ export default function Operatori() {
   const [activeTab, setActiveTab] = useState<'statistiche' | 'modulo-b' | 'modulo-c' | 'modulo-adozioni' | 'gestione-operatori' | 'richieste-iscrizione' | 'guida-uso'>('statistiche');
   const [activeComune, setActiveComune] = useState(() => (localStorage.getItem('active_comune') || 'naro').toLowerCase());
   const [siteName, setSiteName] = useState("Comune di Naro");
+  const [fullConfig, setFullConfig] = useState<any>({});
   const [reports, setReports] = useState<Segnalazione[]>([]);
   const [selectedReport, setSelectedReport] = useState<Segnalazione | null>(null);
   const [guidedStep, setGuidedStep] = useState<number>(1);
@@ -567,6 +569,7 @@ export default function Operatori() {
         const res = await fetch('/api/admin/config');
         if (res.ok) {
           const data = await res.json();
+          setFullConfig(data);
           if (data.activeComune) {
             const lowKey = data.activeComune.toLowerCase();
             localStorage.setItem('active_comune', lowKey);
@@ -617,6 +620,24 @@ export default function Operatori() {
 
     const fetchLiveReports = async () => {
       try {
+        let piiMap: any = {};
+        try {
+          const res = await fetch("/api/admin/segnalazioni/pii");
+          if (res.ok) {
+            const piiData = await res.json();
+            piiData.forEach((row: any) => {
+              piiMap[row.codice_tracking] = {
+                nomeSegnalante: row.nome_segnalante,
+                cognomeSegnalante: "",
+                telefonoSegnalante: "",
+                emailSegnalante: row.email_segnalante
+              };
+            });
+          }
+        } catch (e) {
+          console.error("Error fetching PII mapping", e);
+        }
+
         const { db } = await import('@/src/lib/firebase');
         const { collection, onSnapshot, query, orderBy } = await import('firebase/firestore');
         
@@ -625,9 +646,11 @@ export default function Operatori() {
         unsubscribe = onSnapshot(q, (snapshot) => {
           const liveData = snapshot.docs.map(doc => {
             const data = doc.data();
+            const pii = piiMap[data.codiceTracking] || {};
             return {
               id: doc.id,
               ...data,
+              ...pii,
               createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleDateString("it-IT") : new Date().toLocaleDateString("it-IT"),
               updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate().toLocaleDateString("it-IT") : new Date().toLocaleDateString("it-IT"),
             };
@@ -1086,7 +1109,7 @@ export default function Operatori() {
       documento_tipo: 'CARTA_IDENTITA',
       documento_numero: '',
       documento_data: '',
-      documento_ente: 'Comune di Naro',
+      documento_ente: fullConfig.siteName || 'Comune',
       richiesta_tipo: 'ADOZIONE_DEFINITIVA',
       a_partire_da: '',
       donazione_euro: '0',
@@ -1111,67 +1134,17 @@ export default function Operatori() {
     const generateAdozionePDF = () => {
       const doc = new jsPDF();
       
-      // --- STEMMA COMUNALE REALISTICO (Disegnato con primitive jsPDF) ---
-      doc.setDrawColor(30, 58, 95); 
-      doc.setLineWidth(0.8);
-      doc.setFillColor(248, 250, 252); 
-      
-      doc.rect(20, 15, 14, 12, 'FD');
-      doc.ellipse(27, 27, 7, 5, 'FD'); 
-  
-      doc.setFillColor(217, 119, 6); 
-      doc.rect(21, 11, 12, 3, 'F');
-      doc.rect(21, 9, 2, 2, 'F');
-      doc.rect(25, 9, 2, 2, 'F');
-      doc.rect(29, 9, 2, 2, 'F');
-      doc.rect(31, 9, 2, 2, 'F');
-  
-      doc.setDrawColor(59, 130, 246); 
-      doc.line(23, 20, 31, 20);
-      doc.line(22, 23, 32, 23);
-      doc.line(24, 26, 30, 26);
-  
-      // --- TESTI INTESTAZIONE COMUNALE ---
-      doc.setTextColor(30, 58, 95); 
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
-      doc.text("CITTÀ DI NARO", 40, 19);
-      
-      doc.setTextColor(100, 116, 139); 
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.text("Provincia di Agrigento", 40, 23);
-      
-      doc.setTextColor(71, 85, 105); 
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8.5);
-      doc.text("SETTORE VIGILANZA E SANITÀ ANIMALE", 40, 28);
-      
-      doc.setTextColor(148, 163, 184); 
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7.5);
-      doc.text("Ufficio Tutela Ambientale e Gestione Territoriale del Randagismo", 40, 32);
-
-      // Box info protocollo a destra
-      doc.setFillColor(241, 245, 249); 
-      doc.rect(130, 12, 60, 22, 'F');
-      doc.setDrawColor(226, 232, 240);
-      doc.rect(130, 12, 60, 22, 'D');
-
-      doc.setTextColor(71, 85, 105);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7);
-      doc.text("PROTOCOLLO PRATICA", 133, 17);
-      
-      doc.setTextColor(15, 23, 42); 
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.text(`ADO-NR-${printingAdozione.id.toString().padStart(4, '0')}`, 133, 23);
-      
-      doc.setTextColor(100, 116, 139); 
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7);
-      doc.text(`Data: ${new Date(printingAdozione.data_richiesta || new Date()).toLocaleDateString('it-IT')}`, 133, 29);
+      // Use shared institutional header
+      drawInstitutionalHeader(doc, {
+        siteName: fullConfig.siteName || siteName || `Comune di ${activeComune}`,
+        comune_provincia: fullConfig.comune_provincia || 'AG',
+        activeComune: activeComune,
+        pec: fullConfig.comune_pec
+      }, {
+        title: "PROTOCOLLO PRATICA",
+        code: `ADO-NR-${printingAdozione.id.toString().padStart(4, '0')}`,
+        date: new Date(printingAdozione.data_richiesta || new Date()).toLocaleDateString('it-IT')
+      });
 
       // Titolo Certificato
       doc.setTextColor(15, 23, 42);
@@ -1269,10 +1242,12 @@ export default function Operatori() {
       doc.setLineDashPattern([], 0);
 
       // Piè di pagina
-      doc.setFontSize(7);
-      doc.setTextColor(148, 163, 184);
-      doc.text('Documento informatico generato automaticamente dal portale Animal Hub.', 105, 280, { align: 'center' });
-      doc.text(`ID Documento: ADO${printingAdozione.id}-SYS${new Date().getTime().toString().substr(-6)} • Comune di Naro`, 105, 284, { align: 'center' });
+      drawInstitutionalFooter(doc, {
+        siteName: fullConfig.siteName || siteName || `Comune di ${activeComune}`,
+        comune_provincia: fullConfig.comune_provincia || 'AG',
+        activeComune: activeComune,
+        pec: fullConfig.comune_pec
+      });
 
       doc.save(`Istruttoria_Pratica_Adozione_${printingAdozione.id}.pdf`);
     };
@@ -2562,7 +2537,7 @@ export default function Operatori() {
                         Stai gestendo la pratica secondo le disposizioni comunali del <strong>Regolamento Regionale di Prevenzione Randagismo</strong>. Ogni log inserito verrà archiviato in modo definitivo e firmato per la trasparenza amministrativa dell'ente.
                       </p>
                       <div className="border-t border-white/10 pt-3 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                        Ente: Comune di Naro (ASP AG)
+                        Ente: {fullConfig.siteName || 'Comune'} (ASP {fullConfig.comune_provincia || 'AG'})
                       </div>
                     </div>
 
@@ -2777,7 +2752,7 @@ export default function Operatori() {
                     <div className="p-6 bg-[#1e3a5f] text-white">
                       <span className="text-[9px] font-black bg-white/20 px-2 py-0.5 rounded uppercase tracking-wider">Pratica Selezionata</span>
                       <h2 className="text-xl font-bold mt-1">{selectedReport.codiceTracking}</h2>
-                      <p className="text-xs text-slate-300 mt-1">Ufficio di Randagismo Comune di Naro</p>
+                      <p className="text-xs text-slate-300 mt-1">Ufficio di Randagismo {fullConfig.siteName || 'Comune'}</p>
                     </div>
 
                     <div className="p-6 space-y-6">
@@ -4378,7 +4353,7 @@ export default function Operatori() {
                           <label className="text-[9px] font-bold uppercase text-slate-500 block mb-1">Rilasciato da</label>
                           <input
                             type="text"
-                            placeholder="Es: Comune di Naro"
+                            placeholder="Es: Comune di..."
                             value={formAdozione.documento_ente}
                             onChange={(e) => setFormAdozione({ ...formAdozione, documento_ente: e.target.value })}
                             className="w-full p-2 border border-slate-200 rounded text-xs"

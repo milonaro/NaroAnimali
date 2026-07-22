@@ -1,5 +1,6 @@
 import pool, { getIsMysqlHealthy, setMysqlHealthy } from "./mysql.js";
 import admin from "firebase-admin";
+import bcrypt from "bcryptjs";
 
 export async function addMySQLColumns() {
   const columnsToAdd = [
@@ -22,7 +23,10 @@ export async function addMySQLColumns() {
     { name: "hub_attivo", typeMysql: "TINYINT(1)" }, 
     { name: "data_attivazione", typeMysql: "DATE" },
     { name: "referente_comune", typeMysql: "VARCHAR(150)" },
-    { name: "tel_referente", typeMysql: "VARCHAR(20)" }
+    { name: "tel_referente", typeMysql: "VARCHAR(20)" },
+    { name: "threshold_centro_km", typeMysql: "DECIMAL(5, 2)" },
+    { name: "threshold_periferia_km", typeMysql: "DECIMAL(5, 2)" },
+    { name: "threshold_campagna_km", typeMysql: "DECIMAL(5, 2)" }
   ];
 
   if (pool && getIsMysqlHealthy()) {
@@ -110,6 +114,15 @@ export async function addMySQLColumns() {
         console.warn("Info migrazione colonna data_nascita:", e.message);
       }
     }
+
+    try {
+      await pool.execute("ALTER TABLE segnalazioni ADD COLUMN telefono_segnalante VARCHAR(25) DEFAULT NULL");
+      console.log("MySQL: aggiunta colonna telefono_segnalante a segnalazioni");
+    } catch (e: any) {
+      if (!e.message.includes("Duplicate column") && !e.message.includes("already exists")) {
+        console.warn("Info migrazione MySQL colonna telefono_segnalante a segnalazioni:", e.message);
+      }
+    }
   }
 }
 
@@ -169,9 +182,10 @@ export async function createMySQLTables() {
         urgenza VARCHAR(50) DEFAULT 'NORMALE',
         email_segnalante VARCHAR(150),
         nome_segnalante VARCHAR(100),
+        telefono_segnalante VARCHAR(25),
         consenso_privacy TINYINT DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`,
     `CREATE TABLE IF NOT EXISTS comuni (
         key_name VARCHAR(50) PRIMARY KEY,
@@ -182,7 +196,10 @@ export async function createMySQLTables() {
         lat_min DECIMAL(10, 8) NOT NULL,
         lat_max DECIMAL(10, 8) NOT NULL,
         lng_min DECIMAL(11, 8) NOT NULL,
-        lng_max DECIMAL(11, 8) NOT NULL
+        lng_max DECIMAL(11, 8) NOT NULL,
+        threshold_centro_km DECIMAL(5, 2),
+        threshold_periferia_km DECIMAL(5, 2),
+        threshold_campagna_km DECIMAL(5, 2)
     )`,
     `CREATE TABLE IF NOT EXISTS ruoli_operatore (
         ruolo_key VARCHAR(50) PRIMARY KEY,
@@ -344,7 +361,7 @@ export async function createMySQLTables() {
         data_nascita VARCHAR(20),
         is_spid_verified TINYINT(1) DEFAULT 0,
         identity_provider VARCHAR(50) DEFAULT NULL,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`
   ];
 
@@ -371,5 +388,28 @@ export async function createMySQLTables() {
       } catch (e: any) {
              console.log("View creation error (often unsupported or syntax locally, skipping):", e.message);
       }
+  }
+}
+
+export async function seedAdminUsers() {
+  if (!pool || !getIsMysqlHealthy()) return;
+  try {
+    const [rows]: any = await pool.execute("SELECT * FROM admin_users WHERE username = 'admin'");
+    if (rows && rows.length > 0) {
+      return;
+    }
+    const hash = await bcrypt.hash("admin123", 10);
+    await pool.execute(
+      "INSERT INTO admin_users (username, password_hash, role, comune_key, email) VALUES (?, ?, ?, ?, ?)",
+      ["admin", hash, "ADMIN", "naro", "admin@animalhub.it"]
+    );
+    const hashOperatore = await bcrypt.hash("operatore123", 10);
+    await pool.execute(
+      "INSERT INTO admin_users (username, password_hash, role, comune_key, email) VALUES (?, ?, ?, ?, ?)",
+      ["naro_op", hashOperatore, "OPERATORE", "naro", "operatore@animalhub.it"]
+    );
+    console.log("MySQL: Utenti admin di default creati.");
+  } catch (err) {
+    console.error("Errore seeding admin users:", err);
   }
 }
