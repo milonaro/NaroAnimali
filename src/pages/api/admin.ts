@@ -231,9 +231,21 @@ router.post("/test-mysql", async (req, res) => {
     });
   } catch (err: any) {
     console.error("Test MySQL Fallito:", err);
+    let detailedMsg = err.message || "Timeout o credenziali errate";
+    if (err.code === "ECONNREFUSED") {
+      detailedMsg = `Connessione rifiutata (${dbHost}:${dbPort || 3306}). Verifica che il server MySQL sia avviato e che accetti connessioni esterne (bind-address = 0.0.0.0).`;
+    } else if (err.code === "ETIMEDOUT") {
+      detailedMsg = `Timeout di connessione verso ${dbHost}. Se stai usando 'localhost', nota che l'app gira in un container Cloud e non vede il localhost del tuo computer. Occorre un indirizzo IP/Host pubblico.`;
+    } else if (err.code === "ER_ACCESS_DENIED_ERROR") {
+      detailedMsg = `Accesso negato per l'utente '${dbUser}'@'%' (password errata o utente privo di permessi per connessioni remote).`;
+    } else if (err.code === "ENOTFOUND") {
+      detailedMsg = `Impossibile risolvere l'host '${dbHost}'. Verifica che l'indirizzo o il nome di dominio sia corretto.`;
+    }
+
     res.status(500).json({
       success: false,
-      message: `Impossibile connettersi al database MySQL: ${err.message || 'Timeout o credenziali errate'}`
+      message: detailedMsg,
+      errorCode: err.code
     });
   }
 });
