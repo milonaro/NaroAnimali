@@ -373,39 +373,63 @@ export default function SetupWizard() {
               </div>
 
               {/* Pulsante Test Connessione MySQL */}
-              <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-2">
-                  <Wifi className="w-5 h-5 text-emerald-600 shrink-0" />
-                  <span className="text-xs text-slate-700 font-medium">
-                    Verifica subito se il server MySQL risponde correttamente prima di proseguire.
-                  </span>
+              <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-xl space-y-3">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <Wifi className="w-5 h-5 text-emerald-600 shrink-0" />
+                    <span className="text-xs text-slate-700 font-medium">
+                      Verifica se il server MySQL è raggiungibile dall'esterno sulla porta 3306.
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleTestMysql}
+                    disabled={testingMysql}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 px-5 rounded-xl text-xs uppercase tracking-wider transition-all disabled:opacity-50 shrink-0 cursor-pointer"
+                  >
+                    {testingMysql ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+                        Verifica in corso...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-4 h-4 text-emerald-400" />
+                        Test Connessione MySQL
+                      </>
+                    )}
+                  </button>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleTestMysql}
-                  disabled={testingMysql}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 px-5 rounded-xl text-xs uppercase tracking-wider transition-all disabled:opacity-50 shrink-0 cursor-pointer"
-                >
-                  {testingMysql ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
-                      Verifica in corso...
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="w-4 h-4 text-emerald-400" />
-                      Test Connessione MySQL
-                    </>
-                  )}
-                </button>
+                {/* AVVISO DI ARUBA / HOSTING CONDIVISO CON PORTA 3306 BLOCCATA */}
+                {mysqlConnected === false && (
+                  <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-left space-y-2 animate-fadeIn">
+                    <div className="flex items-center gap-2 text-amber-900 font-black text-xs uppercase tracking-wide">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                      Avviso Hosting Condiviso (es. Aruba MySQL)
+                    </div>
+                    <p className="text-[11px] text-amber-900 leading-relaxed font-medium">
+                      Gli hosting condivisi tradizionali come Aruba bloccano per sicurezza le connessioni remote dirette sulla porta 3306.
+                    </p>
+                    <p className="text-[11px] text-amber-900 leading-relaxed font-bold">
+                      💡 Nessun problema! Le credenziali Aruba inserite verranno salvate regolarmente. L'applicazione proseguirà l'attivazione in <u>Modalità Fallback Sicura</u>. Successivamente, dal pannello Super Admin potrai gestire la migrazione ed il popolamento del database Aruba.
+                    </p>
+                  </div>
+                )}
               </div>
 
-              <div className="flex justify-end pt-4 border-t border-slate-100">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-100">
+                <span className="text-[11px] text-slate-500 font-medium text-center sm:text-left">
+                  {mysqlConnected === false 
+                    ? "⚠️ Connessione remota non aperta: le credenziali verranno salvate per il popolamento successivo."
+                    : "Puoi proseguire liberamente inserendo i dati dell'Ente."}
+                </span>
+
                 <button
                   type="button"
                   onClick={() => setStep(2)}
-                  className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-8 rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 px-8 rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer shadow-md"
                 >
                   Continua al Passo 2 <ArrowRight className="w-4 h-4 text-emerald-400" />
                 </button>
