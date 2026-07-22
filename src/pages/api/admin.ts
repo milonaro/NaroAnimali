@@ -197,8 +197,45 @@ router.get("/setup-status", async (req, res) => {
   res.json({
     success: true,
     configured: isConfigured,
-    isVercel: !!process.env.VERCEL
+    isVercel: !!process.env.VERCEL,
+    dbHost: process.env.DB_HOST || "",
+    dbName: process.env.DB_NAME || "",
+    dbUser: process.env.DB_USER || "",
+    dbPort: process.env.DB_PORT || "3306"
   });
+});
+
+router.post("/test-mysql", async (req, res) => {
+  const { dbHost, dbUser, dbPass, dbName, dbPort } = req.body;
+  if (!dbHost || !dbUser || !dbName) {
+    return res.status(400).json({ success: false, message: "Host, Utente e Nome Database sono obbligatori." });
+  }
+
+  try {
+    const mysql = await import("mysql2/promise");
+    const connection = await mysql.default.createConnection({
+      host: dbHost,
+      user: dbUser,
+      password: dbPass || "",
+      database: dbName,
+      port: dbPort ? parseInt(dbPort, 10) : 3306,
+      connectTimeout: 5000
+    });
+
+    await connection.ping();
+    await connection.end();
+
+    res.json({
+      success: true,
+      message: "Connessione MySQL riuscita! Il database MariaDB/MySQL risponde correttamente."
+    });
+  } catch (err: any) {
+    console.error("Test MySQL Fallito:", err);
+    res.status(500).json({
+      success: false,
+      message: `Impossibile connettersi al database MySQL: ${err.message || 'Timeout o credenziali errate'}`
+    });
+  }
 });
 
 router.post("/setup-save", async (req, res) => {
@@ -221,7 +258,10 @@ router.post("/setup-save", async (req, res) => {
     return res.status(403).json({ error: "Accesso negato. La piattaforma è già configurata. Solo un amministratore loggato può modificare le chiavi." });
   }
 
-  const { apiKey, authDomain, projectId, storageBucket, appId, databaseId, serviceAccountKey } = req.body;
+  const { 
+    dbHost, dbUser, dbPass, dbName, dbPort,
+    apiKey, authDomain, projectId, storageBucket, appId, databaseId, serviceAccountKey 
+  } = req.body;
 
   if (process.env.VERCEL) {
     return res.json({
@@ -252,6 +292,12 @@ router.post("/setup-save", async (req, res) => {
     };
 
     let updatedContent = envContent;
+    if (dbHost) updatedContent = updateEnvVar(updatedContent, "DB_HOST", dbHost);
+    if (dbUser) updatedContent = updateEnvVar(updatedContent, "DB_USER", dbUser);
+    if (dbPass !== undefined) updatedContent = updateEnvVar(updatedContent, "DB_PASS", dbPass);
+    if (dbName) updatedContent = updateEnvVar(updatedContent, "DB_NAME", dbName);
+    if (dbPort) updatedContent = updateEnvVar(updatedContent, "DB_PORT", dbPort);
+
     if (apiKey) updatedContent = updateEnvVar(updatedContent, "VITE_FIREBASE_API_KEY", apiKey);
     if (authDomain) updatedContent = updateEnvVar(updatedContent, "VITE_FIREBASE_AUTH_DOMAIN", authDomain);
     if (projectId) updatedContent = updateEnvVar(updatedContent, "VITE_FIREBASE_PROJECT_ID", projectId);
@@ -272,6 +318,12 @@ router.post("/setup-save", async (req, res) => {
       firestoreDatabaseId: databaseId || "(default)"
     };
     fs.writeFileSync(configPath, JSON.stringify(jsonConfig, null, 2), "utf8");
+
+    if (dbHost) process.env.DB_HOST = dbHost;
+    if (dbUser) process.env.DB_USER = dbUser;
+    if (dbPass !== undefined) process.env.DB_PASS = dbPass;
+    if (dbName) process.env.DB_NAME = dbName;
+    if (dbPort) process.env.DB_PORT = dbPort;
 
     if (apiKey) process.env.VITE_FIREBASE_API_KEY = apiKey;
     if (authDomain) process.env.VITE_FIREBASE_AUTH_DOMAIN = authDomain;
