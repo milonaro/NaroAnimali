@@ -67,16 +67,7 @@ export function requireAuth(allowedRoles?: string[]) {
 }
 
 export const parseExpiresAt = (val: any): Date => {
-  if (val instanceof Date) {
-    return new Date(Date.UTC(
-      val.getFullYear(),
-      val.getMonth(),
-      val.getDate(),
-      val.getHours(),
-      val.getMinutes(),
-      val.getSeconds()
-    ));
-  }
+  if (val instanceof Date) return val;
   if (typeof val === "number") return new Date(val);
   if (typeof val === "string") {
     if (/^\d+$/.test(val)) return new Date(parseInt(val, 10));

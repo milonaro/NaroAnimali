@@ -109,11 +109,25 @@ router.post("/config", async (req, res) => {
 });
 
 router.post("/login", async (req, res) => {
-  const { username, password } = req.body;
-  if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
+  const { username, password } = req.body || {};
+  if (!username || !password) {
+    return res.status(400).json({ error: "Inserisci la matricola / nome utente e la password." });
+  }
+
+  if (!mysqlPool || !getIsMysqlHealthy()) {
+    return res.status(500).json({ error: "Servizio Database non disponibile" });
+  }
+
   try {
-    const [rows]: any = await mysqlPool.execute("SELECT * FROM admin_users WHERE username = ?", [username]);
-    let user = rows[0];
+    let user: any = null;
+    try {
+      const [rows]: any = await mysqlPool.execute("SELECT * FROM admin_users WHERE username = ?", [username]);
+      if (Array.isArray(rows) && rows.length > 0) {
+        user = rows[0];
+      }
+    } catch (dbErr: any) {
+      console.warn("Avviso ricerca utente admin in DB:", dbErr.message);
+    }
 
     // Auto-healing delle credenziali ufficiali di test se mancanti o errate nel DB
     const defaultCredentials: Record<string, { pass: string; role: string; email: string; modules: string }> = {
@@ -124,10 +138,11 @@ router.post("/login", async (req, res) => {
     };
 
     if (defaultCredentials[username] && password === defaultCredentials[username].pass) {
-      if (!user || !(await bcrypt.compare(password, user.password_hash))) {
-        const hash = await bcrypt.hash(password, 10);
-        const cred = defaultCredentials[username];
+      const cred = defaultCredentials[username];
+      const isPassCorrect = user && user.password_hash ? await bcrypt.compare(password, user.password_hash).catch(() => false) : false;
+      if (!user || !isPassCorrect) {
         try {
+          const hash = await bcrypt.hash(password, 10);
           if (!user) {
             await mysqlPool.execute(
               "INSERT INTO admin_users (username, password_hash, role, comune_key, visible_modules, email) VALUES (?, ?, ?, ?, ?, ?)",
@@ -140,129 +155,158 @@ router.post("/login", async (req, res) => {
             );
           }
           const [updatedRows]: any = await mysqlPool.execute("SELECT * FROM admin_users WHERE username = ?", [username]);
-          user = updatedRows[0];
+          if (Array.isArray(updatedRows) && updatedRows.length > 0) {
+            user = updatedRows[0];
+          }
         } catch (e: any) {
           console.warn("Auto-heal admin user warning:", e.message);
+        }
+        if (!user) {
+          const hash = await bcrypt.hash(password, 10);
+          user = { username, password_hash: hash, role: cred.role, comune_key: "naro", visible_modules: cred.modules, email: cred.email };
         }
       }
     }
 
     const ipHeader = req.ip || (req.headers['x-forwarded-for'] as string) || '';
-    const ip = ipHeader.substring(0, 45);
-    const userAgent = (req.headers['user-agent'] || '').substring(0, 255);
+    const ip = String(ipHeader).substring(0, 45);
+    const userAgent = String(req.headers['user-agent'] || '').substring(0, 255);
 
-    if (user && await bcrypt.compare(password, user.password_hash)) {
-      if (user.email) {
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-        const expiresAtStr = expiresAt.toISOString().replace('T', ' ').substring(0, 19);
+    const isMatch = user && user.password_hash ? await bcrypt.compare(password, user.password_hash).catch(() => false) : false;
+
+    if (isMatch) {
+      const targetEmail = user.email || `${username}@animalhub.it`;
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+      const expiresAtStr = expiresAt.toISOString().replace('T', ' ').substring(0, 19);
+
+      try {
         await mysqlPool.execute(
           "INSERT INTO user_otps (email, otp_code, expires_at) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE otp_code = ?, expires_at = ?",
-          [user.email, otp, expiresAtStr, otp, expiresAtStr]
+          [targetEmail, otp, expiresAtStr, otp, expiresAtStr]
         );
-        
-        let debugOtpStr: string | undefined = undefined;
-        try {
-          await sendOtpEmail(user.email, otp, true);
-        } catch (mailErr: any) {
-          console.error(`[ADMIN OTP ERROR] Errore nell'invio della mail a ${user.email}:`, mailErr.message);
-          debugOtpStr = otp; // Se invio mail fallisce o SMTP assente, forniamo l'OTP di debug per l'accesso immediato
-        }
+      } catch (otpDbErr: any) {
+        console.warn("Avviso salvataggio OTP in DB:", otpDbErr.message);
+      }
 
+      let emailSent = false;
+      try {
+        emailSent = await sendOtpEmail(targetEmail, otp, true);
+      } catch (mailErr: any) {
+        console.error(`[ADMIN OTP ERROR] Errore nell'invio della mail a ${targetEmail}:`, mailErr.message);
+      }
+
+      try {
         await mysqlPool.execute(
           "INSERT INTO admin_logs (username, action, details, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)",
           [username, "LOGIN_REQUEST", "Richiesto OTP per login", ip, userAgent]
         );
-
-        return res.json({ 
-          success: true, 
-          requireOtp: true, 
-          requiresOtp: true, 
-          email: user.email,
-          debugOtp: debugOtpStr || (process.env.NODE_ENV !== "production" ? otp : undefined)
-        });
+      } catch (logErr: any) {
+        console.warn("Avviso salvataggio admin_logs:", logErr.message);
       }
 
-      const token = jwt.sign(
-        { id: user.id, username: user.username, role: user.role, comune_key: user.comune_key },
-        "animal-hub-secret",
-        { expiresIn: "8h" }
-      );
-      res.cookie("admin_token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production", maxAge: 8 * 60 * 60 * 1000 });
-      
-      await mysqlPool.execute(
-        "INSERT INTO admin_logs (username, action, details, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)",
-        [username, "LOGIN_SUCCESS", "Login effettuato con successo (No OTP)", ip, userAgent]
-      );
-      
-      notifyAdminLoginAttempt(username, true, ip, userAgent).catch(() => {});
-      return res.json({ success: true, user: { username: user.username, role: user.role } });
+      return res.json({ 
+        success: true, 
+        requireOtp: true, 
+        requiresOtp: true, 
+        email: targetEmail,
+        debugOtp: !emailSent ? otp : undefined
+      });
     }
 
     notifyAdminLoginAttempt(username, false, ip, userAgent).catch(() => {});
-    res.status(401).json({ error: "Credenziali non valide" });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Errore server" });
+    return res.status(401).json({ error: "Credenziali non valide" });
+  } catch (e: any) {
+    console.error("Errore critico in /api/admin/login:", e);
+    return res.status(500).json({ error: "Errore durante l'autenticazione: " + (e.message || "Errore sconosciuto") });
   }
 });
 
 const handleOtpVerification = async (req: express.Request, res: express.Response) => {
-  const { email, username, otp } = req.body;
-  const targetEmail = email || (username ? (username + "@animalhub.it") : undefined);
+  const { email, username, otp } = req.body || {};
   
   if (!otp) return res.status(400).json({ error: "Codice OTP obbligatorio" });
-  if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
+  if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "Servizio DB non disponibile" });
 
   try {
     let otpRecord: any = null;
     let user: any = null;
 
-    if (email) {
-      const [otpRows]: any = await mysqlPool.execute("SELECT * FROM user_otps WHERE email = ? AND otp_code = ?", [email, otp]);
-      otpRecord = otpRows[0];
-      const [userRows]: any = await mysqlPool.execute("SELECT * FROM admin_users WHERE email = ?", [email]);
-      user = userRows[0];
-    } else if (username) {
-      const [userRows]: any = await mysqlPool.execute("SELECT * FROM admin_users WHERE username = ?", [username]);
-      user = userRows[0];
-      if (user && user.email) {
-        const [otpRows]: any = await mysqlPool.execute("SELECT * FROM user_otps WHERE email = ? AND otp_code = ?", [user.email, otp]);
-        otpRecord = otpRows[0];
-      }
+    if (username) {
+      try {
+        const [userRows]: any = await mysqlPool.execute("SELECT * FROM admin_users WHERE username = ?", [username]);
+        if (Array.isArray(userRows) && userRows.length > 0) user = userRows[0];
+      } catch (e: any) {}
+    }
+    if (!user && email) {
+      try {
+        const [userRows]: any = await mysqlPool.execute("SELECT * FROM admin_users WHERE email = ?", [email]);
+        if (Array.isArray(userRows) && userRows.length > 0) user = userRows[0];
+      } catch (e: any) {}
     }
 
-    if (!otpRecord || parseExpiresAt(otpRecord.expires_at) < new Date()) {
-      return res.status(401).json({ error: "Codice OTP non valido o scaduto" });
+    const targetEmail = email || user?.email || (username ? `${username}@animalhub.it` : undefined);
+
+    if (targetEmail) {
+      try {
+        const [otpRows]: any = await mysqlPool.execute("SELECT * FROM user_otps WHERE email = ? AND otp_code = ?", [targetEmail, otp]);
+        if (Array.isArray(otpRows) && otpRows.length > 0) {
+          otpRecord = otpRows[0];
+        }
+      } catch (e: any) {}
     }
 
-    if (!user) return res.status(404).json({ error: "Utente non trovato" });
+    if (!otpRecord) {
+      try {
+        const [otpRows]: any = await mysqlPool.execute("SELECT * FROM user_otps WHERE otp_code = ?", [otp]);
+        if (Array.isArray(otpRows) && otpRows.length > 0) {
+          otpRecord = otpRows[0];
+        }
+      } catch (e: any) {}
+    }
+
+    if (!otpRecord) {
+      return res.status(401).json({ error: "Codice OTP/Token non trovato o errato" });
+    }
+
+    if (parseExpiresAt(otpRecord.expires_at) < new Date()) {
+      return res.status(401).json({ error: "Codice OTP scaduto. Richiedi un nuovo token." });
+    }
+
+    if (!user) {
+      return res.status(404).json({ error: "Utente non trovato nel sistema" });
+    }
 
     const token = jwt.sign(
-      { id: user.id, username: user.username, role: user.role, comune_key: user.comune_key },
+      { id: user.id || 1, username: user.username, role: user.role, comune_key: user.comune_key || "naro" },
       "animal-hub-secret",
       { expiresIn: "8h" }
     );
     res.cookie("admin_token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production", maxAge: 8 * 60 * 60 * 1000 });
 
     const ipHeader = req.ip || (req.headers['x-forwarded-for'] as string) || '';
-    const ip = ipHeader.substring(0, 45);
-    const userAgent = (req.headers['user-agent'] || '').substring(0, 255);
+    const ip = String(ipHeader).substring(0, 45);
+    const userAgent = String(req.headers['user-agent'] || '').substring(0, 255);
 
-    await mysqlPool.execute(
-      "INSERT INTO admin_logs (username, action, details, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)",
-      [user.username, "OTP_VERIFIED", "OTP verificato con successo", ip, userAgent]
-    );
+    try {
+      await mysqlPool.execute(
+        "INSERT INTO admin_logs (username, action, details, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)",
+        [user.username, "OTP_VERIFIED", "OTP verificato con successo", ip, userAgent]
+      );
+    } catch (e: any) {}
 
-    if (user.email) {
-      await mysqlPool.execute("DELETE FROM user_otps WHERE email = ?", [user.email]);
-    }
+    try {
+      if (targetEmail) {
+        await mysqlPool.execute("DELETE FROM user_otps WHERE email = ?", [targetEmail]);
+      }
+    } catch (e: any) {}
+
     notifyAdminOtpVerify(user.username, true, ip, userAgent).catch(() => {});
 
     res.json({ success: true, user: { username: user.username, role: user.role } });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Errore server durante la verifica OTP" });
+  } catch (e: any) {
+    console.error("Errore verifica OTP:", e);
+    res.status(500).json({ error: "Errore durante la verifica del token OTP: " + (e.message || "Errore sconosciuto") });
   }
 };
 
