@@ -480,9 +480,23 @@ async function initSqliteSchema(db: any) {
       try {
         await db.run("ALTER TABLE admin_users ADD COLUMN visible_modules TEXT DEFAULT NULL");
       } catch (e: any) {}
-      try {
-        await db.run("ALTER TABLE registro_anagrafica ADD COLUMN proprietario_email VARCHAR(150) DEFAULT NULL");
-      } catch (e: any) {}
+      
+      const sqliteRegCols = [
+        "razza VARCHAR(100) DEFAULT NULL",
+        "data_nascita VARCHAR(50) DEFAULT NULL",
+        "segni_particolari TEXT DEFAULT NULL",
+        "proprietario_nome VARCHAR(150) DEFAULT NULL",
+        "proprietario_email VARCHAR(150) DEFAULT NULL",
+        "proprietario_telefono VARCHAR(50) DEFAULT NULL",
+        "proprietario_indirizzo VARCHAR(255) DEFAULT NULL",
+        "proprietario_cf VARCHAR(20) DEFAULT NULL"
+      ];
+      for (const colDef of sqliteRegCols) {
+        try {
+          await db.run(`ALTER TABLE registro_anagrafica ADD COLUMN ${colDef}`);
+        } catch (e: any) {}
+      }
+
       try {
         await db.run("ALTER TABLE citizen_profiles ADD COLUMN sesso VARCHAR(10) DEFAULT NULL");
       } catch (e: any) {}
@@ -543,6 +557,22 @@ async function initSqliteSchema(db: any) {
 
       await db.run("PRAGMA foreign_keys = ON");
       console.log("Struttura tabelle SQLite creata con successo.");
+
+      const sqliteRegCols = [
+        "razza VARCHAR(100) DEFAULT NULL",
+        "data_nascita VARCHAR(50) DEFAULT NULL",
+        "segni_particolari TEXT DEFAULT NULL",
+        "proprietario_nome VARCHAR(150) DEFAULT NULL",
+        "proprietario_email VARCHAR(150) DEFAULT NULL",
+        "proprietario_telefono VARCHAR(50) DEFAULT NULL",
+        "proprietario_indirizzo VARCHAR(255) DEFAULT NULL",
+        "proprietario_cf VARCHAR(20) DEFAULT NULL"
+      ];
+      for (const colDef of sqliteRegCols) {
+        try {
+          await db.run(`ALTER TABLE registro_anagrafica ADD COLUMN ${colDef}`);
+        } catch (e: any) {}
+      }
 
       // Seeding default admin users
       await seedDefaultAdminsIfEmpty(db);

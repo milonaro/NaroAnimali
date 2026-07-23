@@ -88,6 +88,22 @@ export async function addMySQLColumns() {
       }
     }
 
+    const regColumns = [
+      { name: "razza", type: "VARCHAR(100) DEFAULT NULL" },
+      { name: "data_nascita", type: "VARCHAR(50) DEFAULT NULL" },
+      { name: "segni_particolari", type: "TEXT DEFAULT NULL" },
+      { name: "proprietario_nome", type: "VARCHAR(150) DEFAULT NULL" },
+      { name: "proprietario_telefono", type: "VARCHAR(50) DEFAULT NULL" },
+      { name: "proprietario_indirizzo", type: "VARCHAR(255) DEFAULT NULL" },
+      { name: "proprietario_cf", type: "VARCHAR(20) DEFAULT NULL" }
+    ];
+
+    for (const col of regColumns) {
+      try {
+        await pool.execute(`ALTER TABLE registro_anagrafica ADD COLUMN ${col.name} ${col.type}`);
+      } catch (e: any) {}
+    }
+
     try {
       await pool.execute("ALTER TABLE citizen_profiles ADD COLUMN sesso VARCHAR(10) DEFAULT NULL");
       console.log("MySQL/SQLite: aggiunta colonna sesso o citizen_profiles");
@@ -149,13 +165,20 @@ export async function createMySQLTables() {
         comune_key VARCHAR(50) NOT NULL DEFAULT 'naro',
         nome VARCHAR(100),
         specie VARCHAR(50),
+        razza VARCHAR(100) DEFAULT NULL,
         sesso VARCHAR(10),
         taglia VARCHAR(50),
         colore VARCHAR(100),
+        data_nascita VARCHAR(50) DEFAULT NULL,
+        segni_particolari TEXT DEFAULT NULL,
         condizioni_sanitarie TEXT,
         stato VARCHAR(50),
         foto_url LONGTEXT,
+        proprietario_nome VARCHAR(150) DEFAULT NULL,
         proprietario_email VARCHAR(150) DEFAULT NULL,
+        proprietario_telefono VARCHAR(50) DEFAULT NULL,
+        proprietario_indirizzo VARCHAR(255) DEFAULT NULL,
+        proprietario_cf VARCHAR(20) DEFAULT NULL,
         data_registrazione TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`,
     `CREATE TABLE IF NOT EXISTS interventi_logs (
