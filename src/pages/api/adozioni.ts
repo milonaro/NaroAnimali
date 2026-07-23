@@ -18,20 +18,30 @@ router.get("/logs", requireAuth(["ADMIN", "CANILE_SANITARIO", "POLIZIA_LOCALE"])
 router.post("/", requireAuth(["ADMIN", "CANILE_SANITARIO", "POLIZIA_LOCALE"]), async (req, res) => {
   if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
   try {
-    const data = req.body;
+    const data = req.body || {};
     const activeComune = await getActiveComune();
     await mysqlPool.execute(
       "INSERT INTO adozioni_logs (comune_key, microchip, nome_animale, specie, sesso, data_adozione, adottante_nome, adottante_cf, adottante_telefono, adottante_email, adottante_indirizzo, note_adozione, stato_pratica) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [
-        activeComune, data.microchip, data.nome_animale, data.specie, data.sesso,
-        data.data_adozione || new Date(), data.adottante_nome, data.adottante_cf,
-        data.adottante_telefono, data.adottante_email, data.adottante_indirizzo,
-        data.note_adozione, data.stato_pratica || 'COMPLETATA'
+        activeComune ?? 'naro',
+        data.microchip ?? null,
+        data.nome_animale ?? null,
+        data.specie ?? null,
+        data.sesso ?? null,
+        data.data_adozione || new Date(),
+        data.adottante_nome ?? null,
+        data.adottante_cf ?? null,
+        data.adottante_telefono ?? null,
+        data.adottante_email ?? null,
+        data.adottante_indirizzo ?? null,
+        data.note_adozione ?? null,
+        data.stato_pratica || 'COMPLETATA'
       ]
     );
     res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: "Errore salvataggio adozione" });
+  } catch (err: any) {
+    console.error("Errore salvataggio adozione:", err?.message || err);
+    res.status(500).json({ error: "Errore salvataggio adozione", details: err?.message });
   }
 });
 
@@ -39,19 +49,29 @@ router.put("/:id", requireAuth(["ADMIN", "CANILE_SANITARIO", "POLIZIA_LOCALE"]),
   if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
   try {
     const { id } = req.params;
-    const data = req.body;
+    const data = req.body || {};
     await mysqlPool.execute(
       "UPDATE adozioni_logs SET microchip=?, nome_animale=?, specie=?, sesso=?, data_adozione=?, adottante_nome=?, adottante_cf=?, adottante_telefono=?, adottante_email=?, adottante_indirizzo=?, note_adozione=?, stato_pratica=? WHERE id=?",
       [
-        data.microchip, data.nome_animale, data.specie, data.sesso,
-        data.data_adozione, data.adottante_nome, data.adottante_cf,
-        data.adottante_telefono, data.adottante_email, data.adottante_indirizzo,
-        data.note_adozione, data.stato_pratica, id
+        data.microchip ?? null,
+        data.nome_animale ?? null,
+        data.specie ?? null,
+        data.sesso ?? null,
+        data.data_adozione ?? null,
+        data.adottante_nome ?? null,
+        data.adottante_cf ?? null,
+        data.adottante_telefono ?? null,
+        data.adottante_email ?? null,
+        data.adottante_indirizzo ?? null,
+        data.note_adozione ?? null,
+        data.stato_pratica ?? 'COMPLETATA',
+        id
       ]
     );
     res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: "Errore aggiornamento adozione" });
+  } catch (err: any) {
+    console.error("Errore aggiornamento adozione:", err?.message || err);
+    res.status(500).json({ error: "Errore aggiornamento adozione", details: err?.message });
   }
 });
 

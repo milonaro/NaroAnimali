@@ -100,19 +100,32 @@ router.get("/", requireAuth(["ADMIN", "POLIZIA_LOCALE", "CANILE_SANITARIO", "VOL
 router.post("/", requireAuth(["ADMIN", "POLIZIA_LOCALE", "CANILE_SANITARIO"]), async (req, res) => {
   if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
   try {
-    const data = req.body;
+    const data = req.body || {};
     await mysqlPool.execute(
       "INSERT INTO registro_anagrafica (microchip, nome, specie, razza, sesso, taglia, colore, data_nascita, segni_particolari, proprietario_nome, proprietario_email, proprietario_telefono, proprietario_indirizzo, proprietario_cf, comune_key, stato) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [
-        data.microchip, data.nome, data.specie, data.razza, data.sesso,
-        data.taglia, data.colore, data.data_nascita, data.segni_particolari,
-        data.proprietario_nome, data.proprietario_email, data.proprietario_telefono,
-        data.proprietario_indirizzo, data.proprietario_cf, data.comune_key || 'naro', data.stato || 'ATTIVO'
+        data.microchip ?? null,
+        data.nome ?? null,
+        data.specie ?? null,
+        data.razza ?? null,
+        data.sesso ?? null,
+        data.taglia ?? null,
+        data.colore ?? null,
+        data.data_nascita ?? null,
+        data.segni_particolari ?? data.condizioniSanitarie ?? data.notes ?? null,
+        data.proprietario_nome ?? null,
+        data.proprietario_email ?? null,
+        data.proprietario_telefono ?? null,
+        data.proprietario_indirizzo ?? null,
+        data.proprietario_cf ?? null,
+        data.comune_key || 'naro',
+        data.stato || 'ATTIVO'
       ]
     );
     res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: "Errore salvataggio" });
+  } catch (err: any) {
+    console.error("Errore salvataggio anagrafica:", err?.message || err);
+    res.status(500).json({ error: "Errore salvataggio", details: err?.message });
   }
 });
 
@@ -120,19 +133,32 @@ router.put("/:id", requireAuth(["ADMIN", "POLIZIA_LOCALE", "CANILE_SANITARIO"]),
   if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
   try {
     const { id } = req.params;
-    const data = req.body;
+    const data = req.body || {};
     await mysqlPool.execute(
       "UPDATE registro_anagrafica SET microchip=?, nome=?, specie=?, razza=?, sesso=?, taglia=?, colore=?, data_nascita=?, segni_particolari=?, proprietario_nome=?, proprietario_email=?, proprietario_telefono=?, proprietario_indirizzo=?, proprietario_cf=?, stato=? WHERE id=?",
       [
-        data.microchip, data.nome, data.specie, data.razza, data.sesso,
-        data.taglia, data.colore, data.data_nascita, data.segni_particolari,
-        data.proprietario_nome, data.proprietario_email, data.proprietario_telefono,
-        data.proprietario_indirizzo, data.proprietario_cf, data.stato, id
+        data.microchip ?? null,
+        data.nome ?? null,
+        data.specie ?? null,
+        data.razza ?? null,
+        data.sesso ?? null,
+        data.taglia ?? null,
+        data.colore ?? null,
+        data.data_nascita ?? null,
+        data.segni_particolari ?? data.condizioniSanitarie ?? data.notes ?? null,
+        data.proprietario_nome ?? null,
+        data.proprietario_email ?? null,
+        data.proprietario_telefono ?? null,
+        data.proprietario_indirizzo ?? null,
+        data.proprietario_cf ?? null,
+        data.stato ?? 'ATTIVO',
+        id
       ]
     );
     res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: "Errore aggiornamento" });
+  } catch (err: any) {
+    console.error("Errore aggiornamento anagrafica:", err?.message || err);
+    res.status(500).json({ error: "Errore aggiornamento", details: err?.message });
   }
 });
 
