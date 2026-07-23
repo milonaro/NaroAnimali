@@ -43,7 +43,7 @@ interface LogIntervento {
 }
 
 export default function Operatori() {
-  const [activeTab, setActiveTab] = useState<'statistiche' | 'modulo-b' | 'modulo-c' | 'modulo-adozioni' | 'gestione-operatori' | 'richieste-iscrizione' | 'guida-uso'>('statistiche');
+  const [activeTab, setActiveTab] = useState<'statistiche' | 'modulo-b' | 'modulo-c' | 'modulo-adozioni' | 'gestione-operatori' | 'richieste-iscrizione' | 'guida-uso'>('modulo-b');
   const [activeComune, setActiveComune] = useState(() => (localStorage.getItem('active_comune') || 'naro').toLowerCase());
   const [siteName, setSiteName] = useState("Comune di Naro");
   const [fullConfig, setFullConfig] = useState<any>({});
@@ -553,8 +553,12 @@ export default function Operatori() {
               allowed = user.visible_modules;
             }
 
-            if (allowed.length > 0 && !allowed.includes('modulo-b')) {
-              setActiveTab(allowed[0] as any);
+            if (allowed.length > 0) {
+              if (allowed.includes('modulo-b')) {
+                setActiveTab('modulo-b');
+              } else {
+                setActiveTab(allowed[0] as any);
+              }
             }
           }
         }
@@ -1933,30 +1937,29 @@ export default function Operatori() {
           titolo="Portale Operativo Municipale"
           sottotitolo={`Pannello di controllo del ${siteName} per la gestione territoriale del randagismo e archivio sanitario ASP.`}
         >
-          <div className="flex flex-wrap gap-3 justify-end">
-            <Link 
-              to="/" 
-              className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white font-black text-[10px] uppercase tracking-wider py-3 px-5 rounded-xl border border-white/10 shadow-sm transition-all cursor-pointer"
-            >
-              🏠 Dashboard Pubblica
-            </Link>
-            <button 
-              onClick={handleExportRegional}
-              className="flex items-center gap-2 bg-[#15803d]/90 hover:bg-[#166534] text-white font-black text-[10px] uppercase tracking-wider py-3 px-5 rounded-xl border border-white/10 shadow-sm transition-all cursor-pointer"
-            >
-              <Download className="h-4 w-4" /> Esporta Flusso Regione Siciliana
-            </button>
+          <div className="flex flex-wrap gap-3 justify-end items-center">
+            {currentUser && (
+              <div className="flex items-center gap-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl px-5 py-3 shadow-lg">
+                <div className="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                  <User className="h-5 w-5" />
+                </div>
+                <div className="text-left">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400/80 leading-none mb-1">Operatore Loggato</p>
+                  <p className="text-sm font-black text-white leading-none">{currentUser.username.toUpperCase()}</p>
+                </div>
+              </div>
+            )}
           </div>
         </PageHeader>
 
         {/* Tab Navigation */}
         <div className="flex flex-col md:flex-row gap-4 mt-2 border-b border-slate-200 items-stretch md:items-center">
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-wrap gap-2 md:gap-4">
             {allowedTabs.filter(t => t.allowed).map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`pb-4 px-2 font-black text-xs uppercase tracking-wider transition-all border-b-2 cursor-pointer ${
+                className={`pb-4 pt-2 px-3 font-black text-[10px] uppercase tracking-wider transition-all border-b-4 cursor-pointer text-center max-w-[140px] whitespace-normal leading-tight flex items-center justify-center min-h-[64px] ${
                   activeTab === tab.id ? 'border-[#15803d] text-[#15803d]' : 'border-transparent text-slate-400 hover:text-slate-600'
                 }`}
               >
