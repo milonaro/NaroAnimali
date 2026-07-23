@@ -521,7 +521,7 @@ export default function Operatori() {
   const loadMoreLogs = () => {
     const nextOffset = logsOffset + 10;
     setLogsOffset(nextOffset);
-    fetch(`/api/interventi_logs?limit=10&offset=${nextOffset}`)
+    fetch(`/api/admin/interventi_logs?limit=10&offset=${nextOffset}`)
       .then(res => res.json())
       .then(resData => {
         if (resData && Array.isArray(resData.data)) {
@@ -605,7 +605,7 @@ export default function Operatori() {
     let unsubscribe: () => void;
     
     // Fetch logs from API (paginated)
-    fetch('/api/interventi_logs?limit=10&offset=0')
+    fetch('/api/admin/interventi_logs?limit=10&offset=0')
       .then(res => res.json())
       .then(resData => {
         if (resData && Array.isArray(resData.data)) {

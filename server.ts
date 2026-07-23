@@ -46,6 +46,10 @@ app.use(async (req, res, next) => {
 // API Routes
 app.use("/api/otp", otpRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/interventi_logs", (req, res, next) => {
+  req.url = "/interventi_logs";
+  adminRouter(req, res, next);
+});
 app.use("/api/ai", aiRouter);
 app.use("/api/chat", aiRouter); // Backward compatibility
 app.use("/api/registro", registroRouter);
