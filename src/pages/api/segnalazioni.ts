@@ -391,4 +391,50 @@ router.post("/upload", async (req, res) => {
     }
 });
 
+router.post("/bulk-status", async (req, res) => {
+  try {
+    const { ids, nuovoStato, note, operatore } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: "Nessun report selezionato." });
+    }
+    if (!nuovoStato) {
+      return res.status(400).json({ error: "Nuovo stato obbligatorio." });
+    }
+
+    const activeComune = await getActiveComuneKeyServer();
+
+    if (getIsMysqlHealthy() && pool) {
+      const placeholders = ids.map(() => '?').join(',');
+      await pool.execute(
+        `UPDATE segnalazioni SET stato = ?, updated_at = NOW() WHERE id IN (${placeholders})`,
+        [nuovoStato, ...ids]
+      );
+
+      const operatoreNome = operatore || 'Operatore Comunale';
+      for (const reportId of ids) {
+        await pool.execute(
+          "INSERT INTO interventi_logs (comune_key, segnalazione_codice, operatore, azione, note) VALUES (?, ?, ?, ?, ?)",
+          [activeComune, String(reportId), operatoreNome, `Azione di massa: Cambio stato in ${nuovoStato}`, note || "Aggiornamento di massa dal portale operatori"]
+        );
+      }
+
+      try {
+        const username = (req as any)?.user?.username || operatoreNome;
+        const ipAddress = req?.headers?.['x-forwarded-for'] || req?.socket?.remoteAddress || '127.0.0.1';
+        await pool.execute(
+          "INSERT INTO admin_audit_logs (username, comune_key, azione, modulo, dettagli, ip_address) VALUES (?, ?, ?, ?, ?, ?)",
+          [username, activeComune, "AGGIORNAMENTO_MASSA_SEGNALAZIONI", "SEGNALAZIONI", `Aggiornato stato di ${ids.length} segnalazioni a ${nuovoStato}`, String(ipAddress)]
+        );
+      } catch (auditErr) {
+        console.error("Audit log error:", auditErr);
+      }
+    }
+
+    res.json({ success: true, count: ids.length, nuovoStato });
+  } catch (error: any) {
+    console.error("Errore bulk status update:", error);
+    res.status(500).json({ error: error.message || "Errore aggiornamento in massa" });
+  }
+});
+
 export default router;

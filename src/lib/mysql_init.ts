@@ -436,6 +436,16 @@ export async function createMySQLTables() {
         note_adozione TEXT,
         stato_pratica VARCHAR(50) DEFAULT 'COMPLETATA',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS admin_audit_logs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        username VARCHAR(100) NOT NULL,
+        comune_key VARCHAR(50) NOT NULL DEFAULT 'naro',
+        azione VARCHAR(100) NOT NULL,
+        modulo VARCHAR(50) NOT NULL,
+        dettagli TEXT,
+        ip_address VARCHAR(45),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`
   ];
 

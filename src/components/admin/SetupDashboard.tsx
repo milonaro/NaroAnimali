@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import { 
   ShieldCheck, AlertTriangle, CheckCircle2, XCircle, 
-  RefreshCw, Terminal, Server, Key, Database, Globe, Copy, Check 
+  RefreshCw, Terminal, Server, Key, Database, Globe, Copy, Check, FileSpreadsheet, History 
 } from 'lucide-react';
 
 interface DiagnosticData {
@@ -29,6 +29,11 @@ interface DiagnosticData {
   firestore: {
     adminConnected: boolean;
     adminPingError?: string;
+  };
+  mysql?: {
+    connected: boolean;
+    tablesCount: number;
+    pingError?: string;
   };
   sync: {
     envAndConfigMatch: boolean;
@@ -294,10 +299,10 @@ STATO SINCRO E CONNESSIONE:
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
               <h4 className="text-xs font-black uppercase text-[#1e3a5f] tracking-wider flex items-center gap-2 border-b border-slate-100 pb-2">
                 <Database className="h-4.5 w-4.5 text-[#15803d]" />
-                Test di Connessione Firestore DB
+                Test Connessione Firestore Cloud
               </h4>
               <p className="text-slate-500 text-xs leading-relaxed">
-                Il backend sicuro del Comune ha eseguito una transazione di prova (ping) sul database Firestore per verificare la raggiungibilità dei cluster cloud.
+                Verifica della raggiungibilità del database NoSQL Firestore per la sincronizzazione cloud degli utenti e delle notifiche.
               </p>
 
               <div className="p-4 rounded-xl border flex items-center justify-between gap-4 bg-slate-50">
@@ -306,7 +311,7 @@ STATO SINCRO E CONNESSIONE:
                     {data.firestore.adminConnected ? <CheckCircle2 className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}
                   </div>
                   <div>
-                    <span className="text-xs font-black uppercase text-slate-700 block">Stato Connessione</span>
+                    <span className="text-xs font-black uppercase text-slate-700 block">Stato Firestore</span>
                     <span className="text-xs text-slate-500">
                       {data.firestore.adminConnected ? 'Raggiungibile (Connessione OK)' : 'Database non raggiungibile'}
                     </span>
@@ -322,6 +327,68 @@ STATO SINCRO E CONNESSIONE:
                   <strong>Dettaglio Errore:</strong> {data.firestore.adminPingError}
                 </div>
               )}
+            </div>
+
+            {/* Blocco 3B: Connessione Database MySQL Integrato */}
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+              <h4 className="text-xs font-black uppercase text-[#1e3a5f] tracking-wider flex items-center gap-2 border-b border-slate-100 pb-2">
+                <Server className="h-4.5 w-4.5 text-blue-600" />
+                Database Relazionale MySQL (Pool Inizializzato)
+              </h4>
+              <p className="text-slate-500 text-xs leading-relaxed">
+                Verifica del pool di connessioni MySQL per la gestione relazionale di anagrafica, segnalazioni, adozioni, log e fatture.
+              </p>
+
+              <div className="p-4 rounded-xl border flex items-center justify-between gap-4 bg-slate-50">
+                <div className="flex items-center gap-2.5">
+                  <div className={`p-2 rounded-full ${data.mysql?.connected ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                    {data.mysql?.connected ? <CheckCircle2 className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}
+                  </div>
+                  <div>
+                    <span className="text-xs font-black uppercase text-slate-700 block">Stato Pool MySQL</span>
+                    <span className="text-xs text-slate-500">
+                      {data.mysql?.connected 
+                        ? `Attivo e Funzionante (${data.mysql.tablesCount} tabelle inizializzate)` 
+                        : 'Pool MySQL non collegato o in errore'}
+                    </span>
+                  </div>
+                </div>
+                <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded border ${data.mysql?.connected ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-rose-50 text-rose-700 border-rose-100'}`}>
+                  {data.mysql?.connected ? 'ONLINE' : 'OFFLINE'}
+                </span>
+              </div>
+
+              {data.mysql?.pingError && (
+                <div className="p-3 bg-rose-50 rounded border border-rose-100 text-[11px] font-mono text-rose-700 leading-relaxed">
+                  <strong>Dettaglio Errore MySQL:</strong> {data.mysql.pingError}
+                </div>
+              )}
+            </div>
+
+            {/* Blocco 3C: Esportazione Dati & Audit Log (CSV) */}
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+              <h4 className="text-xs font-black uppercase text-[#1e3a5f] tracking-wider flex items-center gap-2 border-b border-slate-100 pb-2">
+                <FileSpreadsheet className="h-4.5 w-4.5 text-emerald-600" />
+                Esportazione Report & Registro Audit (CSV MySQL)
+              </h4>
+              <p className="text-slate-500 text-xs leading-relaxed">
+                Scarica i dati strutturati direttamente dal database MySQL per scopi di tracciabilità, rendicontazione prefettizia e controlli di audit amministrativo.
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+                <button
+                  onClick={() => window.open('/api/admin/reports/csv', '_blank')}
+                  className="flex items-center justify-center gap-2 p-3 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-sm cursor-pointer"
+                >
+                  <FileSpreadsheet className="h-4 w-4" /> Esporta Segnalazioni (CSV)
+                </button>
+                <button
+                  onClick={() => window.open('/api/admin/audit_logs/csv', '_blank')}
+                  className="flex items-center justify-center gap-2 p-3 bg-[#1e3a5f] hover:bg-[#1e3a5f]/90 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-sm cursor-pointer"
+                >
+                  <History className="h-4 w-4" /> Esporta Audit Log (CSV)
+                </button>
+              </div>
             </div>
 
             {/* Blocco 4: Sincronizzazione file ambiente */}

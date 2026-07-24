@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { 
   BookOpen, Terminal, Key, ShieldAlert, Cloud, HelpCircle, 
-  Copy, Check, ArrowRight, ArrowLeft, ExternalLink, ShieldCheck, Database 
+  Copy, Check, ArrowRight, ArrowLeft, ExternalLink, ShieldCheck, Database, Server 
 } from 'lucide-react';
 
 interface GuideStep {
@@ -22,10 +22,11 @@ export default function ManualeInstallazione() {
 
   const steps: GuideStep[] = [
     { id: 1, title: 'Console Firebase', subtitle: 'Creazione del Progetto Cloud', icon: Cloud },
-    { id: 2, title: 'Database & Auth', subtitle: 'Abilitazione di Firestore e Autenticazione', icon: ShieldAlert },
-    { id: 3, title: 'Regole di Sicurezza', subtitle: 'Configurazione di firestore.rules', icon: ShieldCheck },
-    { id: 4, title: 'Chiavi & Setup', subtitle: 'Inizializzazione delle chiavi d\'ambiente', icon: Key },
-    { id: 5, title: 'Deploy Ente', subtitle: 'Messa in produzione sul cloud', icon: Terminal },
+    { id: 2, title: 'Firebase & Auth', subtitle: 'Abilitazione di Firestore e Autenticazione', icon: ShieldAlert },
+    { id: 3, title: 'Database MySQL', subtitle: 'Schema Relazionale e Inizializzazione Pool', icon: Database },
+    { id: 4, title: 'Regole di Sicurezza', subtitle: 'Configurazione di firestore.rules', icon: ShieldCheck },
+    { id: 5, title: 'Chiavi & Setup', subtitle: 'Inizializzazione delle chiavi d\'ambiente', icon: Key },
+    { id: 6, title: 'Deploy Ente', subtitle: 'Messa in produzione sul cloud', icon: Terminal },
   ];
 
   const handleCopy = (code: string, id: string) => {
@@ -202,11 +203,49 @@ FIREBASE_SERVICE_ACCOUNT_KEY='{"type": "service_account", "project_id": "...", .
           </div>
         )}
 
-        {/* PASSO 3 */}
+        {/* PASSO 3 - MYSQL DATABASE */}
         {activeStep === 3 && (
           <div className="space-y-4 animate-fadeIn">
+            <span className="text-[9px] font-black uppercase tracking-widest text-blue-800 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
+              Fase 3: Database Relazionale MySQL & Pool
+            </span>
+            <h4 className="text-base font-black text-[#1e3a5f] uppercase tracking-wider">Inizializzazione Schema MySQL Integrato</h4>
+            
+            <p className="text-xs text-slate-600 leading-relaxed">
+              AnimalHub PA utilizza un database relazionale MySQL (tramite pool parametrizzato <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-blue-700">mysql2/promise</code>) per la gestione ad alte prestazioni dell'anagrafe canina, registro delle segnalazioni, adozioni, spese, fatture e log di audit.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                <h5 className="text-xs font-black text-[#1e3a5f] uppercase tracking-wide flex items-center gap-1.5">
+                  <Database className="h-4.5 w-4.5 text-blue-600" /> Inizializzazione Automatica
+                </h5>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  L'inizializzazione dello schema avviane automaticamente all'avvio del server tramite <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-700">src/lib/mysql_init.ts</code>. Tutte le tabelle obbligatorie (inclusi utenti, registro anagrafica, segnalazioni, interventi, adozioni, strutture e fatture) vengono create se non esistenti.
+                </p>
+              </div>
+
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                <h5 className="text-xs font-black text-[#1e3a5f] uppercase tracking-wide flex items-center gap-1.5">
+                  <Server className="h-4.5 w-4.5 text-blue-600" /> Variabili di Connessione MySQL
+                </h5>
+                <p className="text-[11px] text-slate-500 leading-relaxed font-mono">
+                  MYSQL_HOST=localhost<br />
+                  MYSQL_PORT=3306<br />
+                  MYSQL_USER=animalhub_user<br />
+                  MYSQL_PASSWORD=******<br />
+                  MYSQL_DATABASE=animalhub_db
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* PASSO 4 */}
+        {activeStep === 4 && (
+          <div className="space-y-4 animate-fadeIn">
             <span className="text-[9px] font-black uppercase tracking-widest text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
-              Fase 3: Regole di Sicurezza ed Audit
+              Fase 4: Regole di Sicurezza ed Audit
             </span>
             <h4 className="text-base font-black text-[#1e3a5f] uppercase tracking-wider">Regole di Sicurezza di Firestore</h4>
             
@@ -233,16 +272,16 @@ FIREBASE_SERVICE_ACCOUNT_KEY='{"type": "service_account", "project_id": "...", .
           </div>
         )}
 
-        {/* PASSO 4 */}
-        {activeStep === 4 && (
+        {/* PASSO 5 */}
+        {activeStep === 5 && (
           <div className="space-y-4 animate-fadeIn">
             <span className="text-[9px] font-black uppercase tracking-widest text-[#15803d] bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
-              Fase 4: Setup delle Variabili d'Ambiente
+              Fase 5: Setup delle Variabili d'Ambiente
             </span>
             <h4 className="text-base font-black text-[#1e3a5f] uppercase tracking-wider">Generazione delle Chiavi d'Ambiente</h4>
             
             <p className="text-xs text-slate-600 leading-relaxed">
-              Per collegare l'applicazione al Cloud Firebase, abbiamo implementato un assistente automatico nel terminale. Ottieni le chiavi:
+              Per collegare l'applicazione al Cloud Firebase e MySQL, abbiamo implementato un assistente automatico nel terminale. Ottieni le chiavi:
             </p>
 
             <ul className="space-y-2 text-xs text-slate-600">
@@ -268,11 +307,11 @@ FIREBASE_SERVICE_ACCOUNT_KEY='{"type": "service_account", "project_id": "...", .
           </div>
         )}
 
-        {/* PASSO 5 */}
-        {activeStep === 5 && (
+        {/* PASSO 6 */}
+        {activeStep === 6 && (
           <div className="space-y-4 animate-fadeIn">
             <span className="text-[9px] font-black uppercase tracking-widest text-[#15803d] bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
-              Fase 5: Messa in Produzione (Deploy)
+              Fase 6: Messa in Produzione (Deploy)
             </span>
             <h4 className="text-base font-black text-[#1e3a5f] uppercase tracking-wider">Procedura di Deploy Finale</h4>
             

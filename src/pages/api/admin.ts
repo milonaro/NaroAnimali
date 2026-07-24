@@ -2,7 +2,7 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import mysqlPool, { getIsMysqlHealthy } from "../../lib/mysql.js";
-import { requireAuth, parseExpiresAt, getActiveComune } from "../../lib/server-utils.js";
+import { requireAuth, parseExpiresAt, getActiveComune, recordAuditLog } from "../../lib/server-utils.js";
 import { sendOtpEmail } from "../../lib/mailer.js";
 import { notifyAdminLoginAttempt, notifyAdminOtpVerify } from "../../lib/telegram.js";
 
@@ -697,6 +697,21 @@ router.get("/firebase-diagnostic", requireAuth(["ADMIN"]), async (req, res) => {
     }
   }
 
+  let mysqlConnected = false;
+  let mysqlTablesCount = 0;
+  let mysqlPingError: string | undefined = undefined;
+
+  if (mysqlPool && getIsMysqlHealthy()) {
+    try {
+      const [rows]: any = await mysqlPool.execute("SHOW TABLES");
+      mysqlConnected = true;
+      mysqlTablesCount = rows ? rows.length : 0;
+    } catch (e: any) {
+      mysqlConnected = false;
+      mysqlPingError = e.message;
+    }
+  }
+
   res.json({
     success: true,
     client,
@@ -709,6 +724,11 @@ router.get("/firebase-diagnostic", requireAuth(["ADMIN"]), async (req, res) => {
     firestore: {
       adminConnected,
       adminPingError
+    },
+    mysql: {
+      connected: mysqlConnected,
+      tablesCount: mysqlTablesCount,
+      pingError: mysqlPingError
     },
     sync: {
       envAndConfigMatch,
@@ -742,6 +762,79 @@ router.get("/interventi_logs", requireAuth(["ADMIN", "POLIZIA_LOCALE", "CANILE_S
   
   const [rows] = await mysqlPool.execute("SELECT * FROM interventi_logs WHERE comune_key = ? ORDER BY timestamp DESC LIMIT ? OFFSET ?", [comune, limit, offset]);
   res.json({ data: rows, nextOffset: offset + limit });
+});
+
+router.get("/audit_logs", requireAuth(["ADMIN"]), async (req, res) => {
+  if (!mysqlPool || !getIsMysqlHealthy()) return res.json([]);
+  try {
+    const limit = parseInt(req.query.limit as string) || 100;
+    const [rows]: any = await mysqlPool.execute("SELECT * FROM admin_audit_logs ORDER BY id DESC LIMIT ?", [limit]);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: "Errore recupero log di audit" });
+  }
+});
+
+router.get("/reports/csv", requireAuth(["ADMIN", "POLIZIA_LOCALE", "CANILE_SANITARIO", "VOLONTARIO"]), async (req, res) => {
+  if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).send("DB Offline");
+  try {
+    const activeComune = await getActiveComune();
+    const [rows]: any = await mysqlPool.execute("SELECT * FROM segnalazioni WHERE comune_key = ? ORDER BY id DESC", [activeComune]);
+    
+    let csv = "ID,Codice Tracking,Specie,Condizioni,Stato,Zona,Urgenza,Microchip,Longitudine,Latitudine,Data Creazione,Descrizione\n";
+    for (const r of rows) {
+      const line = [
+        r.id,
+        `"${(r.codice_tracking || '').replace(/"/g, '""')}"`,
+        `"${(r.specie || '').replace(/"/g, '""')}"`,
+        `"${(r.condizioni || '').replace(/"/g, '""')}"`,
+        `"${(r.stato || '').replace(/"/g, '""')}"`,
+        `"${(r.zona || '').replace(/"/g, '""')}"`,
+        `"${(r.urgenza || '').replace(/"/g, '""')}"`,
+        `"${(r.microchip_soggetto || '').replace(/"/g, '""')}"`,
+        r.longitudine || '',
+        r.latitudine || '',
+        `"${r.created_at ? new Date(r.created_at).toISOString() : ''}"`,
+        `"${(r.descrizione || '').replace(/\n/g, ' ').replace(/"/g, '""')}"`
+      ].join(",");
+      csv += line + "\n";
+    }
+
+    await recordAuditLog(req, "ESPORTAZIONE_CSV_REPORT", "SEGNALAZIONI", `Esportati ${rows.length} report segnalazioni in CSV`);
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="report_segnalazioni_${activeComune}_${Date.now()}.csv"`);
+    res.status(200).send(csv);
+  } catch (err) {
+    console.error("Errore export CSV report:", err);
+    res.status(500).send("Errore generazione CSV");
+  }
+});
+
+router.get("/audit_logs/csv", requireAuth(["ADMIN"]), async (req, res) => {
+  if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).send("DB Offline");
+  try {
+    const [rows]: any = await mysqlPool.execute("SELECT * FROM admin_audit_logs ORDER BY id DESC LIMIT 1000");
+    let csv = "ID,Utente,Comune,Azione,Modulo,Dettagli,IP Address,Data e Ora\n";
+    for (const r of rows) {
+      const line = [
+        r.id,
+        `"${(r.username || '').replace(/"/g, '""')}"`,
+        `"${(r.comune_key || '').replace(/"/g, '""')}"`,
+        `"${(r.azione || '').replace(/"/g, '""')}"`,
+        `"${(r.modulo || '').replace(/"/g, '""')}"`,
+        `"${(r.dettagli || '').replace(/\n/g, ' ').replace(/"/g, '""')}"`,
+        `"${(r.ip_address || '').replace(/"/g, '""')}"`,
+        `"${r.created_at ? new Date(r.created_at).toLocaleString("it-IT") : ''}"`
+      ].join(",");
+      csv += line + "\n";
+    }
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="audit_logs_${Date.now()}.csv"`);
+    res.status(200).send(csv);
+  } catch (err) {
+    res.status(500).send("Errore generazione CSV audit");
+  }
 });
 
 export default router;

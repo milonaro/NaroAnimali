@@ -1,7 +1,7 @@
 import express from "express";
 import bcrypt from "bcryptjs";
 import mysqlPool, { getIsMysqlHealthy } from "../../lib/mysql.js";
-import { requireAuth } from "../../lib/server-utils.js";
+import { requireAuth, recordAuditLog } from "../../lib/server-utils.js";
 
 const router = express.Router();
 
@@ -28,6 +28,7 @@ router.post("/", requireAuth(["ADMIN"]), async (req, res) => {
       "INSERT INTO admin_users (username, password_hash, role, comune_key, visible_modules, email) VALUES (?, ?, ?, ?, ?, ?)",
       [username, hash, role, comune_key || "naro", modulesStr, email || null]
     );
+    await recordAuditLog(req, "CREAZIONE_UTENTE", "GESTIONE_UTENTI", `Creato operatore ${username} con ruolo ${role}`);
     res.json({ success: true });
   } catch (err: any) {
     if (err.code === "ER_DUP_ENTRY") {
@@ -55,6 +56,7 @@ router.put("/:id", requireAuth(["ADMIN"]), async (req, res) => {
         [username, role, comune_key || "naro", modulesStr, email || null, id]
       );
     }
+    await recordAuditLog(req, "MODIFICA_UTENTE", "GESTIONE_UTENTI", `Aggiornato operatore ID ${id} (${username})`);
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: "Errore durante l'aggiornamento dell'operatore." });
@@ -69,7 +71,9 @@ router.delete("/:id", requireAuth(["ADMIN"]), async (req, res) => {
     if (userRows && userRows[0]?.username === "admin") {
       return res.status(400).json({ error: "Non è possibile rimuovere l'amministratore principale di sistema." });
     }
+    const targetUsername = userRows[0]?.username || id;
     await mysqlPool.execute("DELETE FROM admin_users WHERE id = ?", [id]);
+    await recordAuditLog(req, "ELIMINAZIONE_UTENTE", "GESTIONE_UTENTI", `Eliminato operatore ${targetUsername}`);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: "Errore durante l'eliminazione dell'operatore." });

@@ -82,3 +82,18 @@ export const parseExpiresAt = (val: any): Date => {
   }
   return new Date(0);
 };
+
+export async function recordAuditLog(req: any, azione: string, modulo: string, dettagli: string) {
+  if (!mysqlPool || !getIsMysqlHealthy()) return;
+  try {
+    const username = req?.user?.username || req?.user?.email || 'SISTEMA';
+    const comuneKey = req?.user?.comune_key || await getActiveComune();
+    const ipAddress = req?.headers?.['x-forwarded-for'] || req?.socket?.remoteAddress || '127.0.0.1';
+    await mysqlPool.execute(
+      "INSERT INTO admin_audit_logs (username, comune_key, azione, modulo, dettagli, ip_address) VALUES (?, ?, ?, ?, ?, ?)",
+      [username, comuneKey, azione, modulo, dettagli, String(ipAddress)]
+    );
+  } catch (err) {
+    console.error("Errore scrittura audit log:", err);
+  }
+}

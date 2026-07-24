@@ -90,8 +90,14 @@ router.post("/my-animals", async (req, res) => {
 router.get("/", requireAuth(["ADMIN", "POLIZIA_LOCALE", "CANILE_SANITARIO", "VOLONTARIO"]), async (req, res) => {
   if (!mysqlPool || !getIsMysqlHealthy()) return res.json([]);
   try {
-    const [rows] = await mysqlPool.execute("SELECT * FROM registro_anagrafica ORDER BY id DESC");
-    res.json(rows);
+    const [rows]: any = await mysqlPool.execute("SELECT * FROM registro_anagrafica ORDER BY id DESC");
+    const mapped = rows.map((r: any) => ({
+      ...r,
+      fotoUrl: r.foto_url || r.fotoUrl || "https://images.unsplash.com/photo-1544568100-847a948585b9?auto=format&fit=crop&q=80&w=300",
+      condizioniSanitarie: r.condizioni_sanitarie || r.segni_particolari || "Sano",
+      dataSincronizzazione: r.data_registrazione ? new Date(r.data_registrazione).toLocaleString("it-IT") : new Date().toLocaleString("it-IT")
+    }));
+    res.json(mapped);
   } catch (err) {
     res.status(500).json({ error: "Errore database" });
   }
@@ -101,8 +107,9 @@ router.post("/", requireAuth(["ADMIN", "POLIZIA_LOCALE", "CANILE_SANITARIO"]), a
   if (!mysqlPool || !getIsMysqlHealthy()) return res.status(500).json({ error: "DB Error" });
   try {
     const data = req.body || {};
+    const foto = data.fotoUrl || data.foto_url || "https://images.unsplash.com/photo-1544568100-847a948585b9?auto=format&fit=crop&q=80&w=300";
     await mysqlPool.execute(
-      "INSERT INTO registro_anagrafica (microchip, nome, specie, razza, sesso, taglia, colore, data_nascita, segni_particolari, proprietario_nome, proprietario_email, proprietario_telefono, proprietario_indirizzo, proprietario_cf, comune_key, stato) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO registro_anagrafica (microchip, nome, specie, razza, sesso, taglia, colore, data_nascita, segni_particolari, foto_url, proprietario_nome, proprietario_email, proprietario_telefono, proprietario_indirizzo, proprietario_cf, comune_key, stato) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [
         data.microchip ?? null,
         data.nome ?? null,
@@ -113,6 +120,7 @@ router.post("/", requireAuth(["ADMIN", "POLIZIA_LOCALE", "CANILE_SANITARIO"]), a
         data.colore ?? null,
         data.data_nascita ?? null,
         data.segni_particolari ?? data.condizioniSanitarie ?? data.notes ?? null,
+        foto,
         data.proprietario_nome ?? null,
         data.proprietario_email ?? null,
         data.proprietario_telefono ?? null,
@@ -134,8 +142,9 @@ router.put("/:id", requireAuth(["ADMIN", "POLIZIA_LOCALE", "CANILE_SANITARIO"]),
   try {
     const { id } = req.params;
     const data = req.body || {};
+    const foto = data.fotoUrl || data.foto_url || "https://images.unsplash.com/photo-1544568100-847a948585b9?auto=format&fit=crop&q=80&w=300";
     await mysqlPool.execute(
-      "UPDATE registro_anagrafica SET microchip=?, nome=?, specie=?, razza=?, sesso=?, taglia=?, colore=?, data_nascita=?, segni_particolari=?, proprietario_nome=?, proprietario_email=?, proprietario_telefono=?, proprietario_indirizzo=?, proprietario_cf=?, stato=? WHERE id=?",
+      "UPDATE registro_anagrafica SET microchip=?, nome=?, specie=?, razza=?, sesso=?, taglia=?, colore=?, data_nascita=?, segni_particolari=?, foto_url=?, proprietario_nome=?, proprietario_email=?, proprietario_telefono=?, proprietario_indirizzo=?, proprietario_cf=?, stato=? WHERE id=?",
       [
         data.microchip ?? null,
         data.nome ?? null,
@@ -146,6 +155,7 @@ router.put("/:id", requireAuth(["ADMIN", "POLIZIA_LOCALE", "CANILE_SANITARIO"]),
         data.colore ?? null,
         data.data_nascita ?? null,
         data.segni_particolari ?? data.condizioniSanitarie ?? data.notes ?? null,
+        foto,
         data.proprietario_nome ?? null,
         data.proprietario_email ?? null,
         data.proprietario_telefono ?? null,

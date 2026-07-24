@@ -7,7 +7,7 @@ import {
   Download, Filter, Search, User, FileSpreadsheet, Plus, 
   Activity, Star, Sparkles, Building, Phone, Calendar, CheckSquare,
   Dog, Cat, FileText, AlertTriangle, X, Printer, Lock,
-  GitMerge, GitCompare, Loader2, RefreshCw, ArrowRight
+  GitMerge, GitCompare, Loader2, RefreshCw, ArrowRight, History, ListChecks
 } from 'lucide-react';
 import AppMap from '@/src/components/map/Map';
 import { AnimalSpecie, SegnalazioneStato, Segnalazione } from '../types';
@@ -79,6 +79,14 @@ export default function Operatori() {
   const [showNuovaStrutturaModal, setShowNuovaStrutturaModal] = useState(false);
   const [showNuovaFatturaModal, setShowNuovaFatturaModal] = useState(false);
   const [showNuovaConvenzioneModal, setShowNuovaConvenzioneModal] = useState(false);
+
+  // BULK ACTIONS & AUDIT LOGS STATE
+  const [selectedReportIds, setSelectedReportIds] = useState<(string | number)[]>([]);
+  const [bulkNote, setBulkNote] = useState('');
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+  const [showAuditModal, setShowAuditModal] = useState(false);
+  const [auditLogsList, setAuditLogsList] = useState<any[]>([]);
+  const [loadingAuditLogs, setLoadingAuditLogs] = useState(false);
 
   // Form states
   const [formAdozione, setFormAdozione] = useState({
@@ -976,6 +984,63 @@ export default function Operatori() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // Execute bulk status change on selected reports
+  const handleExecuteBulkStatusChange = async (nuovoStato: string) => {
+    if (selectedReportIds.length === 0) return;
+    if (!window.confirm(`Confermi l'aggiornamento dello stato in "${nuovoStato}" per ${selectedReportIds.length} report selezionati?`)) return;
+    
+    setIsBulkUpdating(true);
+    try {
+      const res = await fetch('/api/segnalazioni/bulk-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ids: selectedReportIds,
+          nuovoStato,
+          note: bulkNote || "Aggiornamento di massa dal portale Operatori",
+          operatore: currentUser?.username || 'Operatore Comunale'
+        })
+      });
+
+      if (res.ok) {
+        popup.success(`Aggiornato con successo lo stato di ${selectedReportIds.length} report in ${nuovoStato}!`);
+        setReports(prev => prev.map(r => selectedReportIds.includes(r.id) ? { ...r, stato: nuovoStato as any } : r));
+        setSelectedReportIds([]);
+        setBulkNote('');
+      } else {
+        const err = await res.json();
+        popup.error(err.error || "Errore durante l'aggiornamento in massa");
+      }
+    } catch (e) {
+      popup.error("Errore di rete durante l'operazione in massa.");
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  const handleExportDatabaseCSV = () => {
+    window.open('/api/admin/reports/csv', '_blank');
+  };
+
+  const handleExportAuditCSV = () => {
+    window.open('/api/admin/audit_logs/csv', '_blank');
+  };
+
+  const loadAuditLogs = async () => {
+    setLoadingAuditLogs(true);
+    setShowAuditModal(true);
+    try {
+      const res = await fetch('/api/admin/audit_logs?limit=100');
+      if (res.ok) {
+        setAuditLogsList(await res.json());
+      }
+    } catch(e) {
+      console.error("Errore caricamento audit logs", e);
+    } finally {
+      setLoadingAuditLogs(false);
+    }
   };
 
   // Add new animal to regional database
@@ -2586,9 +2651,82 @@ export default function Operatori() {
               {/* List of Reports (Left) */}
               <div className="space-y-4 flex flex-col h-full">
                 <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden flex-1 flex flex-col">
-                  <div className="p-4 bg-slate-100 border-b border-slate-200/80 flex items-center justify-between">
-                    <span className="text-xs font-black uppercase text-slate-600 tracking-wider">Elenco Segnalazioni Civiche</span>
+                  <div className="p-4 bg-slate-100 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-3">
+                      <input 
+                        type="checkbox"
+                        title="Seleziona / Deseleziona Tutti"
+                        checked={filteredReports.length > 0 && selectedReportIds.length === filteredReports.length}
+                        onChange={() => {
+                          if (selectedReportIds.length === filteredReports.length) {
+                            setSelectedReportIds([]);
+                          } else {
+                            setSelectedReportIds(filteredReports.map(r => r.id));
+                          }
+                        }}
+                        className="h-4 w-4 text-[#15803d] rounded border-slate-300 focus:ring-[#15803d] cursor-pointer"
+                      />
+                      <span className="text-xs font-black uppercase text-slate-600 tracking-wider">Elenco Segnalazioni Civiche</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleExportDatabaseCSV}
+                        title="Esporta Report CSV dal Database MySQL"
+                        className="flex items-center gap-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-[10px] font-bold px-2.5 py-1.5 rounded-lg shadow-sm transition-all uppercase cursor-pointer"
+                      >
+                        <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" /> Esporta CSV
+                      </button>
+                      <button
+                        onClick={loadAuditLogs}
+                        title="Visualizza Registro Audit Attività"
+                        className="flex items-center gap-1.5 bg-[#1e3a5f] hover:bg-[#1e3a5f]/90 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg shadow-sm transition-all uppercase cursor-pointer"
+                      >
+                        <History className="h-3.5 w-3.5 text-blue-300" /> Audit Log
+                      </button>
+                    </div>
                   </div>
+
+                  {/* STICKY BULK BAR */}
+                  {selectedReportIds.length > 0 && (
+                    <div className="p-3 bg-[#1e3a5f] text-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 transition-all animate-fadeIn">
+                      <div className="flex items-center gap-2">
+                        <span className="bg-emerald-600 text-white font-black text-[10px] px-2.5 py-1 rounded-full uppercase tracking-wider">
+                          {selectedReportIds.length} Selezionati
+                        </span>
+                        <span className="text-xs text-slate-300 font-medium">Azioni di massa:</span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button
+                          disabled={isBulkUpdating}
+                          onClick={() => handleExecuteBulkStatusChange('IN_CARICO')}
+                          className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-[10px] px-3 py-1.5 rounded uppercase tracking-wider transition-all cursor-pointer shadow-sm disabled:opacity-50"
+                        >
+                          Prendi in Carico
+                        </button>
+                        <button
+                          disabled={isBulkUpdating}
+                          onClick={() => handleExecuteBulkStatusChange('INTERVENTO')}
+                          className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-[10px] px-3 py-1.5 rounded uppercase tracking-wider transition-all cursor-pointer shadow-sm disabled:opacity-50"
+                        >
+                          Avvia Intervento
+                        </button>
+                        <button
+                          disabled={isBulkUpdating}
+                          onClick={() => handleExecuteBulkStatusChange('CHIUSA')}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] px-3 py-1.5 rounded uppercase tracking-wider transition-all cursor-pointer shadow-sm disabled:opacity-50"
+                        >
+                          Segna Risolta/Chiusa
+                        </button>
+                        <button
+                          onClick={() => setSelectedReportIds([])}
+                          className="bg-slate-700 hover:bg-slate-800 text-slate-200 font-bold text-[10px] px-2.5 py-1.5 rounded uppercase tracking-wider transition-all cursor-pointer"
+                        >
+                          Deseleziona
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   
                   <div className="divide-y divide-slate-100 overflow-y-auto max-h-[700px]">
                     {filteredReports.length === 0 ? (
@@ -2598,6 +2736,7 @@ export default function Operatori() {
                     ) : (
                       filteredReports.map((r) => {
                         const isSelected = selectedReport?.id === r.id;
+                        const isItemChecked = selectedReportIds.includes(r.id);
                         return (
                           <div 
                             key={r.id}
@@ -2626,23 +2765,38 @@ export default function Operatori() {
                               isSelected ? 'bg-emerald-50/50 border-l-4 border-[#15803d]' : 'hover:bg-slate-50'
                             }`}
                           >
-                            <div className="space-y-2">
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-sm text-[#1e3a5f]">{r.codiceTracking}</span>
-                                <span className={`text-[9px] px-2 py-0.5 rounded font-black uppercase tracking-wider ${
-                                  r.urgenza === 'ALTA' ? 'bg-red-100 text-red-700' : 
-                                  r.urgenza === 'MEDIA' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'
-                                }`}>
-                                  {r.urgenza}
-                                </span>
-                                {r.stato === SegnalazioneStato.CHIUSA && (
-                                  <Lock className="h-3 w-3 text-slate-400" />
-                                )}
-                              </div>
-                              <p className="text-xs text-slate-600 font-medium max-w-md line-clamp-2">{r.descrizione}</p>
-                              
-                              <div className="flex gap-4 pt-1 text-[10px] text-slate-400 font-bold">
-                                <span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-[#15803d]" /> {r.indirizzo}</span>
+                            <div className="flex items-start gap-3">
+                              <input 
+                                type="checkbox"
+                                checked={isItemChecked}
+                                onChange={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedReportIds(prev => 
+                                    prev.includes(r.id) ? prev.filter(id => id !== r.id) : [...prev, r.id]
+                                  );
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="h-4 w-4 text-[#15803d] rounded border-slate-300 focus:ring-[#15803d] cursor-pointer shrink-0 mt-1"
+                              />
+
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-sm text-[#1e3a5f]">{r.codiceTracking}</span>
+                                  <span className={`text-[9px] px-2 py-0.5 rounded font-black uppercase tracking-wider ${
+                                    r.urgenza === 'ALTA' ? 'bg-red-100 text-red-700' : 
+                                    r.urgenza === 'MEDIA' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'
+                                  }`}>
+                                    {r.urgenza}
+                                  </span>
+                                  {r.stato === SegnalazioneStato.CHIUSA && (
+                                    <Lock className="h-3 w-3 text-slate-400" />
+                                  )}
+                                </div>
+                                <p className="text-xs text-slate-600 font-medium max-w-md line-clamp-2">{r.descrizione}</p>
+                                
+                                <div className="flex gap-4 pt-1 text-[10px] text-slate-400 font-bold">
+                                  <span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-[#15803d]" /> {r.indirizzo}</span>
+                                </div>
                               </div>
                             </div>
 
@@ -5001,6 +5155,115 @@ export default function Operatori() {
             </div>
           </div>
         ) : null}
+
+        {/* AUDIT LOGS MODAL */}
+        {showAuditModal && (
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+              <div className="p-6 bg-[#1e3a5f] text-white flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-blue-500/20 rounded-xl border border-blue-400/30">
+                    <History className="h-6 w-6 text-blue-300" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black uppercase tracking-wider">Registro Audit & Tracciabilità</h3>
+                    <p className="text-xs text-slate-300 font-medium">Cronologia immutabile delle operazioni amministrative sul database MySQL</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowAuditModal(false)}
+                  className="p-2 text-slate-300 hover:text-white rounded-lg hover:bg-white/10 transition-all cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-4">
+                <span className="text-xs font-bold text-slate-600">
+                  Ultimi 100 eventi di audit registrati nel sistema
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleExportAuditCSV}
+                    className="flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm transition-all uppercase cursor-pointer"
+                  >
+                    <FileSpreadsheet className="h-4 w-4" /> Esporta Audit CSV
+                  </button>
+                  <button
+                    onClick={loadAuditLogs}
+                    className="p-1.5 text-slate-600 hover:bg-slate-200 rounded-lg transition-all cursor-pointer"
+                    title="Ricarica Log"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${loadingAuditLogs ? 'animate-spin text-blue-600' : ''}`} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6">
+                {loadingAuditLogs ? (
+                  <div className="py-16 text-center text-slate-400 flex flex-col items-center gap-2">
+                    <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                    <span className="text-xs font-bold uppercase tracking-wider">Caricamento registro audit...</span>
+                  </div>
+                ) : auditLogsList.length === 0 ? (
+                  <div className="py-16 text-center text-slate-400 text-xs font-medium">
+                    Nessun evento di audit attualmente registrato nel sistema.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-slate-100 text-slate-700 font-black uppercase tracking-wider border-b border-slate-200 text-[10px]">
+                          <th className="p-3">Data & Ora</th>
+                          <th className="p-3">Utente / Operatore</th>
+                          <th className="p-3">Azione</th>
+                          <th className="p-3">Modulo</th>
+                          <th className="p-3">Dettagli Operativi</th>
+                          <th className="p-3">IP Indirizzo</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-600 font-medium">
+                        {auditLogsList.map((log) => (
+                          <tr key={log.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="p-3 whitespace-nowrap text-slate-400 font-mono text-[11px]">
+                              {log.created_at ? new Date(log.created_at).toLocaleString("it-IT") : "N.D."}
+                            </td>
+                            <td className="p-3 font-bold text-[#1e3a5f]">
+                              {log.username}
+                            </td>
+                            <td className="p-3">
+                              <span className="bg-blue-50 text-blue-700 border border-blue-200 font-black text-[9px] px-2 py-0.5 rounded uppercase">
+                                {log.azione}
+                              </span>
+                            </td>
+                            <td className="p-3 font-bold text-slate-500 uppercase text-[10px]">
+                              {log.modulo}
+                            </td>
+                            <td className="p-3 text-slate-700">
+                              {log.dettagli}
+                            </td>
+                            <td className="p-3 font-mono text-slate-400 text-[10px]">
+                              {log.ip_address || '127.0.0.1'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 bg-slate-100 border-t border-slate-200 flex justify-end">
+                <button
+                  onClick={() => setShowAuditModal(false)}
+                  className="bg-[#1e3a5f] hover:bg-[#1e3a5f]/90 text-white font-bold text-xs uppercase px-5 py-2.5 rounded-xl cursor-pointer"
+                >
+                  Chiudi Registro
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   </div>

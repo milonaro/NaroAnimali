@@ -295,7 +295,7 @@ export default function Config() {
 
   return (
     <div className="pt-32 pb-16 min-h-screen bg-slate-50 font-sans">
-      <div className="max-w-4xl mx-auto px-4 space-y-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         
         {/* Titolo e Navigazione a Schede */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-4">
@@ -314,7 +314,7 @@ export default function Config() {
               onClick={() => setActiveTab('diagnostics')}
               className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${activeTab === 'diagnostics' ? 'bg-white text-[#1e3a5f] shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
             >
-              Diagnostica Firebase
+              Diagnostica Cloud & DB
             </button>
             <button
               onClick={() => setActiveTab('guide')}
