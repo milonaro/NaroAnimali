@@ -49,6 +49,7 @@ export default function Operatori() {
   const [fullConfig, setFullConfig] = useState<any>({});
   const [reports, setReports] = useState<Segnalazione[]>([]);
   const [selectedReport, setSelectedReport] = useState<Segnalazione | null>(null);
+  const [isWorkflowActive, setIsWorkflowActive] = useState(false);
   const [guidedStep, setGuidedStep] = useState<number>(1);
   const [registro, setRegistro] = useState<RegistroAnimale[]>([]);
   const [logs, setLogs] = useState<LogIntervento[]>([]);
@@ -672,9 +673,9 @@ export default function Operatori() {
               if (prevSelected) {
                 // Keep the current selection if it still exists
                 const stillExists = filteredLiveData.find((r: any) => r.id === prevSelected.id);
-                return stillExists || filteredLiveData[0];
+                return stillExists || null;
               }
-              return filteredLiveData[0];
+              return null;
             });
           } else {
             setSelectedReport(null);
@@ -2071,7 +2072,7 @@ export default function Operatori() {
             </div>
           </div>
         ) : activeTab === 'modulo-b' ? (
-          selectedReport ? (
+          isWorkflowActive && selectedReport ? (
             /* ================= FLUSSO DI LAVORO GUIDATO A SCHERMO INTERO ================= */
             <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
               
@@ -2079,7 +2080,9 @@ export default function Operatori() {
               <div className="bg-slate-900 text-white p-6 flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                   <button 
-                    onClick={() => setSelectedReport(null)}
+                    onClick={() => {
+                      setIsWorkflowActive(false);
+                    }}
                     className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-lg transition-all text-xs font-bold uppercase tracking-wider flex items-center gap-2"
                   >
                     <X className="h-4 w-4" /> Esci dal Flusso
@@ -2465,7 +2468,9 @@ export default function Operatori() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => setSelectedReport(null)}
+                            onClick={() => {
+                              setIsWorkflowActive(false);
+                            }}
                             className="px-6 py-3 bg-[#15803d] hover:bg-[#166534] text-white rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-[#15803d]/10"
                           >
                             <CheckCircle className="h-4 w-4" /> Chiudi e Salva Pratica
@@ -2475,77 +2480,6 @@ export default function Operatori() {
                     )}
 
                   </div>
-
-                  {/* Right panel: Static context details card */}
-                  <div className="lg:col-span-1 space-y-6">
-                    
-                    {/* Media attachments */}
-                    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                      <div className="p-4 bg-slate-50 border-b border-slate-200 text-left">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Allegato Fotografico</span>
-                      </div>
-                      {selectedReport.fotoUrl ? (
-                        <div className="relative h-64 bg-slate-900 flex items-center justify-center">
-                          <img 
-                            src={selectedReport.fotoUrl} 
-                            referrerPolicy="no-referrer"
-                            alt="Foto animale" 
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
-                      ) : (
-                        <div className="h-48 bg-slate-100 flex flex-col items-center justify-center text-slate-400 gap-2">
-                          <Dog className="h-10 w-10 text-slate-300" />
-                          <span className="text-xs font-bold uppercase tracking-wide">Nessuna foto allegata</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Georeference widget */}
-                    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm p-4 text-left">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-3">Punto GPS Segnalato</span>
-                      <div className="h-44 rounded-lg overflow-hidden border border-slate-100">
-                        {selectedReport.latitudine && selectedReport.longitudine ? (
-                          <AppMap 
-                            interactive={false}
-                            hideFilters={true}
-                            center={[selectedReport.latitudine, selectedReport.longitudine]}
-                            markers={[{
-                              lat: selectedReport.latitudine,
-                              lng: selectedReport.longitudine,
-                              title: "Soggetto",
-                              specie: selectedReport.specie === AnimalSpecie.GATTO ? 'Gatto' : 'Cane'
-                            }]}
-                          />
-                        ) : (
-                          <div className="h-full flex items-center justify-center text-slate-400 text-xs">
-                            Nessun dato GPS associato
-                          </div>
-                        )}
-                      </div>
-                      <div className="mt-3 text-[10px] text-slate-400 font-extrabold flex items-center gap-1">
-                        <span>Latitudine: {selectedReport.latitudine || "N/A"}</span>
-                        <span>·</span>
-                        <span>Longitudine: {selectedReport.longitudine || "N/A"}</span>
-                      </div>
-                    </div>
-
-                    {/* Information Guide Card */}
-                    <div className="p-5 bg-gradient-to-br from-[#1e3a5f] to-[#101b3a] rounded-xl text-white text-left space-y-4">
-                      <div>
-                        <span className="text-[9px] font-black bg-white/20 text-white px-2 py-0.5 rounded uppercase tracking-wider">Help Desk</span>
-                        <h4 className="font-extrabold text-sm mt-1">Guida Rapida Randagismo</h4>
-                      </div>
-                      <p className="text-xs text-slate-300 leading-relaxed font-medium">
-                        Stai gestendo la pratica secondo le disposizioni comunali del <strong>Regolamento Regionale di Prevenzione Randagismo</strong>. Ogni log inserito verrà archiviato in modo definitivo e firmato per la trasparenza amministrativa dell'ente.
-                      </p>
-                      <div className="border-t border-white/10 pt-3 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                        Ente: {fullConfig.siteName || 'Comune'} (ASP {fullConfig.comune_provincia || 'AG'})
-                      </div>
-                    </div>
-
-                  </div>
-
                 </div>
               </div>
 
@@ -2554,6 +2488,26 @@ export default function Operatori() {
             /* ================= MODULO B: DASHBOARD OPERATIVA ================= */
             <div className="space-y-8">
             
+            {/* Instruction Banner above the list */}
+            <div className="bg-[#1e3a5f] text-white p-6 rounded-2xl border border-slate-200 shadow-xl flex items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-white/10 rounded-xl">
+                  <Activity className="h-6 w-6 text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-emerald-400 leading-none mb-1">Gestione Operativa Randagismo</h3>
+                  <p className="text-xs text-slate-300 font-medium">
+                    Clicca su una pratica per visualizzarla in mappa. <strong>Fai doppio clic</strong> per aprire il flusso di lavoro guidato.
+                  </p>
+                </div>
+              </div>
+              <div className="hidden md:block">
+                 <div className="px-4 py-2 bg-white/10 rounded-lg text-[10px] font-black uppercase tracking-widest border border-white/5">
+                   Ente Attivo: {fullConfig.siteName || 'Naro'}
+                 </div>
+              </div>
+            </div>
+
             {/* Filter Panel */}
             <div className="bg-white p-6 rounded-xl border border-slate-200/80 shadow-sm flex flex-wrap gap-4 items-center justify-between">
               <div className="flex flex-wrap items-center gap-6">
@@ -2627,17 +2581,16 @@ export default function Operatori() {
             </div>
 
             {/* Dashboard Workspace */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
               
-              {/* List of Reports */}
-              <div className="lg:col-span-2 space-y-4">
-                <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
+              {/* List of Reports (Left) */}
+              <div className="space-y-4 flex flex-col h-full">
+                <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden flex-1 flex flex-col">
                   <div className="p-4 bg-slate-100 border-b border-slate-200/80 flex items-center justify-between">
                     <span className="text-xs font-black uppercase text-slate-600 tracking-wider">Elenco Segnalazioni Civiche</span>
-                    <span className="text-[10px] uppercase font-black text-slate-400">Seleziona una riga per intervenire</span>
                   </div>
                   
-                  <div className="divide-y divide-slate-100 max-h-[600px] overflow-y-auto">
+                  <div className="divide-y divide-slate-100 overflow-y-auto max-h-[700px]">
                     {filteredReports.length === 0 ? (
                       <div className="p-12 text-center text-slate-400">
                         Nessuna segnalazione trovata con i filtri correnti.
@@ -2653,7 +2606,23 @@ export default function Operatori() {
                               setAssignedEntity("nessuno");
                               setGuidedStep(1);
                             }}
-                            className={`p-6 transition-all cursor-pointer flex justify-between items-start ${
+                            onDoubleClick={() => {
+                              if (r.stato === SegnalazioneStato.CHIUSA && currentUser?.role !== 'ADMIN') {
+                                const pass = window.prompt("Questa pratica è CHIUSA. Inserisci la password di sblocco Super Admin per procedere alla modifica:");
+                                if (pass === "superadmin2026") {
+                                  setSelectedReport(r);
+                                  setIsWorkflowActive(true);
+                                  setGuidedStep(1);
+                                } else {
+                                  popup.error("Password errata o non inserita. Modifica non consentita.");
+                                }
+                              } else {
+                                setSelectedReport(r);
+                                setIsWorkflowActive(true);
+                                setGuidedStep(1);
+                              }
+                            }}
+                            className={`p-6 transition-all cursor-pointer flex justify-between items-start select-none ${
                               isSelected ? 'bg-emerald-50/50 border-l-4 border-[#15803d]' : 'hover:bg-slate-50'
                             }`}
                           >
@@ -2666,12 +2635,14 @@ export default function Operatori() {
                                 }`}>
                                   {r.urgenza}
                                 </span>
+                                {r.stato === SegnalazioneStato.CHIUSA && (
+                                  <Lock className="h-3 w-3 text-slate-400" />
+                                )}
                               </div>
-                              <p className="text-xs text-slate-600 font-medium max-w-md">{r.descrizione}</p>
+                              <p className="text-xs text-slate-600 font-medium max-w-md line-clamp-2">{r.descrizione}</p>
                               
                               <div className="flex gap-4 pt-1 text-[10px] text-slate-400 font-bold">
-                                <span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-[#15803d]" /> {r.indirizzo} ({r.zona})</span>
-                                <span className="flex items-center gap-1">Registrato il {r.createdAt}</span>
+                                <span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-[#15803d]" /> {r.indirizzo}</span>
                               </div>
                             </div>
 
@@ -2680,14 +2651,11 @@ export default function Operatori() {
                                 r.stato === SegnalazioneStato.NUOVA ? 'bg-blue-50 text-blue-600 border border-blue-200' :
                                 r.stato === SegnalazioneStato.IN_CARICO ? 'bg-yellow-50 text-yellow-600 border border-yellow-200' :
                                 r.stato === SegnalazioneStato.INTERVENTO ? 'bg-purple-50 text-purple-600 border border-purple-200' :
-                                r.stato === SegnalazioneStato.VALIDATA ? 'bg-sky-50 text-sky-600 border border-sky-200 animate-pulse' :
+                                r.stato === SegnalazioneStato.VALIDATA ? 'bg-sky-50 text-sky-600 border border-sky-200' :
                                 r.stato === SegnalazioneStato.FUSA ? 'bg-slate-100 text-slate-400 border border-slate-200 line-through' :
                                 'bg-emerald-50 text-emerald-600 border border-emerald-200'
                               }`}>
                                 {r.stato.replace('_', ' ')}
-                              </span>
-                              <span className="text-[10px] font-black text-slate-400 mt-2 bg-slate-100 px-2 py-0.5 rounded uppercase">
-                                {r.specie} · {r.taglia}
                               </span>
                             </div>
                           </div>
@@ -2696,282 +2664,65 @@ export default function Operatori() {
                     )}
                   </div>
                 </div>
-
-                {/* Micro Map or Location Context of Naro */}
-                <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden p-6">
-                  <h3 className="text-xs font-black uppercase text-slate-500 tracking-wider mb-4 flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-[#15803d]" /> Localizzazione Geografica Segnalazioni Attive (Colorate per Stato)
-                  </h3>
-                  <div className="h-[400px] w-full rounded-lg overflow-hidden border border-slate-200">
-                    <AppMap 
-                      markers={reports
-                        .filter(r => r.latitudine && r.longitudine)
-                        .map(r => ({
-                          id: String(r.id),
-                          lat: r.latitudine!,
-                          lng: r.longitudine!,
-                          title: r.codiceTracking + ' - ' + r.indirizzo,
-                          specie: r.specie === AnimalSpecie.GATTO ? 'Gatto' : 'Cane',
-                          urgenza: r.urgenza === 'ALTA' ? 'Alta' : r.urgenza === 'MEDIA' ? 'Normale' : 'Bassa' as any,
-                          image: r.fotoUrl || undefined,
-                          date: r.createdAt || '',
-                          code: r.codiceTracking,
-                          status: r.stato === 'CHIUSA' ? 'RISOLTA' : r.stato === 'IN_CARICO' ? 'IN_CARICO' : (r.stato === 'INTERVENTO' ? 'INTERVENTO' : 'CREATA') as any
-                        }))}
-                      interactive={true}
-                      onMarkerClick={(id) => {
-                        const found = reports.find(r => String(r.id) === id);
-                        if (found) {
-                          setSelectedReport(found);
-                          setAssignedEntity("nessuno");
-                          setGuidedStep(1);
-                        }
-                      }}
-                      center={selectedReport?.latitudine && selectedReport?.longitudine ? [selectedReport.latitudine, selectedReport.longitudine] : undefined}
-                    />
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-4 items-center justify-center text-xs">
-                    <div className="flex items-center gap-1.5 font-bold">
-                      <span className="w-3.5 h-3.5 rounded-full bg-blue-500 border-2 border-white shadow-sm inline-block"></span>
-                      <span className="text-slate-500 uppercase text-[10px]">Nuova (Da Gestire)</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 font-bold">
-                      <span className="w-3.5 h-3.5 rounded-full bg-amber-500 border-2 border-white shadow-sm inline-block"></span>
-                      <span className="text-slate-500 uppercase text-[10px]">In Carico / Intervento</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 font-bold">
-                      <span className="w-3.5 h-3.5 rounded-full bg-[#10b981] border-2 border-white shadow-sm inline-block"></span>
-                      <span className="text-slate-500 uppercase text-[10px]">Risolta / Chiusa</span>
-                    </div>
-                  </div>
-                </div>
-
               </div>
 
-              {/* Action and Log Form Panel on Selected Report */}
-              <div className="lg:col-span-1">
-                {selectedReport ? (
-                  <div className="bg-white rounded-xl border border-slate-200/80 shadow-md overflow-hidden sticky top-24">
-                    <div className="p-6 bg-[#1e3a5f] text-white">
-                      <span className="text-[9px] font-black bg-white/20 px-2 py-0.5 rounded uppercase tracking-wider">Pratica Selezionata</span>
-                      <h2 className="text-xl font-bold mt-1">{selectedReport.codiceTracking}</h2>
-                      <p className="text-xs text-slate-300 mt-1">Ufficio di Randagismo {fullConfig.siteName || 'Comune'}</p>
-                    </div>
-
-                    <div className="p-6 space-y-6">
-                      
-                      {/* Quick Details */}
-                      <div className="grid grid-cols-2 gap-4 text-xs font-medium text-slate-600 bg-slate-50 p-4 rounded-lg">
-                        <div>
-                          <span className="text-[9px] text-slate-400 block font-bold uppercase">Soggetto spec.</span>
-                          <span className="font-bold text-[#1e3a5f] text-sm uppercase">{selectedReport.specie}</span>
-                        </div>
-                        <div>
-                          <span className="text-[9px] text-slate-400 block font-bold uppercase font-sans">Condizione</span>
-                          <span className="font-bold text-red-500 text-sm uppercase">{selectedReport.condizioni}</span>
-                        </div>
-                        <div className="col-span-2 pt-2 border-t border-slate-200">
-                          <span className="text-[9px] text-slate-400 block font-bold uppercase">Indirizzo segnalato</span>
-                          <span className="font-semibold text-slate-700 block mt-0.5">{selectedReport.indirizzo}</span>
-                        </div>
-                        <div className="col-span-2 pt-2 border-t border-slate-200">
-                          <span className="text-[9px] text-slate-400 block font-bold uppercase">Segnalante</span>
-                          <span className="font-semibold text-slate-700 block mt-0.5">{selectedReport.nomeSegnalante} {selectedReport.cognomeSegnalante} (Tel: {selectedReport.telefonoSegnalante || "Non fornito"})</span>
-                        </div>
-                      </div>
-
-                      {/* Direct Status Altering buttons & Form for Operator Log Timeline */}
-                      {currentUser?.role === 'Volontario' ? (
-                        <div className="bg-amber-50 border border-amber-200 p-5 rounded-xl space-y-3 text-amber-900 shadow-sm text-left">
-                          <p className="font-bold text-xs flex items-center gap-1.5 uppercase tracking-wider text-amber-700">
-                            <ShieldAlert className="h-5 w-5 text-amber-600" /> Profilo Sola Lettura (Volontario)
-                          </p>
-                          <p className="text-xs leading-relaxed text-amber-800">
-                            Gentile <strong>{currentUser.username}</strong>, in qualità di volontario puoi esplorare liberamente le segnalazioni e consultare il registro, ma non disponi dei privilegi amministrativi necessari per emettere log di stato, firmare verbali di intervento o assegnare pratiche.
-                          </p>
-                          <div className="border-t border-amber-200/60 pt-2 flex items-center justify-between text-[10px] font-bold text-amber-700 uppercase">
-                            <span>Abilitazione Ente: Naro</span>
-                            <span>Ruolo: Volontario</span>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          {/* Direct Status Altering buttons */}
-                          <div>
-                            <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-2">Imposta Stato Pratica</h4>
-                            <div className="grid grid-cols-3 gap-2">
-                              <button 
-                                onClick={() => handleUpdateStatus(SegnalazioneStato.IN_CARICO)}
-                                className={`p-2 rounded text-xs font-bold uppercase border tracking-wider transition-all ${
-                                  selectedReport.stato === SegnalazioneStato.IN_CARICO 
-                                    ? 'bg-yellow-100 text-yellow-800 border-yellow-300 shadow-sm' 
-                                    : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
-                                }`}
-                              >
-                                In Carico
-                              </button>
-                              <button 
-                                onClick={() => handleUpdateStatus(SegnalazioneStato.VALIDATA)}
-                                className={`p-2 rounded text-xs font-bold uppercase border tracking-wider transition-all ${
-                                  selectedReport.stato === SegnalazioneStato.VALIDATA 
-                                    ? 'bg-sky-100 text-sky-800 border-sky-300 shadow-sm' 
-                                    : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
-                                }`}
-                              >
-                                Validata
-                              </button>
-                              <button 
-                                onClick={() => handleUpdateStatus(SegnalazioneStato.CHIUSA)}
-                                className={`p-2 rounded text-xs font-bold uppercase border tracking-wider transition-all ${
-                                  selectedReport.stato === SegnalazioneStato.CHIUSA 
-                                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300 shadow-sm' 
-                                    : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
-                                }`}
-                              >
-                                Risolta
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Fusion & Duplication Merge Panel */}
-                          <div className="p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl space-y-3 text-left">
-                            <h4 className="text-[10px] font-black uppercase text-indigo-700 tracking-wider flex items-center gap-1.5">
-                              <GitMerge className="h-4 w-4 text-indigo-600" /> Unificazione e Fusione Duplicati
-                            </h4>
-                            <p className="text-[10px] text-slate-500 leading-relaxed">
-                              Se questa segnalazione è un duplicato di un'attività già registrata, seleziona qui sotto la pratica principale per effettuarne la fusa. Verranno salvati i registri storici di entrambe.
-                            </p>
-                            
-                            <div className="space-y-1">
-                              <label className="text-[9px] font-bold text-slate-400 uppercase block">Segnalazione di Destinazione (Principale)</label>
-                              <select
-                                className="w-full p-2 border border-slate-200 rounded text-xs font-bold text-slate-700 bg-white"
-                                value={mergeTargetId}
-                                onChange={(e) => setMergeTargetId(e.target.value)}
-                              >
-                                <option value="">-- Seleziona Segnalazione Attiva --</option>
-                                {reports
-                                  .filter(r => r.id !== selectedReport.id && r.stato !== SegnalazioneStato.FUSA)
-                                  .map(r => (
-                                    <option key={r.id} value={r.id}>
-                                      [{r.codiceTracking}] - {r.indirizzo} ({r.createdAt})
-                                    </option>
-                                  ))}
-                              </select>
-                            </div>
-
-                            {mergeTargetId && (
-                              <button
-                                type="button"
-                                onClick={handleMergeReports}
-                                className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-black uppercase tracking-wider shadow transition-all flex items-center justify-center gap-1.5 animate-pulse"
-                              >
-                                <GitCompare className="h-3.5 w-3.5" /> Esegui Fusione Record
-                              </button>
-                            )}
-                          </div>
-
-                          {/* Form for Operator Log Timeline & Work Assignment */}
-                          <form onSubmit={handleAddLog} className="space-y-4 pt-4 border-t border-slate-100">
-                            <h3 className="text-xs font-black uppercase text-slate-700 tracking-wider flex items-center gap-2">
-                              <CheckSquare className="h-4 w-4 text-[#15803d]" /> Assegnazione e Log Azione
-                            </h3>
-
-                            {/* Assign Intervention */}
-                            <div>
-                              <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Destinatario Intervento</label>
-                              <select 
-                                value={assignedEntity} 
-                                onChange={(e) => setAssignedEntity(e.target.value as any)}
-                                className="w-full p-3 border border-slate-200 rounded text-xs font-bold text-slate-700 bg-slate-50"
-                              >
-                                <option value="nessuno">Nessuna assegnazione immediata</option>
-                                <option value="canile">Canile Convenzionato Naro</option>
-                                <option value="veterinario">Veterinario ASP Agrigento (ASP AG)</option>
-                                <option value="polizia">Polizia Municipale di Naro</option>
-                              </select>
-                            </div>
-
-                            {/* Signature field */}
-                            <div>
-                              <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Firma dell'Operatore Comunale *</label>
-                              <input 
-                                type="text" 
-                                required
-                                placeholder="es. Geom. Calogero Russo / Dott. Valenti"
-                                value={opSign}
-                                onChange={(e) => setOpSign(e.target.value)}
-                                className="w-full p-3 border border-slate-200 rounded text-xs font-bold text-[#1e3a5f] outline-none focus:border-[#15803d]"
-                              />
-                            </div>
-
-                            {/* Note/Comment */}
-                            <div>
-                              <label className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Dettagli del sopralluogo / Nota di Stato *</label>
-                              <textarea 
-                                required
-                                rows={3}
-                                placeholder="Sopralluogo programmato, contatti con il canile..."
-                                value={opComment}
-                                onChange={(e) => setOpComment(e.target.value)}
-                                className="w-full p-3 border border-slate-200 rounded text-xs font-bold text-slate-700 outline-none focus:border-[#15803d] h-20"
-                              />
-                            </div>
-
-                            <button 
-                              type="submit"
-                              className="w-full bg-[#15803d] hover:bg-[#166534] text-white p-3 rounded-lg text-xs font-bold uppercase tracking-wider shadow-md shadow-[#15803d]/20 transition-all text-center"
-                            >
-                              Salva e Firma Intervento
-                            </button>
-                          </form>
-                        </>
-                      )}
-
-                      {/* Log timeline display belonging to this report */}
-                      <div className="pt-6 border-t border-slate-100 space-y-3">
-                        <span className="text-[10px] font-black uppercase text-slate-400 block tracking-wider">Cronologia Log Pratica</span>
-                        
-                        <div className="space-y-4 max-h-[220px] overflow-y-auto pr-1">
-                          {logs.filter(l => l.reportId === selectedReport.id).length === 0 ? (
-                            <div className="text-[11px] text-slate-400 italic font-medium p-2 bg-slate-50 rounded">
-                              Nessun log o firma registrata per questa pratica.
-                            </div>
-                          ) : (
-                            logs.filter(l => l.reportId === selectedReport.id).map(l => (
-                              <div key={l.id} className="text-xs bg-slate-50 border border-slate-100 p-3 rounded space-y-1">
-                                <div className="flex justify-between text-[9px] font-bold text-slate-400">
-                                  <span>{l.data}</span>
-                                  <span className="text-[#1e3a5f] underline">Firma: {l.operatore}</span>
-                                </div>
-                                <p className="text-[#101b3a] font-medium leading-relaxed font-sans">{l.descrizione}</p>
-                                {l.assegnatoA !== "nessuno" && (
-                                  <span className="inline-block mt-1 text-[8px] font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-200 rounded px-1.5 py-0.5">
-                                    Assegnato a: {l.assegnatoA === 'canile' ? 'Canile Conv.' : l.assegnatoA === 'veterinario' ? 'ASP AG' : 'PM Naro'}
-                                  </span>
-                                )}
-                              </div>
-                            ))
-                          )}
-                        </div>
-                        {hasMoreLogs && (
-                          <button 
-                            type="button" 
-                            onClick={loadMoreLogs}
-                            className="mt-2 w-full text-center text-[10px] text-blue-600 hover:text-blue-800 font-bold uppercase tracking-wider bg-slate-100/50 py-1.5 rounded border border-dashed border-slate-200"
-                          >
-                            Carica Altri Log Storici ({logs.length} caricati)
-                          </button>
+              {/* Map Context (Right) */}
+              <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden flex flex-col h-full min-h-[500px]">
+                <div className="p-4 bg-slate-100 border-b border-slate-200/80 flex items-center justify-between shrink-0">
+                  <h3 className="text-xs font-black uppercase text-slate-500 tracking-wider flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-[#15803d]" /> 
+                    {selectedReport ? `Localizzazione: ${selectedReport.codiceTracking}` : 'Seleziona una segnalazione per vederla sulla mappa'}
+                  </h3>
+                </div>
+                <div className="flex-1 w-full relative">
+                  <AppMap 
+                    markers={selectedReport ? [{
+                      id: String(selectedReport.id),
+                      lat: selectedReport.latitudine!,
+                      lng: selectedReport.longitudine!,
+                      title: selectedReport.codiceTracking + ' - ' + selectedReport.indirizzo,
+                      specie: selectedReport.specie === AnimalSpecie.GATTO ? 'Gatto' : 'Cane',
+                      urgenza: selectedReport.urgenza === 'ALTA' ? 'Alta' : selectedReport.urgenza === 'MEDIA' ? 'Normale' : 'Bassa',
+                      image: selectedReport.fotoUrl || undefined,
+                      date: selectedReport.createdAt || '',
+                      code: selectedReport.codiceTracking,
+                      status: selectedReport.stato === 'CHIUSA' ? 'RISOLTA' : selectedReport.stato === 'IN_CARICO' ? 'IN_CARICO' : (selectedReport.stato === 'INTERVENTO' ? 'INTERVENTO' : 'CREATA')
+                    }] : []}
+                    interactive={true}
+                    center={selectedReport?.latitudine && selectedReport?.longitudine ? [selectedReport.latitudine, selectedReport.longitudine] : undefined}
+                  />
+                  
+                  {selectedReport && (
+                    <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-md p-4 rounded-xl border border-slate-200 shadow-xl animate-in slide-in-from-bottom-4 duration-300">
+                      <div className="flex items-center gap-4">
+                        {selectedReport.fotoUrl && (
+                          <img src={selectedReport.fotoUrl} alt="Anteprima" className="w-16 h-16 rounded-lg object-cover border border-slate-200" referrerPolicy="no-referrer" />
                         )}
+                        <div className="flex-1">
+                          <h4 className="text-sm font-black text-[#1e3a5f] uppercase tracking-wide">{selectedReport.codiceTracking}</h4>
+                          <p className="text-[11px] text-slate-500 font-bold mb-2">{selectedReport.indirizzo}</p>
+                          <button 
+                            onClick={() => {
+                              if (selectedReport.stato === SegnalazioneStato.CHIUSA && currentUser?.role !== 'ADMIN') {
+                                const pass = window.prompt("Questa pratica è CHIUSA. Inserisci la password di sblocco Super Admin per procedere alla modifica:");
+                                if (pass === "superadmin2026") {
+                                  setIsWorkflowActive(true);
+                                } else {
+                                  popup.error("Password errata o non inserita.");
+                                }
+                              } else {
+                                setIsWorkflowActive(true);
+                              }
+                            }}
+                            className="w-full py-2 bg-[#15803d] hover:bg-[#166534] text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-lg shadow-[#15803d]/20 transition-all flex items-center justify-center gap-2"
+                          >
+                            Apri Lavorazione Pratica <ArrowRight className="h-3 w-3" />
+                          </button>
+                        </div>
                       </div>
-
                     </div>
-                  </div>
-                ) : (
-                  <div className="bg-slate-100 h-96 rounded-xl flex items-center justify-center border border-slate-200/60 p-6 text-center text-slate-400 font-medium font-sans">
-                    Arruola o seleziona una segnalazione civica sulla sinistra per visualizzare i comandi e firmare i protocolli di randagismo.
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
             </div>
