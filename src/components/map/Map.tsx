@@ -267,7 +267,13 @@ export default function AppMap({ onLocationSelect, onMarkerClick, markers = [], 
                       className="h-32 w-full overflow-hidden relative outline-none focus:ring-4 focus:ring-inset focus:ring-[#15803d]/50 cursor-zoom-in group/img"
                       tabIndex={0}
                       aria-label={`Foto della segnalazione: ${m.title}`}
-                      onClick={() => setLightbox({ isOpen: true, url: m.image!, title: m.title })}
+                      onClick={() => {
+                        if (onMarkerClick && m.id) {
+                          onMarkerClick(m.id);
+                        } else {
+                          setLightbox({ isOpen: true, url: m.image!, title: m.title });
+                        }
+                      }}
                     >
                       <img src={m.image} alt="" className="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-110" />
                       <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/20 transition-colors flex items-center justify-center">

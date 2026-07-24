@@ -45,6 +45,7 @@ app.use(async (req, res, next) => {
 
 // API Routes
 app.use("/api/otp", otpRouter);
+app.use("/api/admin/users", utentiRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/interventi_logs", (req, res, next) => {
   req.url = "/interventi_logs";

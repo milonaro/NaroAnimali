@@ -385,6 +385,57 @@ export async function createMySQLTables() {
         is_spid_verified TINYINT(1) DEFAULT 0,
         identity_provider VARCHAR(50) DEFAULT NULL,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS fatture_servizi (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        comune_key VARCHAR(50) NOT NULL DEFAULT 'naro',
+        numero_fattura VARCHAR(50),
+        fornitore_nome VARCHAR(150),
+        data_emissione DATE,
+        importo_lordo DECIMAL(10,2),
+        stato_pagamento VARCHAR(50) DEFAULT 'DA_PAGARE',
+        note TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS strutture_convenzionate (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        comune_key VARCHAR(50) NOT NULL DEFAULT 'naro',
+        nome VARCHAR(150) NOT NULL,
+        tipologia VARCHAR(50),
+        indirizzo VARCHAR(255),
+        contatti VARCHAR(100),
+        p_iva VARCHAR(50),
+        capacita_max INT DEFAULT 0,
+        note TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS convenzioni_attive (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        comune_key VARCHAR(50) NOT NULL DEFAULT 'naro',
+        titolo VARCHAR(150) NOT NULL,
+        ente_partner VARCHAR(150),
+        data_inizio DATE,
+        data_scadenza DATE,
+        budget_allocato DECIMAL(10,2) DEFAULT 0,
+        stato VARCHAR(50) DEFAULT 'ATTIVA',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS adozioni_logs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        comune_key VARCHAR(50) NOT NULL DEFAULT 'naro',
+        microchip VARCHAR(50),
+        nome_animale VARCHAR(100),
+        specie VARCHAR(50),
+        sesso VARCHAR(20),
+        data_adozione TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        adottante_nome VARCHAR(150),
+        adottante_cf VARCHAR(16),
+        adottante_telefono VARCHAR(30),
+        adottante_email VARCHAR(150),
+        adottante_indirizzo VARCHAR(255),
+        note_adozione TEXT,
+        stato_pratica VARCHAR(50) DEFAULT 'COMPLETATA',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`
   ];
 

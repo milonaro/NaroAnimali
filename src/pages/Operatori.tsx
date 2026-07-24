@@ -2689,6 +2689,34 @@ export default function Operatori() {
                       status: selectedReport.stato === 'CHIUSA' ? 'RISOLTA' : selectedReport.stato === 'IN_CARICO' ? 'IN_CARICO' : (selectedReport.stato === 'INTERVENTO' ? 'INTERVENTO' : 'CREATA')
                     }] : []}
                     interactive={true}
+                    onMarkerClick={(id) => {
+                      const found = reports.find(r => String(r.id) === id);
+                      if (found) {
+                        if (found.stato === SegnalazioneStato.CHIUSA && currentUser?.role !== 'ADMIN') {
+                          const pass = window.prompt("Questa pratica è CHIUSA. Inserisci la password di sblocco Super Admin per procedere alla modifica:");
+                          if (pass === "superadmin2026") {
+                            setSelectedReport(found);
+                            setIsWorkflowActive(true);
+                          } else {
+                            popup.error("Password errata o non inserita.");
+                          }
+                        } else {
+                          setSelectedReport(found);
+                          setIsWorkflowActive(true);
+                        }
+                      } else if (selectedReport) {
+                        if (selectedReport.stato === SegnalazioneStato.CHIUSA && currentUser?.role !== 'ADMIN') {
+                          const pass = window.prompt("Questa pratica è CHIUSA. Inserisci la password di sblocco Super Admin per procedere alla modifica:");
+                          if (pass === "superadmin2026") {
+                            setIsWorkflowActive(true);
+                          } else {
+                            popup.error("Password errata o non inserita.");
+                          }
+                        } else {
+                          setIsWorkflowActive(true);
+                        }
+                      }
+                    }}
                     center={selectedReport?.latitudine && selectedReport?.longitudine ? [selectedReport.latitudine, selectedReport.longitudine] : undefined}
                   />
                   
@@ -2696,7 +2724,24 @@ export default function Operatori() {
                     <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-md p-4 rounded-xl border border-slate-200 shadow-xl animate-in slide-in-from-bottom-4 duration-300">
                       <div className="flex items-center gap-4">
                         {selectedReport.fotoUrl && (
-                          <img src={selectedReport.fotoUrl} alt="Anteprima" className="w-16 h-16 rounded-lg object-cover border border-slate-200" referrerPolicy="no-referrer" />
+                          <img 
+                            src={selectedReport.fotoUrl} 
+                            alt="Anteprima" 
+                            className="w-16 h-16 rounded-lg object-cover border border-slate-200 cursor-pointer hover:opacity-80 transition-opacity" 
+                            referrerPolicy="no-referrer" 
+                            onClick={() => {
+                              if (selectedReport.stato === SegnalazioneStato.CHIUSA && currentUser?.role !== 'ADMIN') {
+                                const pass = window.prompt("Questa pratica è CHIUSA. Inserisci la password di sblocco Super Admin per procedere alla modifica:");
+                                if (pass === "superadmin2026") {
+                                  setIsWorkflowActive(true);
+                                } else {
+                                  popup.error("Password errata o non inserita.");
+                                }
+                              } else {
+                                setIsWorkflowActive(true);
+                              }
+                            }}
+                          />
                         )}
                         <div className="flex-1">
                           <h4 className="text-sm font-black text-[#1e3a5f] uppercase tracking-wide">{selectedReport.codiceTracking}</h4>
